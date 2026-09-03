@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — MR Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933;
+    --muted:#6b7280;
+    --line:#d7dbe0;
+    --accent:#2f6fed;
+    --accent-dark:#2050bd;
+    --bg:#eef1f6;
+    --paper:#ffffff;
+    --head:#1f2933;
+    --submitted:#94a3b8;
+    --manager:#f59e0b;
+    --procurement:#8b5cf6;
+    --purchased:#2f6fed;
+    --received:#16a34a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+  }
+  .app{ max-width:1300px; margin:28px auto; padding:0 18px 60px; }
+  .toolbar{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:14px; margin-bottom:20px; flex-wrap:wrap;
+  }
+  .brand{ font-weight:800; font-size:20px; letter-spacing:-.3px; }
+  .brand span{ font-weight:400; color:var(--muted); }
+  .actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  input,select{
+    font:inherit; border:1px solid var(--line); border-radius:8px;
+    padding:8px 12px; background:#fff; color:var(--ink); outline:none;
+  }
+  input:focus,select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
+  button{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    padding:9px 14px; border-radius:8px; cursor:pointer; font-weight:600;
+    font-size:12.5px; font-family:inherit;
+  }
+  button:hover{ background:#f4f6f8; }
+  .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .primary:hover{ background:var(--accent-dark); }
+
+  /* ---- Pipeline strip ---- */
+  .pipeline{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:0;
+    background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07);
+    overflow:hidden; margin-bottom:22px;
+  }
+  .stage-cell{
+    padding:18px 16px; position:relative; border-right:1px solid var(--line);
+    cursor:pointer; transition:background .15s ease;
+  }
+  .stage-cell:last-child{ border-right:0; }
+  .stage-cell:hover{ background:#f8fafc; }
+  .stage-cell.active{ background:#f0f5ff; }
+  .stage-cell::after{
+    content:"›"; position:absolute; right:-2px; top:50%; transform:translateY(-50%);
+    font-size:22px; color:var(--line); font-weight:700;
+  }
+  .stage-cell:last-child::after{ content:""; }
+  .stage-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:7px; }
+  .stage-label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+  .stage-count{ font-size:28px; font-weight:800; margin-top:6px; line-height:1; }
+
+  .toolbar2{ display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+  .toolbar2 input[type=text]{ flex:1; min-width:200px; }
+  .count-note{ font-size:12px; color:var(--muted); margin-left:auto; }
+
+  /* ---- Table ---- */
+  .sheet{
+    background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07);
+    overflow:hidden;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px;
+    color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line);
+    background:#fafbfc;
+  }
+  tbody td{ padding:12px 14px; border-bottom:1px solid #eef0f2; vertical-align:middle; }
+  tbody tr.req-row:hover{ background:#fafcff; cursor:pointer; }
+  .tracking{ font-weight:700; color:var(--accent-dark); }
+  .proj{ font-weight:600; }
+  .muted{ color:var(--muted); font-size:12px; }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px;
+    font-size:11.5px; font-weight:700; color:#fff; white-space:nowrap;
+  }
+  .progress-wrap{ display:flex; align-items:center; gap:8px; }
+  .progress-bar{ width:70px; height:6px; border-radius:3px; background:#e5e7eb; overflow:hidden; }
+  .progress-fill{ height:100%; background:var(--received); }
+  .stage-select{ font-size:12px; padding:6px 8px; }
+  .items-panel{ background:#fafbfc; }
+  .items-panel td{ padding:0; border-bottom:1px solid var(--line); }
+  .items-inner{ padding:10px 24px 20px 44px; }
+  .item-row{
+    display:grid; grid-template-columns:26px 1fr 90px 90px 90px 90px;
+    gap:10px; align-items:center; padding:8px 0; border-bottom:1px dashed #e2e5ea; font-size:12.5px;
+  }
+  .item-row:last-child{ border-bottom:0; }
+  .item-row .ihead{ font-weight:700; font-size:10.5px; text-transform:uppercase; color:var(--muted); border-bottom:none; }
+  .item-name{ font-weight:600; }
+  .item-desc{ color:var(--muted); font-size:11.5px; }
+  .num{ text-align:right; }
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state h3{ color:var(--ink); margin-bottom:6px; }
+  .status-msg{ font-size:12.5px; color:var(--accent-dark); font-weight:600; min-height:16px; margin-top:10px; }
+  .chev{ display:inline-block; transition:transform .15s ease; color:var(--muted); }
+  .chev.open{ transform:rotate(90deg); }
+  a.item-link{ color:var(--accent); text-decoration:none; font-size:11.5px; }
+  @media(max-width:900px){
+    .pipeline{ grid-template-columns:repeat(2,1fr); }
+    .stage-cell::after{ display:none; }
+    .item-row{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
+    <div class="actions">
+      <button onclick="loadData()">Refresh</button>
+      <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
+    </div>
+  </div>
+
+  <div class="pipeline" id="pipeline"></div>
+
+  <div class="toolbar2">
+    <input type="text" id="searchBox" placeholder="Search by tracking no, project, or requester..." oninput="render()">
+    <select id="stageFilter" onchange="render()">
+      <option value="">All stages</option>
+      <option>Submitted</option>
+      <option>Manager Approved</option>
+      <option>Procurement Approved</option>
+      <option>Purchased</option>
+      <option>Received</option>
+    </select>
+    <span class="count-note" id="countNote"></span>
+  </div>
+
+  <div class="sheet">
+    <table id="reqTable">
+      <thead>
+        <tr>
+          <th style="width:26px"></th>
+          <th>Tracking No</th>
+          <th>Project</th>
+          <th>Requested By</th>
+          <th>Date</th>
+          <th>Grand Total</th>
+          <th>Items Received</th>
+          <th>Stage</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <h3>No requisitions yet</h3>
+      <div>Submit one from the form and it will show up here.</div>
+    </div>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ============================================================
+// SUPABASE CONFIG — must match the values used in index.html
+// ============================================================
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received"];
+const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","Procurement Approved":"--procurement","Purchased":"--purchased","Received":"--received" };
+const STAGE_TIMESTAMP_FIELD = {
+  "Manager Approved":"manager_approved_at",
+  "Procurement Approved":"procurement_approved_at",
+  "Purchased":"purchased_at",
+  "Received":"received_at"
+};
+
+let allReqs = [];
+let openRows = new Set();
+let activeStageFilter = "";
+
+function setStatus(t){
+  const el=document.getElementById("statusMsg");
+  el.textContent=t;
+  clearTimeout(window._st);
+  window._st=setTimeout(()=>el.textContent="",4000);
+}
+
+function fmtMoney(n){ return "$ " + Number(n||0).toFixed(2); }
+function fmtDate(d){ if(!d) return "-"; return d; }
+
+function renderPipeline(){
+  const el=document.getElementById("pipeline");
+  el.innerHTML = STAGES.map(stage=>{
+    const count = allReqs.filter(r=>r.status===stage).length;
+    const active = activeStageFilter===stage ? "active" : "";
+    return `
+      <div class="stage-cell ${active}" onclick="toggleStageFilter('${stage}')">
+        <div class="stage-label"><span class="stage-dot" style="background:var(${STAGE_VARS[stage]})"></span>${stage}</div>
+        <div class="stage-count">${count}</div>
+      </div>`;
+  }).join("");
+}
+
+function toggleStageFilter(stage){
+  activeStageFilter = (activeStageFilter===stage) ? "" : stage;
+  document.getElementById("stageFilter").value = activeStageFilter;
+  render();
+}
+
+function matchesSearch(r, q){
+  if(!q) return true;
+  q=q.toLowerCase();
+  return (r.tracking_no||"").toLowerCase().includes(q)
+    || (r.project_name||"").toLowerCase().includes(q)
+    || (r.request_by||"").toLowerCase().includes(q);
+}
+
+function render(){
+  const q = document.getElementById("searchBox").value.trim();
+  const stageSel = document.getElementById("stageFilter").value;
+  activeStageFilter = stageSel;
+
+  const filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel));
+  document.getElementById("countNote").textContent = `${filtered.length} of ${allReqs.length} requisitions`;
+
+  renderPipeline();
+
+  const tbody = document.getElementById("tbody");
+  const emptyState = document.getElementById("emptyState");
+  document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
+  emptyState.style.display = allReqs.length ? "none" : "block";
+
+  tbody.innerHTML = filtered.map(r=>{
+    const items = r.requisition_items || [];
+    const receivedCount = items.filter(i=>i.received).length;
+    const pct = items.length ? Math.round(100*receivedCount/items.length) : 0;
+    const isOpen = openRows.has(r.id);
+    const stageOptions = STAGES.map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${s}</option>`).join("");
+
+    const mainRow = `
+      <tr class="req-row" onclick="toggleRow('${r.id}')">
+        <td><span class="chev ${isOpen?'open':''}">›</span></td>
+        <td class="tracking">${r.tracking_no||"-"}</td>
+        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div></td>
+        <td>${escapeHtml(r.request_by||"-")}</td>
+        <td class="muted">${fmtDate(r.form_date)}</td>
+        <td>${fmtMoney(r.grand_total)}</td>
+        <td>
+          <div class="progress-wrap">
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <span class="muted">${receivedCount}/${items.length}</span>
+          </div>
+        </td>
+        <td onclick="event.stopPropagation()">
+          <select class="stage-select" style="background:var(${STAGE_VARS[r.status]});color:#fff;border:none;font-weight:700" onchange="changeStage('${r.id}', this.value)">
+            ${stageOptions}
+          </select>
+        </td>
+      </tr>`;
+
+    const itemsRows = items.slice().sort((a,b)=>(a.sn||0)-(b.sn||0)).map(it=>`
+      <div class="item-row">
+        <input type="checkbox" ${it.received?"checked":""} onchange="toggleItemReceived('${it.id}', this.checked, '${r.id}')">
+        <div>
+          <div class="item-name">${escapeHtml(it.name||"-")}</div>
+          <div class="item-desc">${escapeHtml(it.description||"")}</div>
+          ${it.link?`<a class="item-link" href="${escapeAttr(it.link)}" target="_blank" onclick="event.stopPropagation()">Open link ↗</a>`:""}
+        </div>
+        <div class="num">${it.qty}</div>
+        <div class="num">${fmtMoney(it.unit_price)}</div>
+        <div class="num">${fmtMoney(it.delivery_tax)}</div>
+        <div class="num" style="font-weight:700">${fmtMoney(it.total)}</div>
+      </div>
+    `).join("");
+
+    const detailRow = isOpen ? `
+      <tr class="items-panel">
+        <td colspan="8">
+          <div class="items-inner">
+            <div class="item-row ihead">
+              <div></div><div>Item</div><div class="num">Qty</div><div class="num">Unit Price</div><div class="num">Delivery/Tax</div><div class="num">Total</div>
+            </div>
+            ${itemsRows || '<div class="muted" style="padding:10px 0">No line items.</div>'}
+            <div style="margin-top:10px;font-size:11.5px;color:var(--muted)">
+              Manager: ${escapeHtml(r.manager_name||"-")} · Approved by: ${escapeHtml(r.approve_by||"-")} ·
+              Purchased by: ${escapeHtml(r.purchase_by||"-")} · Received by: ${escapeHtml(r.received_by||"-")}
+            </div>
+          </div>
+        </td>
+      </tr>` : "";
+
+    return mainRow + detailRow;
+  }).join("");
+}
+
+function toggleRow(id){
+  if(openRows.has(id)) openRows.delete(id); else openRows.add(id);
+  render();
+}
+
+function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function escapeAttr(s){ return String(s).replace(/"/g,"&quot;"); }
+
+async function changeStage(id, newStage){
+  if(!supabaseClient) return;
+  const patch = { status: newStage };
+  const tsField = STAGE_TIMESTAMP_FIELD[newStage];
+  if(tsField) patch[tsField] = new Date().toISOString();
+
+  const {error} = await supabaseClient.from("requisitions").update(patch).eq("id", id);
+  if(error){ setStatus("Could not update stage: "+error.message); return; }
+
+  const r = allReqs.find(x=>x.id===id);
+  if(r) Object.assign(r, patch);
+  setStatus(`Stage updated to "${newStage}".`);
+  render();
+}
+
+async function toggleItemReceived(itemId, checked, requisitionId){
+  if(!supabaseClient) return;
+  const patch = { received: checked, received_at: checked ? new Date().toISOString() : null };
+  const {error} = await supabaseClient.from("requisition_items").update(patch).eq("id", itemId);
+  if(error){ setStatus("Could not update item: "+error.message); return; }
+
+  const r = allReqs.find(x=>x.id===requisitionId);
+  if(r){
+    const it = (r.requisition_items||[]).find(x=>x.id===itemId);
+    if(it) Object.assign(it, patch);
+
+    // Auto-advance the requisition to "Received" once every item is checked off
+    const items = r.requisition_items||[];
+    if(items.length && items.every(i=>i.received) && r.status!=="Received"){
+      await changeStage(requisitionId, "Received");
+      return;
+    }
+  }
+  setStatus("Item receipt updated.");
+  render();
+}
+
+async function loadData(){
+  if(!supabaseClient){
+    setStatus("Supabase isn't configured yet — edit SUPABASE_URL / SUPABASE_ANON_KEY in this file's script.");
+    return;
+  }
+  setStatus("Loading...");
+  const {data, error} = await supabaseClient
+    .from("requisitions")
+    .select("*, requisition_items(*)")
+    .order("created_at", {ascending:false});
+  if(error){ setStatus("Could not load data: "+error.message); return; }
+  allReqs = data || [];
+  setStatus("");
+  render();
+}
+
+loadData();
+</script>
+</body>
+</html>

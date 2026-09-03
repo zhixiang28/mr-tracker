@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic Materials Requisition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933;
+    --muted:#6b7280;
+    --line:#d7dbe0;
+    --accent:#2f6fed;
+    --accent-dark:#2050bd;
+    --bg:#eef1f6;
+    --paper:#ffffff;
+    --head:#1f2933;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+  }
+  .app{
+    max-width:1300px;
+    margin:28px auto;
+    padding:0 18px 44px;
+  }
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:14px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .brand{
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:-.3px;
+    color:var(--ink);
+  }
+  .brand span{font-weight:400;color:var(--muted)}
+  .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+  .divider{width:1px;align-self:stretch;background:#d7dbe0;margin:2px 2px}
+  button{
+    border:1px solid #d7dbe0;
+    background:#fff;
+    color:var(--ink);
+    padding:9px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+    font-size:12.5px;
+    font-family:inherit;
+    transition:background .15s ease, box-shadow .15s ease, transform .05s ease;
+  }
+  button:hover{background:#f4f6f8}
+  button:active{transform:translateY(1px)}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .primary:hover{background:var(--accent-dark)}
+  .icon-btn{width:36px;padding:0;text-align:center;font-size:14px}
+  .sheet{
+    background:var(--paper);
+    padding:30px 28px 36px;
+    border-radius:16px;
+    box-shadow:0 12px 32px rgba(15,23,42,.09);
+    overflow:auto;
+  }
+  .header{
+    background:var(--head);
+    color:#fff;
+    border-radius:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 24px;
+    min-width:960px;
+  }
+  .title{
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+  .logo{
+    font-size:14px;
+    font-weight:800;
+    letter-spacing:.6px;
+    background:rgba(255,255,255,.14);
+    padding:7px 16px;
+    border-radius:999px;
+  }
+  .section-title{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-weight:700;
+    font-size:11.5px;
+    letter-spacing:.6px;
+    text-transform:uppercase;
+    color:#374151;
+    border-bottom:1px solid #e5e7eb;
+    padding-bottom:9px;
+    margin:30px 0 14px;
+    min-width:960px;
+  }
+  .section-title::before{
+    content:"";
+    width:4px;
+    height:14px;
+    background:var(--accent);
+    border-radius:2px;
+    flex-shrink:0;
+  }
+  .meta{
+    min-width:960px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:2px 44px;
+  }
+  .meta-col{display:grid; row-gap:2px}
+  .field{
+    display:grid;
+    grid-template-columns:145px 1fr;
+    min-height:38px;
+    align-items:center;
+    gap:8px;
+  }
+  .field label{font-weight:600;font-size:11.5px;color:#4b5563;letter-spacing:.2px}
+  input,textarea,select{
+    width:100%;
+    border:0;
+    border-bottom:1px solid #c7ccd3;
+    padding:6px 4px;
+    font:inherit;
+    outline:none;
+    background:transparent;
+    color:var(--ink);
+  }
+  input:focus,textarea:focus{background:#eef4ff;border-bottom:2px solid var(--accent)}
+  .items-wrap{
+    margin-top:2px;
+    min-width:1080px;
+  }
+  table{
+    border-collapse:separate;
+    border-spacing:0;
+    width:100%;
+    table-layout:fixed;
+    font-size:12px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  th,td{border:1px solid var(--line);padding:6px 7px;vertical-align:middle}
+  thead th{border-top:0}
+  thead th:first-child{border-left:0}
+  thead th:last-child{border-right:0}
+  th{font-weight:700;text-align:center;height:34px;background:var(--head);color:#fff;font-size:11px;letter-spacing:.3px}
+  #itemsBody tr:nth-child(even){background:#fafbfc}
+  td input{
+    border:0;
+    padding:5px 3px;
+    min-height:26px;
+    background:transparent;
+  }
+  .sn{width:34px;text-align:center}
+  .name{width:150px}
+  .desc{width:300px}
+  .qty{width:55px}
+  .price{width:78px}
+  .delivery{width:105px}
+  .link{width:135px}
+  .total{width:92px}
+  .num{text-align:right}
+  .center{text-align:center}
+  .row-remove{
+    width:26px;
+    height:26px;
+    padding:0;
+    border:0;
+    background:transparent;
+    font-size:16px;
+    color:#a5abb3;
+    border-radius:6px;
+  }
+  .row-remove:hover{color:#dc2626;background:#fee2e2}
+  .bottom-row td{height:32px; padding:7px}
+  .bottom-row td:first-child{text-align:right; font-weight:600; padding-right:16px; color:#4b5563}
+  .grand-row td{border-top:2px solid var(--ink); font-size:14.5px; background:#f8fafc}
+  .grand-row td:first-child{font-weight:800; color:var(--ink)}
+  .sum{
+    font-weight:700;
+    text-align:right;
+    white-space:nowrap;
+  }
+  .footer{
+    min-width:960px;
+    margin-top:4px;
+  }
+  .sig-groups{
+    display:grid;
+    grid-template-columns:1fr 2fr 1fr;
+    gap:22px;
+    margin-top:8px;
+  }
+  .sig-group-title{
+    font-weight:800;
+    font-size:11px;
+    letter-spacing:.5px;
+    text-transform:uppercase;
+    color:#374151;
+    text-align:center;
+    margin-bottom:10px;
+  }
+  .sig-subrow{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .sig-box{
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-end;
+    min-height:116px;
+    border:1px solid #e2e5ea;
+    border-radius:10px;
+    padding:10px 12px 12px;
+    background:#fcfcfd;
+  }
+  .sig-line{
+    flex:1;
+    min-height:52px;
+    border-bottom:1px solid #333;
+  }
+  .sig-name-input{
+    border:0;
+    border-bottom:1px solid #c7ccd3;
+    margin-top:8px;
+    font:inherit;
+    font-size:12px;
+    padding:4px 2px;
+    text-align:center;
+    background:transparent;
+  }
+  .sig-sublabel{
+    font-weight:700;
+    font-size:10px;
+    letter-spacing:.3px;
+    margin-top:7px;
+    text-align:center;
+    color:#6b7280;
+  }
+  .hint{
+    color:var(--muted);
+    font-size:11.5px;
+    margin-top:20px;
+    line-height:1.55;
+    min-width:960px;
+  }
+  .status{
+    margin:8px 0 0;
+    font-size:12px;
+    color:var(--accent-dark);
+    font-weight:600;
+    min-height:16px;
+    min-width:960px;
+  }
+  @media(max-width:800px){
+    .app{margin:8px auto;padding:0 8px}
+    .sheet{padding:12px}
+    .toolbar{align-items:flex-start;flex-direction:column}
+  }
+  @media print{
+    body{background:#fff}
+    .app{max-width:none;margin:0;padding:0}
+    .toolbar,.hint,.status,.row-remove,.add-row{display:none!important}
+    .sheet{box-shadow:none;padding:0;border-radius:0}
+    input,textarea{color:#000}
+    .header{background:#fff!important;color:#000!important;border:2px solid #111;border-radius:0}
+    .logo{background:none!important;border:1px solid #111}
+    th{background:#111!important;color:#fff!important}
+    .sig-box{border-color:#000; min-height:100px; background:#fff!important}
+    @page{size:A4 landscape;margin:8mm}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <div class="brand">SPACE<span>logic</span> — Purchase Requisition</div>
+    <div class="actions">
+      <div class="btn-group">
+        <button onclick="newForm()">New</button>
+        <button onclick="saveForm()">Save Draft</button>
+        <button onclick="loadForm()">Load Draft</button>
+      </div>
+      <div class="divider"></div>
+      <div class="btn-group">
+        <button onclick="exportCSV()">Export CSV</button>
+        <button class="primary" onclick="exportPDF()">Export PDF</button>
+      </div>
+      <div class="divider"></div>
+      <div class="btn-group">
+        <button onclick="window.print()">Print</button>
+        <button onclick="shareFile()">Share</button>
+      </div>
+      <div class="divider"></div>
+      <div class="btn-group">
+        <button class="primary" id="submitBtn" onclick="submitToDashboard()">Submit to Dashboard</button>
+        <button type="button" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet">
+    <div class="header">
+      <div class="title">MATERIALS REQUISITION FORM</div>
+      <div class="logo">SPACElogic</div>
+    </div>
+
+    <div class="section-title">Project Details</div>
+    <div class="meta">
+      <div class="meta-col">
+        <div class="field"><label>PROJECT NAME :</label><input id="projectName" value="Team T Internal Usage"></div>
+        <div class="field"><label>PROJECT LOCATION :</label><input id="projectLocation"></div>
+        <div class="field"><label>REQUEST BY :</label><input id="requestBy" value="Zhi Xiang, Team T"></div>
+        <div class="field"><label>SUPPLY DATE :</label><input id="supplyDate" type="date"></div>
+      </div>
+      <div class="meta-col">
+        <div class="field"><label>DATE :</label><input id="formDate" type="date"></div>
+        <div class="field"><label>PC NO. :</label><input id="pcNo" value="-"></div>
+        <div class="field"><label>PM Incharge :</label><input id="pmIncharge" value="-"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Materials</div>
+    <div class="items-wrap">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th class="sn">S/N</th>
+            <th class="name">NAME</th>
+            <th class="desc">DESCRIPTION</th>
+            <th class="qty">QTY</th>
+            <th class="price">UNIT PRICE</th>
+            <th class="delivery">DELIVERY / TAX</th>
+            <th class="link">LINK</th>
+            <th class="total">TOTAL</th>
+            <th style="width:28px"></th>
+          </tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+        <tfoot>
+          <tr class="bottom-row">
+            <td colspan="7">Materials Subtotal</td>
+            <td class="sum">$ <span id="itemsTotal">0.00</span></td>
+            <td></td>
+          </tr>
+          <tr class="bottom-row">
+            <td colspan="7">Delivery / Tax Subtotal</td>
+            <td class="sum">$ <span id="deliveryTaxTotal">0.00</span></td>
+            <td></td>
+          </tr>
+          <tr class="bottom-row grand-row">
+            <td colspan="7">GRAND TOTAL</td>
+            <td class="sum">$ <span id="grandTotal">0.00</span></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      <button class="add-row" onclick="addRow()" style="margin-top:10px">＋ Add Material</button>
+    </div>
+
+    <div class="footer">
+      <div class="section-title">Approval &amp; Sign-Off</div>
+      <div class="sig-groups">
+        <div class="sig-group">
+          <div class="sig-group-title">TEAM MANAGER</div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <input id="manager" class="sig-name-input" placeholder="Name / sign">
+          </div>
+        </div>
+
+        <div class="sig-group">
+          <div class="sig-group-title">PROCUREMENT DEPT</div>
+          <div class="sig-subrow">
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <input id="approveBy" class="sig-name-input" placeholder="Name / sign">
+              <div class="sig-sublabel">APPROVED BY</div>
+            </div>
+            <div class="sig-box">
+              <div class="sig-line"></div>
+              <input id="purchaseBy" class="sig-name-input" placeholder="Name / sign">
+              <div class="sig-sublabel">PURCHASED BY</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sig-group">
+          <div class="sig-group-title">RECEIVED BY</div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <input id="receivedBy" class="sig-name-input" placeholder="Name / sign">
+          </div>
+        </div>
+      </div>
+
+      <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// ============================================================
+// SUPABASE CONFIG — fill these in with your own project's values
+// (Supabase dashboard → Project Settings → API)
+// ============================================================
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+const STORAGE_KEY = "spacelogic_purchase_requisition_v1";
+let currentRequisitionId = null; // set once this draft has been submitted to Supabase
+
+function todayISO(){
+  const d = new Date();
+  const tz = d.getTimezoneOffset()*60000;
+  return new Date(Date.now()-tz).toISOString().slice(0,10);
+}
+
+function yymmdd(){
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return yy+mm+dd;
+}
+
+function slug(s){
+  return String(s||"untitled")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g,"")
+    .replace(/\s+/g,"_")
+    .slice(0,60) || "untitled";
+}
+
+function filenameBase(){
+  return `${yymmdd()}_${slug(val("projectName"))}`;
+}
+
+function addRow(data=["","","",1,0,""]){
+  const tr=document.createElement("tr");
+  tr.innerHTML=`
+    <td class="sn center"></td>
+    <td><input class="r-name" value="${esc(data[0]||"")}"></td>
+    <td><input class="r-desc" value="${esc(data[1]||"")}"></td>
+    <td><input class="r-qty num" type="number" min="0" step="1" value="${data[2] ?? 1}"></td>
+    <td><input class="r-price num" type="number" min="0" step="0.01" value="${data[3] ?? 0}"></td>
+    <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? 0}"></td>
+    <td><input class="r-link" type="url" placeholder="https://..." value="${esc(data[5]||"")}"></td>
+    <td class="num">$ <span class="r-total">0.00</span></td>
+    <td><button class="row-remove" title="Remove" onclick="this.closest('tr').remove();recalc()">×</button></td>
+  `;
+  document.getElementById("itemsBody").appendChild(tr);
+  tr.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
+  recalc();
+}
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function recalc(){
+  let total=0, deliveryTaxTotal=0;
+  [...document.querySelectorAll("#itemsBody tr")].forEach((tr,i)=>{
+    tr.querySelector(".sn").textContent=i+1;
+    const qty=parseFloat(tr.querySelector(".r-qty").value)||0;
+    const price=parseFloat(tr.querySelector(".r-price").value)||0;
+    const dtax=parseFloat(tr.querySelector(".r-deliverytax").value)||0;
+    const line=qty*price;
+    tr.querySelector(".r-total").textContent=line.toFixed(2);
+    total+=line;
+    deliveryTaxTotal+=dtax;
+  });
+  document.getElementById("itemsTotal").textContent=total.toFixed(2);
+  document.getElementById("deliveryTaxTotal").textContent=deliveryTaxTotal.toFixed(2);
+  document.getElementById("grandTotal").textContent=(total+deliveryTaxTotal).toFixed(2);
+}
+
+function collect(){
+  return {
+    meta:{
+      projectName:val("projectName"), projectLocation:val("projectLocation"),
+      requestBy:val("requestBy"), supplyDate:val("supplyDate"), formDate:val("formDate"),
+      pcNo:val("pcNo"), pmIncharge:val("pmIncharge"),
+      manager:val("manager"), approveBy:val("approveBy"),
+      purchaseBy:val("purchaseBy"), receivedBy:val("receivedBy")
+    },
+    rows:[...document.querySelectorAll("#itemsBody tr")].map(tr=>[
+      valEl(tr,".r-name"),valEl(tr,".r-desc"),valEl(tr,".r-qty"),valEl(tr,".r-price"),
+      valEl(tr,".r-deliverytax"),valEl(tr,".r-link")
+    ])
+  };
+}
+
+function val(id){return document.getElementById(id).value}
+function valEl(el,sel){return el.querySelector(sel).value}
+
+function apply(data){
+  if(!data)return;
+  const m=data.meta||{};
+  Object.keys(m).forEach(k=>{
+    const el=document.getElementById(k);
+    if(el) el.value=m[k];
+  });
+  document.getElementById("itemsBody").innerHTML="";
+  (data.rows||[]).forEach(r=>addRow(r));
+  recalc();
+}
+
+function saveForm(){
+  const data=collect();
+  data._requisitionId=currentRequisitionId;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  setStatus("Draft saved locally in this browser.");
+}
+
+function loadForm(){
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(!raw){setStatus("No saved draft found.");return}
+  try{
+    const data=JSON.parse(raw);
+    apply(data);
+    currentRequisitionId=data._requisitionId||null;
+    updateSubmitBtnLabel();
+    setStatus("Draft loaded.");
+  }
+  catch(e){setStatus("Could not load draft.");}
+}
+
+function newForm(){
+  if(!confirm("Start a new requisition? Unsaved changes will be cleared."))return;
+  document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
+  document.getElementById("formDate").value=todayISO();
+  document.getElementById("supplyDate").value="";
+  document.getElementById("pcNo").value="-";
+  document.getElementById("pmIncharge").value="-";
+  document.querySelectorAll(".sig-name-input").forEach(i=>i.value="");
+  document.getElementById("itemsBody").innerHTML="";
+  addRow();
+  currentRequisitionId=null;
+  updateSubmitBtnLabel();
+  setStatus("New blank requisition created.");
+}
+
+function updateSubmitBtnLabel(){
+  const btn=document.getElementById("submitBtn");
+  btn.textContent = currentRequisitionId ? "Update Submission" : "Submit to Dashboard";
+}
+
+async function submitToDashboard(){
+  if(!supabaseClient){
+    setStatus("Supabase isn't configured yet — edit SUPABASE_URL / SUPABASE_ANON_KEY in this file's script.");
+    return;
+  }
+  const {meta, rows} = collect();
+  if(!meta.projectName){
+    setStatus("Please enter a Project Name before submitting.");
+    return;
+  }
+  const realRows = rows.filter(r=>r[0] || r[1]);
+  if(realRows.length===0){
+    setStatus("Add at least one material line before submitting.");
+    return;
+  }
+
+  const btn=document.getElementById("submitBtn");
+  btn.disabled=true;
+  const wasUpdate = !!currentRequisitionId;
+  btn.textContent = wasUpdate ? "Updating..." : "Submitting...";
+
+  try{
+    const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
+    const dtaxTotal = parseFloat(document.getElementById("deliveryTaxTotal").textContent)||0;
+    const grand = parseFloat(document.getElementById("grandTotal").textContent)||0;
+
+    const header = {
+      project_name: meta.projectName || null,
+      project_location: meta.projectLocation || null,
+      request_by: meta.requestBy || null,
+      supply_date: meta.supplyDate || null,
+      form_date: meta.formDate || null,
+      pc_no: meta.pcNo || null,
+      pm_incharge: meta.pmIncharge || null,
+      manager_name: meta.manager || null,
+      approve_by: meta.approveBy || null,
+      purchase_by: meta.purchaseBy || null,
+      received_by: meta.receivedBy || null,
+      materials_subtotal: itemsTotal,
+      delivery_tax_subtotal: dtaxTotal,
+      grand_total: grand
+    };
+
+    let requisitionId = currentRequisitionId;
+    let trackingNo = null;
+
+    if(!requisitionId){
+      const {data, error} = await supabaseClient.from("requisitions").insert(header).select().single();
+      if(error) throw error;
+      requisitionId = data.id;
+      trackingNo = data.tracking_no;
+      currentRequisitionId = requisitionId;
+    } else {
+      const {data, error} = await supabaseClient.from("requisitions").update(header).eq("id", requisitionId).select().single();
+      if(error) throw error;
+      trackingNo = data.tracking_no;
+      // Replace line items wholesale — simplest way to keep them in sync with the form
+      const {error: delErr} = await supabaseClient.from("requisition_items").delete().eq("requisition_id", requisitionId);
+      if(delErr) throw delErr;
+    }
+
+    const itemRows = realRows.map((r,i)=>{
+      const qty=Number(r[2]||0), price=Number(r[3]||0), dtax=Number(r[4]||0);
+      return {
+        requisition_id: requisitionId,
+        sn: i+1,
+        name: r[0]||"",
+        description: r[1]||"",
+        qty, unit_price: price, delivery_tax: dtax,
+        link: r[5]||"",
+        total: qty*price
+      };
+    });
+    const {error: itemsErr} = await supabaseClient.from("requisition_items").insert(itemRows);
+    if(itemsErr) throw itemsErr;
+
+    updateSubmitBtnLabel();
+    showTrackingBadge(trackingNo);
+    saveForm();
+    setStatus(`${wasUpdate?"Updated":"Submitted"} — tracking no. ${trackingNo}. Open the dashboard to follow its approval status.`);
+  }catch(e){
+    console.error(e);
+    setStatus("Could not submit: "+(e.message||e));
+  }finally{
+    btn.disabled=false;
+    updateSubmitBtnLabel();
+  }
+}
+
+function showTrackingBadge(trackingNo){
+  let badge=document.getElementById("trackingBadge");
+  if(!badge){
+    badge=document.createElement("div");
+    badge.id="trackingBadge";
+    badge.style.cssText="min-width:960px;margin-bottom:10px;font-size:12.5px;font-weight:700;color:#2050bd;background:#eef4ff;border:1px solid #cddcfb;padding:8px 14px;border-radius:8px;display:inline-block";
+    document.querySelector(".sheet").insertBefore(badge, document.querySelector(".header"));
+  }
+  badge.textContent = `Tracking No: ${trackingNo}`;
+}
+
+function exportCSV(){
+  const rows=collect().rows;
+  const head=["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"];
+  const csv=[head,...rows.map((r,i)=>[i+1,...r,(Number(r[2]||0)*Number(r[3]||0)).toFixed(2)])]
+    .map(row=>row.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`${filenameBase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function setStatus(t){
+  const s=document.getElementById("status");
+  s.textContent=t;
+  clearTimeout(window._st);
+  window._st=setTimeout(()=>s.textContent="",3500);
+}
+
+function buildPDF(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    throw new Error("PDF library not loaded (check your internet connection)");
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:"landscape", unit:"pt", format:"a4"});
+  const margin = 40;
+  const pageW = doc.internal.pageSize.getWidth();
+  const contentW = pageW - margin*2;
+  const ink = [31,41,51], muted = [107,114,128], line=[215,219,224], accent=[47,111,237];
+  let y = margin;
+
+  // ---- Header banner ----
+  const headerH = 46;
+  doc.setFillColor(...ink);
+  doc.roundedRect(margin, y, contentW, headerH, 6, 6, "F");
+  doc.setTextColor(255,255,255);
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(15);
+  doc.text("MATERIALS REQUISITION FORM", margin+18, y+headerH/2+5);
+  // logo pill on the right
+  doc.setFontSize(10);
+  const logoText = "SPACElogic";
+  const logoW = doc.getTextWidth(logoText)+24;
+  doc.setFillColor(255,255,255);
+  doc.roundedRect(margin+contentW-logoW-14, y+headerH/2-11, logoW, 22, 11, 11, "F");
+  doc.setTextColor(...ink);
+  doc.text(logoText, margin+contentW-logoW-14+12, y+headerH/2+4);
+  doc.setTextColor(0,0,0);
+  y += headerH + 22;
+
+  // ---- Project details section ----
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(55,65,81);
+  doc.text("PROJECT DETAILS", margin, y);
+  doc.setDrawColor(...accent);
+  doc.setLineWidth(2);
+  doc.line(margin, y+4, margin+3, y+4);
+  doc.setDrawColor(...line);
+  doc.setLineWidth(0.75);
+  doc.line(margin, y+9, margin+contentW, y+9);
+  y += 24;
+
+  const meta = collect().meta;
+  const colGap = 26;
+  const colW = (contentW-colGap)/2;
+  const metaRowsLeft = [
+    ["PROJECT NAME", meta.projectName||"-"],
+    ["PROJECT LOCATION", meta.projectLocation||"-"],
+    ["REQUEST BY", meta.requestBy||"-"],
+    ["SUPPLY DATE", meta.supplyDate||"-"]
+  ];
+  const metaRowsRight = [
+    ["DATE", meta.formDate||"-"],
+    ["PC NO.", meta.pcNo||"-"],
+    ["PM IN-CHARGE", meta.pmIncharge||"-"],
+    ["", ""]
+  ];
+  const rowH = 20;
+  const labelW = 118;
+  function drawMetaRow(cx, cyy, label, value){
+    if(!label) return;
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.text(label, cx, cyy);
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...ink);
+    doc.text(String(value), cx+labelW, cyy);
+    doc.setDrawColor(...line);
+    doc.setLineWidth(0.5);
+    doc.line(cx+labelW, cyy+4, cx+colW, cyy+4);
+  }
+  metaRowsLeft.forEach((r,i)=>drawMetaRow(margin, y+i*rowH, r[0], r[1]));
+  metaRowsRight.forEach((r,i)=>drawMetaRow(margin+colW+colGap, y+i*rowH, r[0], r[1]));
+  y += rowH*4 + 14;
+
+  // ---- Materials section ----
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(55,65,81);
+  doc.text("MATERIALS", margin, y);
+  doc.setDrawColor(...accent);
+  doc.setLineWidth(2);
+  doc.line(margin, y+4, margin+3, y+4);
+  doc.setDrawColor(...line);
+  doc.setLineWidth(0.75);
+  doc.line(margin, y+9, margin+contentW, y+9);
+  y += 16;
+
+  const rows = collect().rows;
+  const body = rows.map((r,i)=>{
+    const qty = Number(r[2]||0), price = Number(r[3]||0), dtax=Number(r[4]||0);
+    return [i+1, r[0]||"", r[1]||"", qty, price.toFixed(2), dtax.toFixed(2), r[5]?"Open link":"", (qty*price).toFixed(2)];
+  });
+
+  doc.autoTable({
+    startY: y,
+    margin:{left:margin, right:margin},
+    head:[["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"]],
+    body: body,
+    styles:{ fontSize:9, cellPadding:{top:5,right:6,bottom:5,left:6}, lineColor:line, lineWidth:0.5, textColor:ink },
+    headStyles:{ fillColor:ink, textColor:255, fontStyle:"bold", fontSize:9, halign:"center" },
+    alternateRowStyles:{ fillColor:[250,251,252] },
+    columnStyles:{
+      0:{cellWidth:30, halign:"center"},
+      3:{cellWidth:38, halign:"right"},
+      4:{cellWidth:62, halign:"right"},
+      5:{cellWidth:68, halign:"right"},
+      6:{cellWidth:60, halign:"center"},
+      7:{cellWidth:64, halign:"right", fontStyle:"bold"}
+    },
+    didParseCell: function(data){
+      if(data.section==="body" && data.column.index===6){
+        const url = rows[data.row.index][5];
+        if(url){ data.cell.styles.textColor=accent; }
+      }
+    },
+    didDrawCell: function(data){
+      if(data.section==="body" && data.column.index===6){
+        const url = rows[data.row.index][5];
+        if(url){
+          const target = /^https?:\/\//i.test(url) ? url : ("https://"+url);
+          doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: target });
+        }
+      }
+    }
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 20;
+  const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
+  const dtaxTotal = parseFloat(document.getElementById("deliveryTaxTotal").textContent)||0;
+  const grand = parseFloat(document.getElementById("grandTotal").textContent)||0;
+
+  // ---- Totals box (right aligned) ----
+  const totalsW = 230;
+  const totalsX = margin+contentW-totalsW;
+  const totalsPadTop = 10;
+  const totalsRowH = 18;
+  const totalsBoxH = totalsPadTop*2 + totalsRowH*3 + 4;
+  doc.setDrawColor(...line);
+  doc.setLineWidth(0.75);
+  doc.roundedRect(totalsX, finalY, totalsW, totalsBoxH, 5, 5);
+
+  let ty = finalY + totalsPadTop + 10;
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...muted);
+  doc.text("Materials Subtotal", totalsX+14, ty);
+  doc.setTextColor(...ink);
+  doc.text(`$ ${itemsTotal.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
+  ty += totalsRowH;
+  doc.setTextColor(...muted);
+  doc.text("Delivery / Tax Subtotal", totalsX+14, ty);
+  doc.setTextColor(...ink);
+  doc.text(`$ ${dtaxTotal.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
+  ty += 6;
+  doc.setDrawColor(...line);
+  doc.line(totalsX+14, ty, totalsX+totalsW-14, ty);
+  ty += totalsRowH;
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...ink);
+  doc.text("GRAND TOTAL", totalsX+14, ty);
+  doc.text(`$ ${grand.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
+
+  finalY += totalsBoxH + 34;
+
+  // ---- Signatures ----
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(10.5);
+  doc.setTextColor(55,65,81);
+  doc.text("APPROVAL & SIGN-OFF", margin, finalY);
+  doc.setDrawColor(...accent);
+  doc.setLineWidth(2);
+  doc.line(margin, finalY+4, margin+3, finalY+4);
+  doc.setDrawColor(...line);
+  doc.setLineWidth(0.75);
+  doc.line(margin, finalY+9, margin+contentW, finalY+9);
+  finalY += 34;
+
+  const sigBoxH = 66;
+  const sigGap = 18;
+  const sigColW = (contentW - sigGap*3)/4;
+  const sigDefs = [
+    {label:"TEAM MANAGER", value: meta.manager},
+    {label:"APPROVED BY", value: meta.approveBy},
+    {label:"PURCHASED BY", value: meta.purchaseBy},
+    {label:"RECEIVED BY", value: meta.receivedBy}
+  ];
+  doc.setFont("helvetica","normal");
+  sigDefs.forEach((s,i)=>{
+    const sx = margin + i*(sigColW+sigGap);
+    doc.setDrawColor(...line);
+    doc.setLineWidth(0.75);
+    doc.roundedRect(sx, finalY, sigColW, sigBoxH, 5, 5);
+    if(s.value){
+      doc.setFontSize(10);
+      doc.setTextColor(...ink);
+      doc.text(String(s.value), sx+sigColW/2, finalY+30, {align:"center"});
+    }
+    doc.setDrawColor(60,60,60);
+    doc.line(sx+10, finalY+42, sx+sigColW-10, finalY+42);
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...muted);
+    doc.text(s.label, sx+sigColW/2, finalY+56, {align:"center"});
+    doc.setFont("helvetica","normal");
+  });
+
+  return doc;
+}
+
+async function exportPDF(){
+  try{
+    const doc = buildPDF();
+    doc.save(`${filenameBase()}.pdf`);
+    let msg = "PDF exported — links are clickable inside it.";
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      try{
+        await navigator.clipboard.writeText(SHARE_MESSAGE);
+        msg += " The email message was also copied to your clipboard — just paste it in.";
+      }catch(_){ /* clipboard permission denied — ignore silently */ }
+    }
+    setStatus(msg);
+  }catch(e){
+    console.error(e);
+    setStatus("Could not generate PDF: "+e.message);
+  }
+}
+
+const SHARE_MESSAGE = `Hi sir/madam,
+
+Please find the attached MR form for your signature.
+
+Thank you.
+
+Warmest Regards,
+Tan Zhi Xiang
+SPACElogic Pte Ltd
+Mobile No: +65 8654 9325 | T : +65 6745 1733
+www.spacelogic.asia
+6 Changi South Street 1 Singapore 486792`;
+
+async function shareFile(){
+  try{
+    const doc = buildPDF();
+    const filename = `${filenameBase()}.pdf`;
+    const blob = doc.output("blob");
+
+    if(window.File && navigator.canShare){
+      const file = new File([blob], filename, {type:"application/pdf"});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({
+          files:[file],
+          title:"SPACElogic Materials Requisition",
+          text:SHARE_MESSAGE
+        });
+        setStatus("Share sheet opened. Note: some apps (notably iOS Mail) ignore the message text once a file is attached — that's the app's behavior, not something this page can control. You can also use Export PDF, which copies the message to your clipboard to paste manually.");
+        return;
+      }
+    }
+
+    doc.save(filename);
+    setStatus("Your browser can't share files directly — the PDF downloaded instead. Attach \""+filename+"\" wherever you'd like to send it.");
+  }catch(e){
+    console.error(e);
+    setStatus("Could not share the file: "+e.message);
+  }
+}
+
+document.getElementById("formDate").value=todayISO();
+addRow();
+recalc();
+
+// Resume an in-progress submission if this browser has one saved
+(function resumeDraft(){
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(!raw) return;
+  try{
+    const data=JSON.parse(raw);
+    if(data._requisitionId){
+      currentRequisitionId=data._requisitionId;
+      updateSubmitBtnLabel();
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
