@@ -59,6 +59,19 @@
     <button class="secondary" onclick="cancelSignup()">Back</button>
     <div class="msg" id="signupMsg"></div>
   </div>
+
+  <div class="signup-panel" id="profilePanel">
+    <div class="signup-note">Account created! Optionally add a few details so others know who they're dealing with — or skip for now.</div>
+    <label>Position</label>
+    <input type="text" id="profPosition" placeholder="e.g. Site Engineer">
+    <label>Team / Department</label>
+    <input type="text" id="profDepartment" placeholder="e.g. Operations">
+    <label>Company email</label>
+    <input type="email" id="profEmail" placeholder="you@company.com">
+    <button onclick="saveProfileAndContinue()">Save &amp; Continue</button>
+    <button class="secondary" onclick="skipProfile()">Skip for now</button>
+    <div class="msg" id="profileMsg"></div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -125,7 +138,37 @@ async function handleSignup(){
   const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin1});
   if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not create account."; return; }
 
-  completeLogin(data.id, data.name, pin1);
+  sessionStorage.setItem("sl_person_id", data.id);
+  sessionStorage.setItem("sl_person_name", data.name);
+  sessionStorage.setItem("sl_pin", pin1);
+  localStorage.setItem("requesterName", data.name);
+  showProfileStep(data.id, pin1);
+}
+
+function showProfileStep(personId, pin){
+  document.getElementById("signupPanel").style.display="none";
+  document.getElementById("profilePanel").style.display="block";
+  document.getElementById("profilePanel").dataset.personId = personId;
+  document.getElementById("profilePanel").dataset.pin = pin;
+}
+
+async function saveProfileAndContinue(){
+  const panel = document.getElementById("profilePanel");
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {
+    p_person_id: panel.dataset.personId, p_pin: panel.dataset.pin,
+    p_position: document.getElementById("profPosition").value.trim(),
+    p_department: document.getElementById("profDepartment").value.trim(),
+    p_email: document.getElementById("profEmail").value.trim()
+  });
+  if(error || !data.success){
+    const msg = document.getElementById("profileMsg");
+    msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not save.";
+    return;
+  }
+  window.location.href = redirectTo;
+}
+function skipProfile(){
+  window.location.href = redirectTo;
 }
 
 function completeLogin(id, name, pin){

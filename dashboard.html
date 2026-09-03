@@ -33,7 +33,7 @@
   .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
   .mode-badge.admin{ color:#fff; background:var(--admin); }
 
-  .stats-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+  .stats-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; }
   .stat-card{ background:#fff; border-radius:12px; box-shadow:0 6px 18px rgba(15,23,42,.06); padding:16px; }
   .stat-card .stat-num{ font-size:26px; font-weight:800; line-height:1; }
   .stat-card .stat-label{ font-size:11.5px; color:var(--muted); font-weight:600; margin-top:6px; }
@@ -147,6 +147,7 @@
     <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
     <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
     <button type="button" id="actionFilterBtn" onclick="toggleActionFilter()">⚠ Needs Your Action</button>
+    <button type="button" onclick="openProfileModal()">👤 My Profile</button>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -186,6 +187,26 @@
     </div>
   </div>
   <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<div class="modal-overlay" id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:20px;z-index:999">
+  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+    <h3 style="margin:0 0 4px">My Profile</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:14px">Optional — helps others know who they're dealing with.</div>
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Name</label>
+    <input id="profileNameDisplay" disabled style="width:100%;box-sizing:border-box;background:#f4f6f8">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Position</label>
+    <input id="profilePosition" placeholder="e.g. Site Engineer" style="width:100%;box-sizing:border-box">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Team / Department</label>
+    <input id="profileDepartment" placeholder="e.g. Operations" style="width:100%;box-sizing:border-box">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Company email</label>
+    <input id="profileEmail" type="email" placeholder="you@company.com" style="width:100%;box-sizing:border-box">
+    <div class="sign-error" id="profileErr" style="margin-top:8px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button type="button" onclick="closeProfileModal()">Cancel</button>
+      <button type="button" class="primary" onclick="saveProfile()">Save</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -236,11 +257,11 @@ function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
 }
 
 function computeStats(){
-  let mySubmissions=0, awaitingMySignature=0, needsLinkSent=0, completed=0, declined=0;
+  let mySubmissions=0, awaitingMySignature=0, needsLinkSent=0, completed=0, declinedNeedsFix=0;
   allReqs.forEach(r=>{
     if(r.requester_person_id===myId) mySubmissions++;
     if(r.status==="Received") completed++;
-    if(r.status==="Declined") declined++;
+    if(r.status==="Declined" && r.requester_person_id===myId) declinedNeedsFix++;
 
     const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
     let prevSignedUpTo=0;
@@ -251,7 +272,7 @@ function computeStats(){
       else if(!activeStep.assigned_person_id && (r.requester_person_id===myId || steps.some(s=>s.assigned_person_id===myId))) needsLinkSent++;
     }
   });
-  return {mySubmissions, awaitingMySignature, needsLinkSent, completed, declined, total: allReqs.length};
+  return {mySubmissions, awaitingMySignature, needsLinkSent, completed, declinedNeedsFix, total: allReqs.length};
 }
 
 function renderStats(){
@@ -261,6 +282,7 @@ function renderStats(){
     <div class="stat-card"><div class="stat-num">${s.mySubmissions}</div><div class="stat-label">Submitted by you</div></div>
     <div class="stat-card ${s.awaitingMySignature>0?'alert':''}"><div class="stat-num">${s.awaitingMySignature}</div><div class="stat-label">Awaiting your signature</div></div>
     <div class="stat-card ${s.needsLinkSent>0?'alert':''}"><div class="stat-num">${s.needsLinkSent}</div><div class="stat-label">Needs a link sent</div></div>
+    <div class="stat-card ${s.declinedNeedsFix>0?'alert':''}"><div class="stat-num">${s.declinedNeedsFix}</div><div class="stat-label">Declined — needs your fix</div></div>
   `;
 }
 
@@ -368,12 +390,14 @@ function render(){
         <td>${fmtMoney(r.grand_total)}</td>
         <td><span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span></td>
       </tr>`;
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${iAmAdmin ? renderAdminPanel(r) : ""}</div></div></td></tr>` : "";
+    const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
 }
 
 function needsMyAttention(r){
+  if(r.status==="Declined" && r.requester_person_id===myId) return true;
   const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
   let prevSignedUpTo=0;
   while(prevSignedUpTo<steps.length && steps[prevSignedUpTo].status==="Signed") prevSignedUpTo++;
@@ -553,6 +577,71 @@ async function dashDecline(token, stepId, isUnclaimed){
   await loadData();
 }
 
+function renderResubmitPanel(r){
+  const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const itemRows = items.map((it)=>`
+    <div class="edit-item-row">
+      <input placeholder="Name" class="ri-name" value="${escapeHtml(it.name)}">
+      <input placeholder="Qty" class="ri-qty" value="${it.qty}">
+      <input placeholder="Unit" class="ri-price" value="${it.unit_price}">
+      <input placeholder="Delv/Tax" class="ri-dtax" value="${it.delivery_tax}">
+      <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
+    </div>`).join("");
+
+  return `
+    <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
+      <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(declinedStep?.assigned_person_name||"")}</div>
+      <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
+      <div class="muted" style="font-size:11.5px;margin-bottom:8px">Fix what was flagged, then resubmit — this restarts approval from the beginning.</div>
+      <div class="edit-field"><label>Project name</label><input id="resub-project-${r.id}" value="${escapeHtml(r.project_name||"")}"></div>
+      <div class="edit-field"><label>Location</label><input id="resub-location-${r.id}" value="${escapeHtml(r.project_location||"")}"></div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Line items</div>
+      <div id="resub-items-${r.id}">${itemRows}</div>
+      <button onclick="event.stopPropagation();addResubmitItemRow('${r.id}')" style="font-size:11px;margin-bottom:8px">+ Add item</button>
+      <button class="primary" onclick="resubmitRequisition('${r.id}')">Revise &amp; Resubmit</button>
+      <div class="sign-error" id="resub-err-${r.id}"></div>
+    </div>`;
+}
+
+function addResubmitItemRow(reqId){
+  const container = document.getElementById("resub-items-"+reqId);
+  const div = document.createElement("div");
+  div.className = "edit-item-row";
+  div.innerHTML = `
+    <input placeholder="Name" class="ri-name">
+    <input placeholder="Qty" class="ri-qty">
+    <input placeholder="Unit" class="ri-price">
+    <input placeholder="Delv/Tax" class="ri-dtax">
+    <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
+  container.appendChild(div);
+}
+
+async function resubmitRequisition(reqId){
+  const errEl = document.getElementById("resub-err-"+reqId);
+  const header = {
+    project_name: document.getElementById("resub-project-"+reqId).value,
+    project_location: document.getElementById("resub-location-"+reqId).value
+  };
+  const rows = [...document.querySelectorAll(`#resub-items-${reqId} .edit-item-row`)];
+  const items = rows.map((row,i)=>({
+    sn: i+1,
+    name: row.querySelector(".ri-name").value,
+    description: "",
+    qty: Number(row.querySelector(".ri-qty").value||0),
+    unit_price: Number(row.querySelector(".ri-price").value||0),
+    delivery_tax: Number(row.querySelector(".ri-dtax").value||0),
+    link: ""
+  }));
+
+  const {data, error} = await supabaseClient.rpc("requester_resubmit", {
+    p_person_id: myId, p_pin: myPin, p_requisition_id: reqId, p_header: header, p_items: items
+  });
+  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Failed to resubmit."; return; }
+  setStatus("Revised and resubmitted — approval restarts from the beginning.");
+  await loadData();
+}
+
 function renderAdminPanel(r){
   const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   const itemRows = items.map((it,i)=>`
@@ -649,6 +738,32 @@ async function adminReassign(stepId){
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reassign."); return; }
   setStatus(`Reassigned to ${data.name}.`);
   await loadData();
+}
+
+async function openProfileModal(){
+  document.getElementById("profileModal").style.display="flex";
+  document.getElementById("profileNameDisplay").value = myName;
+  document.getElementById("profileErr").textContent = "";
+  const {data, error} = await supabaseClient.rpc("get_my_profile", {p_person_id: myId, p_pin: myPin});
+  if(error || !data.success){ document.getElementById("profileErr").textContent = (data&&data.error)||"Could not load profile."; return; }
+  document.getElementById("profilePosition").value = data.position || "";
+  document.getElementById("profileDepartment").value = data.department || "";
+  document.getElementById("profileEmail").value = data.email || "";
+}
+function closeProfileModal(){
+  document.getElementById("profileModal").style.display="none";
+}
+async function saveProfile(){
+  const position = document.getElementById("profilePosition").value.trim();
+  const department = document.getElementById("profileDepartment").value.trim();
+  const email = document.getElementById("profileEmail").value.trim();
+  const errEl = document.getElementById("profileErr");
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {
+    p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: email
+  });
+  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not save."; return; }
+  closeProfileModal();
+  setStatus("Profile updated.");
 }
 
 (function init(){

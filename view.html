@@ -87,12 +87,18 @@ async function init(){
   myId = sessionStorage.getItem("sl_person_id");
   myPin = sessionStorage.getItem("sl_pin");
   if(!myId || !myPin){
+    const {data: people} = await supabaseClient.from("people_public").select("id,name").order("name");
+    viewPeopleCache = people || [];
     content.innerHTML = `
       <div style="max-width:340px;margin:20px auto;text-align:center">
         <h3 style="margin-bottom:6px">Sign in to view this form</h3>
-        <div class="center-note" style="padding:0 0 14px">Only people involved in this requisition can view it.</div>
-        <input type="text" id="viewNameInput" placeholder="Your name" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-        <input type="password" id="viewPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:10px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        <div class="center-note" style="padding:0 0 14px">Only people involved in this requisition can view it. New here? Just type your name and choose a PIN.</div>
+        <input type="text" id="viewNameInput" list="viewPeopleList" placeholder="Your name" autocomplete="off" oninput="toggleViewConfirmPin()" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        <datalist id="viewPeopleList">${viewPeopleCache.map(p=>`<option value="${escHtml(p.name)}">`).join("")}</datalist>
+        <input type="password" id="viewPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        <div id="viewConfirmPinWrap" style="display:none">
+          <input type="password" id="viewConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        </div>
         <button class="btn" onclick="viewLogin('${id}')" style="width:100%;background:var(--accent);color:#fff;border-color:var(--accent)">Continue</button>
         <div class="decline-box" id="viewLoginErr" style="display:none;margin-top:10px"></div>
       </div>`;
@@ -102,22 +108,39 @@ async function init(){
   await loadRequisition(id);
 }
 
+let viewPeopleCache = [];
+
+function toggleViewConfirmPin(){
+  const name = document.getElementById("viewNameInput").value.trim().toLowerCase();
+  const wrap = document.getElementById("viewConfirmPinWrap");
+  const isNew = name && !viewPeopleCache.some(p=>p.name.toLowerCase()===name);
+  wrap.style.display = isNew ? "block" : "none";
+}
+
 async function viewLogin(id){
   const name = document.getElementById("viewNameInput").value.trim();
   const pin = document.getElementById("viewPinInput").value.trim();
   const errEl = document.getElementById("viewLoginErr");
   if(!name || !/^\d{4}$/.test(pin)){ errEl.style.display="block"; errEl.textContent="Enter your name and 4-digit PIN."; return; }
 
-  const {data: people} = await supabaseClient.from("people_public").select("id,name");
-  const existing = (people||[]).find(p=>p.name.toLowerCase()===name.toLowerCase());
-  if(!existing){ errEl.style.display="block"; errEl.textContent="No account with that name — log in from the dashboard first."; return; }
+  const existing = viewPeopleCache.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  let personId, resolvedName;
 
-  const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
-  if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Login failed."; return; }
+  if(existing){
+    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
+    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Login failed."; return; }
+    personId = data.id; resolvedName = data.name;
+  } else {
+    const confirmPin = document.getElementById("viewConfirmPinInput").value.trim();
+    if(pin !== confirmPin){ errEl.style.display="block"; errEl.textContent="PINs don't match — re-enter both."; return; }
+    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Could not register."; return; }
+    personId = data.id; resolvedName = data.name;
+  }
 
-  myId = data.id; myPin = pin;
+  myId = personId; myPin = pin;
   sessionStorage.setItem("sl_person_id", myId);
-  sessionStorage.setItem("sl_person_name", data.name);
+  sessionStorage.setItem("sl_person_name", resolvedName);
   sessionStorage.setItem("sl_pin", myPin);
   await loadRequisition(id);
 }

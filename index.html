@@ -53,8 +53,6 @@
   }
   .login-bar.active{ background:#f0f5ff; border-color:#2f6fed; }
   .login-bar input{ border:1px solid #d7dbe0; border-radius:6px; padding:6px 8px; font:inherit; font-size:12px; }
-  .login-bar input#loginNameInput{ width:150px; }
-  .login-bar input#loginPinInput{ width:70px; }
   .login-bar button{ font-size:11.5px; padding:6px 10px; border-radius:6px; border:1px solid #d7dbe0; background:#fff; cursor:pointer; font-weight:600; }
   .divider{width:1px;align-self:stretch;background:#d7dbe0;margin:2px 2px}
   button{
@@ -378,6 +376,11 @@
 </style>
 </head>
 <body>
+<script>
+  if(!sessionStorage.getItem("sl_person_id") || !sessionStorage.getItem("sl_pin")){
+    window.location.href = "login.html?redirect=" + encodeURIComponent(window.location.pathname.split("/").pop() || "index.html");
+  }
+</script>
 <div class="app">
   <div class="toolbar">
     <div class="brand">SPACE<span>logic</span> — Purchase Requisition</div>
@@ -405,14 +408,9 @@
     </div>
   </div>
 
-  <div class="login-bar" id="loginBar">
-    <span id="loginBarText">Not logged in — drafts save only in this browser.</span>
-    <input type="text" id="loginNameInput" list="loginPeopleList" placeholder="Your name" autocomplete="off" oninput="toggleLoginConfirmPin()">
-    <datalist id="loginPeopleList"></datalist>
-    <input type="password" id="loginPinInput" placeholder="PIN" maxlength="4" inputmode="numeric">
-    <input type="password" id="loginConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="display:none">
-    <button onclick="requesterLogin()">Log in / Register</button>
-    <button id="logoutBtn" onclick="requesterLogout()" style="display:none">Log out</button>
+  <div class="login-bar active" id="loginBar">
+    <span id="loginBarText"></span>
+    <button id="logoutBtn" onclick="requesterLogout()">Log out</button>
   </div>
 
   <div class="sheet">
@@ -526,93 +524,27 @@ const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
 const STORAGE_KEY = "spacelogic_purchase_requisition_v1";
 let currentRequisitionId = null; // set once this draft has been submitted to Supabase
 
-// ---------------- Requester login (reuses the same people/PIN system as signers) ----------------
-let requesterId = sessionStorage.getItem("sl_person_id") || localStorage.getItem("requesterId") || null;
-let requesterName = sessionStorage.getItem("sl_person_name") || localStorage.getItem("requesterName") || null;
-let requesterPin = sessionStorage.getItem("sl_pin") || null; // only present if carried over from another page this session
+// ---------------- Requester identity (guaranteed present — see redirect gate above) ----------------
+let requesterId = sessionStorage.getItem("sl_person_id");
+let requesterName = sessionStorage.getItem("sl_person_name");
+let requesterPin = sessionStorage.getItem("sl_pin");
 let requesterPeople = [];
 
 async function loadRequesterPeopleList(){
   const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
   requesterPeople = data || [];
-  document.getElementById("loginPeopleList").innerHTML = requesterPeople.map(p=>`<option value="${escHtml(p.name)}">`).join("");
-  if(requesterName) document.getElementById("loginNameInput").value = requesterName;
 }
 
 function updateLoginBar(){
-  const bar = document.getElementById("loginBar");
   const text = document.getElementById("loginBarText");
-  const nameInput = document.getElementById("loginNameInput");
-  const pinInput = document.getElementById("loginPinInput");
-  const loginBtn = document.querySelector("#loginBar button[onclick='requesterLogin()']");
-  const logoutBtn = document.getElementById("logoutBtn");
   const requestByField = document.getElementById("requestBy");
-
-  if(requesterId && requesterPin){
-    bar.classList.add("active");
-    text.textContent = `Logged in as ${requesterName} — drafts save to your account.`;
-    nameInput.style.display="none"; pinInput.style.display="none"; loginBtn.style.display="none";
-    logoutBtn.style.display="inline-block";
-    if(requestByField){ requestByField.value = requesterName; requestByField.readOnly = true; requestByField.style.background="#f4f6f8"; }
-  } else {
-    bar.classList.remove("active");
-    text.textContent = requesterName ? `Welcome back, ${requesterName} — enter your PIN to continue.` : "Not logged in — drafts save only in this browser.";
-    nameInput.style.display="inline-block"; pinInput.style.display="inline-block"; loginBtn.style.display="inline-block";
-    logoutBtn.style.display="none";
-    if(requestByField){ requestByField.readOnly = false; requestByField.style.background=""; }
-  }
-}
-
-function toggleLoginConfirmPin(){
-  const name = document.getElementById("loginNameInput").value.trim().toLowerCase();
-  const confirmInput = document.getElementById("loginConfirmPinInput");
-  const isNew = name && !requesterPeople.some(p=>p.name.toLowerCase()===name);
-  confirmInput.style.display = isNew ? "inline-block" : "none";
-}
-
-async function requesterLogin(){
-  const name = document.getElementById("loginNameInput").value.trim();
-  const pin = document.getElementById("loginPinInput").value.trim();
-  if(!name){ setStatus("Enter your name to log in."); return; }
-  if(!/^\d{4}$/.test(pin)){ setStatus("Enter your 4-digit PIN."); return; }
-
-  const existing = requesterPeople.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  if(existing){
-    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
-    if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Login failed."); return; }
-    requesterId = data.id; requesterName = data.name;
-  } else {
-    const confirmPin = document.getElementById("loginConfirmPinInput").value.trim();
-    if(pin !== confirmPin){ setStatus("PINs don't match — re-enter your PIN in both boxes."); return; }
-    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
-    if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not register."); return; }
-    requesterId = data.id; requesterName = data.name;
-    setStatus(`Registered ${data.name}. Remember this PIN — it can't be shown again.`);
-  }
-  requesterPin = pin;
-  localStorage.setItem("requesterId", requesterId);
-  localStorage.setItem("requesterName", requesterName);
-  sessionStorage.setItem("sl_person_id", requesterId);
-  sessionStorage.setItem("sl_person_name", requesterName);
-  sessionStorage.setItem("sl_pin", requesterPin);
-  document.getElementById("loginConfirmPinInput").style.display="none";
-  updateLoginBar();
-
-  // Let them know if they have drafts waiting, without forcing a choice
-  const {data: draftsData} = await supabaseClient.rpc("list_my_drafts", {p_person_id: requesterId, p_pin: requesterPin});
-  if(draftsData && draftsData.success && (draftsData.drafts||[]).length > 0){
-    setStatus(`Logged in as ${requesterName}. You have ${draftsData.drafts.length} saved draft(s) — click "My Drafts" to continue one.`);
-  }
+  text.textContent = `Logged in as ${requesterName} — drafts save to your account.`;
+  if(requestByField){ requestByField.value = requesterName; requestByField.readOnly = true; requestByField.style.background="#f4f6f8"; }
 }
 
 function requesterLogout(){
-  requesterId = null; requesterName = null; requesterPin = null;
-  localStorage.removeItem("requesterId"); localStorage.removeItem("requesterName");
   sessionStorage.removeItem("sl_person_id"); sessionStorage.removeItem("sl_person_name"); sessionStorage.removeItem("sl_pin");
-  document.getElementById("loginNameInput").value = "";
-  document.getElementById("loginPinInput").value = "";
-  updateLoginBar();
-  setStatus("Logged out.");
+  window.location.href = "login.html?redirect=index.html";
 }
 
 function todayISO(){
@@ -713,19 +645,14 @@ let currentDraftId = null;
 
 async function saveForm(){
   const data=collect();
-  if(requesterId && requesterPin){
-    const label = data.meta.projectName || `Draft ${new Date().toLocaleDateString()}`;
-    const {data: res, error} = await supabaseClient.rpc("save_draft", {
-      p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
-      p_label: label, p_header: data.meta, p_items: data.rows
-    });
-    if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not save draft."); return; }
-    currentDraftId = res.id;
-    setStatus(`Draft "${label}" saved to your account.`);
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-  setStatus("Draft saved locally in this browser. Log in to save multiple drafts and access them from any device.");
+  const label = data.meta.projectName || `Draft ${new Date().toLocaleDateString()}`;
+  const {data: res, error} = await supabaseClient.rpc("save_draft", {
+    p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
+    p_label: label, p_header: data.meta, p_items: data.rows
+  });
+  if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not save draft."); return; }
+  currentDraftId = res.id;
+  setStatus(`Draft "${label}" saved to your account.`);
 }
 
 async function openDraftsModal(){
@@ -733,29 +660,6 @@ async function openDraftsModal(){
   const note = document.getElementById("draftsModalNote");
   const list = document.getElementById("draftsList");
   modal.style.display="flex";
-
-  if(!(requesterId && requesterPin)){
-    note.style.display="block";
-    list.innerHTML = "";
-    // Still offer the single local draft, if any, for guests
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      try{
-        const data = JSON.parse(raw);
-        list.innerHTML = `
-          <div class="draft-row">
-            <div class="draft-info">
-              <div class="draft-title">${escHtml(data.meta?.projectName || "Untitled (this browser only)")}</div>
-              <div class="draft-meta">Saved locally — not tied to an account</div>
-            </div>
-            <div class="draft-actions">
-              <button class="primary" onclick="loadLocalDraft()">Continue</button>
-            </div>
-          </div>`;
-      }catch(e){}
-    }
-    return;
-  }
   note.style.display="none";
   list.innerHTML = "Loading...";
   const {data: res, error} = await supabaseClient.rpc("list_my_drafts", {p_person_id: requesterId, p_pin: requesterPin});
@@ -776,15 +680,6 @@ async function openDraftsModal(){
 }
 function closeDraftsModal(){
   document.getElementById("draftsModal").style.display="none";
-}
-function loadLocalDraft(){
-  const raw=localStorage.getItem(STORAGE_KEY);
-  if(!raw){setStatus("No saved draft found.");return}
-  try{
-    apply(JSON.parse(raw));
-    setStatus("Draft loaded.");
-    closeDraftsModal();
-  }catch(e){setStatus("Could not load draft.");}
 }
 async function continueDraft(draftId){
   const {data: res, error} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
@@ -831,6 +726,11 @@ async function submitToDashboard(){
     setStatus("Supabase isn't configured yet — edit SUPABASE_URL / SUPABASE_ANON_KEY in this file's script.");
     return;
   }
+  if(!requesterId || !requesterPin){
+    setStatus("Your session expired — please log in again.");
+    window.location.href = "login.html?redirect=index.html";
+    return;
+  }
   const {meta, rows} = collect();
   if(!meta.projectName){ setStatus("Please enter a Project Name before submitting."); return; }
 
@@ -861,14 +761,14 @@ async function submitToDashboard(){
     }));
 
     const {data, error} = await supabaseClient.rpc("create_requisition", {
-      p_header: header, p_items: items, p_requester_person_id: (requesterId && requesterPin) ? requesterId : null
+      p_header: header, p_items: items, p_requester_person_id: requesterId
     });
     if(error) throw error;
     if(!data.success) throw new Error(data.error || "Unknown error");
 
     currentRequisitionId = data.requisition_id;
     showSubmitResult(data.tracking_no, data.first_token);
-    if(requesterId && requesterPin && currentDraftId){
+    if(currentDraftId){
       // This draft has now been submitted — remove it from the drafts list
       supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
     }
@@ -1226,7 +1126,7 @@ updateLoginBar();
 // Support jumping straight into drafts from a dashboard shortcut link
 (function handleQueryParams(){
   const params = new URLSearchParams(window.location.search);
-  if(params.get("draftId") && requesterId && requesterPin){
+  if(params.get("draftId")){
     continueDraft(params.get("draftId"));
   } else if(params.get("drafts")==="1"){
     openDraftsModal();
