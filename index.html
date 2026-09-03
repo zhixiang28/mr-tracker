@@ -256,6 +256,52 @@
     text-align:center;
     color:#6b7280;
   }
+  select.person-select{
+    width:100%;
+    appearance:none;
+    -webkit-appearance:none;
+    cursor:pointer;
+  }
+  .progress-strip{
+    display:flex; gap:0; margin:14px 0 18px; border-radius:10px; overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .progress-step{
+    flex:1; padding:10px 8px; text-align:center; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.3px; color:#94a3b8; background:#f4f6f8;
+    border-right:1px solid var(--line); position:relative;
+  }
+  .progress-step:last-child{ border-right:0; }
+  .progress-step.done{ background:#16a34a; color:#fff; }
+  .progress-step.current{ background:#f59e0b; color:#fff; }
+  .progress-step.declined{ background:#dc2626; color:#fff; }
+  .progress-step .p-name{ display:block; font-weight:400; text-transform:none; font-size:10px; margin-top:2px; opacity:.9; }
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,23,42,.45); display:flex;
+    align-items:center; justify-content:center; z-index:999; padding:20px;
+  }
+  .modal-box{
+    background:#fff; border-radius:14px; padding:22px; width:100%; max-width:380px;
+    box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal-box input{
+    width:100%; box-sizing:border-box; border:1px solid var(--line,#d7dbe0); border-radius:8px;
+    padding:9px 12px; font:inherit; margin-bottom:4px;
+  }
+  .modal-label{ display:block; font-size:11.5px; font-weight:700; color:#6b7280; margin:10px 0 4px; }
+  .modal-error{ color:#dc2626; font-size:12px; min-height:16px; margin-top:6px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  .modal-actions button{
+    border:1px solid var(--line,#d7dbe0); background:#fff; padding:8px 16px; border-radius:8px;
+    font:inherit; font-weight:600; font-size:12.5px; cursor:pointer;
+  }
+  .modal-actions button.primary{ background:var(--accent,#2f6fed); border-color:var(--accent,#2f6fed); color:#fff; }
+  .link-copy-box{
+    display:flex; gap:8px; margin:10px 0; align-items:center; background:#f4f6f8;
+    border:1px solid var(--line,#d7dbe0); border-radius:8px; padding:8px 10px;
+  }
+  .link-copy-box input{ flex:1; border:0; background:transparent; font-size:12px; margin:0; }
+  .link-copy-box button{ white-space:nowrap; }
   .hint{
     color:var(--muted);
     font-size:11.5px;
@@ -379,12 +425,13 @@
 
     <div class="footer">
       <div class="section-title">Approval &amp; Sign-Off</div>
+      <div id="progressStrip" class="progress-strip" style="display:none"></div>
       <div class="sig-groups">
         <div class="sig-group">
           <div class="sig-group-title">TEAM MANAGER</div>
           <div class="sig-box">
             <div class="sig-line"></div>
-            <input id="manager" class="sig-name-input" placeholder="Name / sign">
+            <select id="manager" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
           </div>
         </div>
 
@@ -393,12 +440,12 @@
           <div class="sig-subrow">
             <div class="sig-box">
               <div class="sig-line"></div>
-              <input id="approveBy" class="sig-name-input" placeholder="Name / sign">
+              <select id="approveBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
               <div class="sig-sublabel">APPROVED BY</div>
             </div>
             <div class="sig-box">
               <div class="sig-line"></div>
-              <input id="purchaseBy" class="sig-name-input" placeholder="Name / sign">
+              <select id="purchaseBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
               <div class="sig-sublabel">PURCHASED BY</div>
             </div>
           </div>
@@ -408,13 +455,43 @@
           <div class="sig-group-title">RECEIVED BY</div>
           <div class="sig-box">
             <div class="sig-line"></div>
-            <input id="receivedBy" class="sig-name-input" placeholder="Name / sign">
+            <select id="receivedBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
           </div>
         </div>
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div class="status" id="status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Add person modal ============ -->
+<div id="personModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3 style="margin:0 0 4px">Register a new signer</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:14px">They'll use this name + PIN to e-sign their step later. Make sure they know their PIN — it isn't shown again.</div>
+    <label class="modal-label">Full name</label>
+    <input id="newPersonName" type="text" placeholder="e.g. Jane Tan">
+    <label class="modal-label">Choose a 4-digit PIN</label>
+    <input id="newPersonPin" type="password" inputmode="numeric" maxlength="4" placeholder="1234">
+    <label class="modal-label">Confirm PIN</label>
+    <input id="newPersonPinConfirm" type="password" inputmode="numeric" maxlength="4" placeholder="1234">
+    <div class="modal-error" id="personModalError"></div>
+    <div class="modal-actions">
+      <button type="button" onclick="closePersonModal()">Cancel</button>
+      <button type="button" class="primary" onclick="submitNewPerson()">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Submission result modal ============ -->
+<div id="submitResultModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3 style="margin:0 0 4px" id="submitResultTitle">Submitted</h3>
+    <div id="submitResultBody" style="font-size:13px;line-height:1.5"></div>
+    <div class="modal-actions">
+      <button type="button" class="primary" onclick="closeSubmitResultModal()">Done</button>
     </div>
   </div>
 </div>
@@ -563,35 +640,128 @@ function newForm(){
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   currentRequisitionId=null;
+  document.getElementById("progressStrip").style.display="none";
   updateSubmitBtnLabel();
   setStatus("New blank requisition created.");
 }
 
 function updateSubmitBtnLabel(){
   const btn=document.getElementById("submitBtn");
-  btn.textContent = currentRequisitionId ? "Update Submission" : "Submit to Dashboard";
+  btn.disabled = !!currentRequisitionId;
+  btn.textContent = currentRequisitionId ? "Already Submitted" : "Submit to Dashboard";
 }
 
+// ---------------- Person directory / dropdowns ----------------
+const ADD_NEW_VALUE = "__add_new__";
+let peopleCache = [];
+let activeSelectForModal = null;
+
+async function loadPeople(){
+  if(!supabaseClient) return;
+  const {data, error} = await supabaseClient.from("people_public").select("id,name").order("name");
+  if(error){ console.error(error); return; }
+  peopleCache = data || [];
+  populatePersonSelects();
+}
+
+function populatePersonSelects(){
+  document.querySelectorAll(".person-select").forEach(sel=>{
+    const prevId = sel.value && sel.value!==ADD_NEW_VALUE
+      ? (sel.selectedOptions[0]?.dataset.personId || "")
+      : "";
+    sel.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value=""; placeholder.textContent="— Select a person —";
+    sel.appendChild(placeholder);
+    peopleCache.forEach(p=>{
+      const opt=document.createElement("option");
+      opt.value=p.name; opt.dataset.personId=p.id;
+      opt.textContent=p.name;
+      if(p.id===prevId) opt.selected=true;
+      sel.appendChild(opt);
+    });
+    const addOpt=document.createElement("option");
+    addOpt.value=ADD_NEW_VALUE; addOpt.textContent="＋ Add new person...";
+    sel.appendChild(addOpt);
+  });
+}
+
+function handlePersonSelect(sel){
+  if(sel.value===ADD_NEW_VALUE){
+    activeSelectForModal = sel;
+    sel.value="";
+    openPersonModal();
+  }
+}
+
+function openPersonModal(){
+  document.getElementById("newPersonName").value="";
+  document.getElementById("newPersonPin").value="";
+  document.getElementById("newPersonPinConfirm").value="";
+  document.getElementById("personModalError").textContent="";
+  document.getElementById("personModal").style.display="flex";
+}
+function closePersonModal(){
+  document.getElementById("personModal").style.display="none";
+  activeSelectForModal=null;
+}
+
+async function submitNewPerson(){
+  const name=document.getElementById("newPersonName").value.trim();
+  const pin=document.getElementById("newPersonPin").value.trim();
+  const pinConfirm=document.getElementById("newPersonPinConfirm").value.trim();
+  const errEl=document.getElementById("personModalError");
+  if(!name){ errEl.textContent="Enter a name."; return; }
+  if(!/^\d{4}$/.test(pin)){ errEl.textContent="PIN must be exactly 4 digits."; return; }
+  if(pin!==pinConfirm){ errEl.textContent="PINs don't match."; return; }
+  if(!supabaseClient){ errEl.textContent="Supabase isn't configured."; return; }
+
+  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+  if(error || !data.success){
+    errEl.textContent = (data && data.error) || error.message || "Could not register.";
+    return;
+  }
+  peopleCache.push({id:data.id, name:data.name});
+  peopleCache.sort((a,b)=>a.name.localeCompare(b.name));
+  populatePersonSelects();
+  if(activeSelectForModal){
+    activeSelectForModal.value = data.name;
+  }
+  closePersonModal();
+  setStatus(`Registered ${data.name}. Make sure they know their PIN — it can't be shown again.`);
+}
+
+function getPersonSelection(id){
+  const sel=document.getElementById(id);
+  const opt=sel.selectedOptions[0];
+  return { name: sel.value || "", person_id: (opt && opt.dataset.personId) || null };
+}
+
+// ---------------- Submission ----------------
 async function submitToDashboard(){
   if(!supabaseClient){
     setStatus("Supabase isn't configured yet — edit SUPABASE_URL / SUPABASE_ANON_KEY in this file's script.");
     return;
   }
-  const {meta, rows} = collect();
-  if(!meta.projectName){
-    setStatus("Please enter a Project Name before submitting.");
+  if(currentRequisitionId){
+    setStatus("This requisition is already submitted and in the approval chain.");
     return;
   }
-  const realRows = rows.filter(r=>r[0] || r[1]);
-  if(realRows.length===0){
-    setStatus("Add at least one material line before submitting.");
+  const {meta, rows} = collect();
+  if(!meta.projectName){ setStatus("Please enter a Project Name before submitting."); return; }
+
+  const manager=getPersonSelection("manager"), approver=getPersonSelection("approveBy"),
+        purchaser=getPersonSelection("purchaseBy"), receiver=getPersonSelection("receivedBy");
+  if(!manager.name || !approver.name || !purchaser.name || !receiver.name){
+    setStatus("Please select all four signers (Manager, Approved By, Purchased By, Received By) before submitting.");
     return;
   }
 
+  const realRows = rows.filter(r=>r[0] || r[1]);
+  if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
+
   const btn=document.getElementById("submitBtn");
-  btn.disabled=true;
-  const wasUpdate = !!currentRequisitionId;
-  btn.textContent = wasUpdate ? "Updating..." : "Submitting...";
+  btn.disabled=true; btn.textContent="Submitting...";
 
   try{
     const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
@@ -606,70 +776,72 @@ async function submitToDashboard(){
       form_date: meta.formDate || null,
       pc_no: meta.pcNo || null,
       pm_incharge: meta.pmIncharge || null,
-      manager_name: meta.manager || null,
-      approve_by: meta.approveBy || null,
-      purchase_by: meta.purchaseBy || null,
-      received_by: meta.receivedBy || null,
-      materials_subtotal: itemsTotal,
-      delivery_tax_subtotal: dtaxTotal,
-      grand_total: grand
+      manager_name: manager.name, approve_by: approver.name,
+      purchase_by: purchaser.name, received_by: receiver.name,
+      manager_person_id: manager.person_id, approve_person_id: approver.person_id,
+      purchase_person_id: purchaser.person_id, received_person_id: receiver.person_id,
+      materials_subtotal: itemsTotal, delivery_tax_subtotal: dtaxTotal, grand_total: grand
     };
+    const items = realRows.map((r,i)=>({
+      sn:i+1, name:r[0]||"", description:r[1]||"",
+      qty:Number(r[2]||0), unit_price:Number(r[3]||0), delivery_tax:Number(r[4]||0), link:r[5]||""
+    }));
+    const signers = [manager, approver, purchaser, receiver];
 
-    let requisitionId = currentRequisitionId;
-    let trackingNo = null;
-
-    if(!requisitionId){
-      const {data, error} = await supabaseClient.from("requisitions").insert(header).select().single();
-      if(error) throw error;
-      requisitionId = data.id;
-      trackingNo = data.tracking_no;
-      currentRequisitionId = requisitionId;
-    } else {
-      const {data, error} = await supabaseClient.from("requisitions").update(header).eq("id", requisitionId).select().single();
-      if(error) throw error;
-      trackingNo = data.tracking_no;
-      // Replace line items wholesale — simplest way to keep them in sync with the form
-      const {error: delErr} = await supabaseClient.from("requisition_items").delete().eq("requisition_id", requisitionId);
-      if(delErr) throw delErr;
-    }
-
-    const itemRows = realRows.map((r,i)=>{
-      const qty=Number(r[2]||0), price=Number(r[3]||0), dtax=Number(r[4]||0);
-      return {
-        requisition_id: requisitionId,
-        sn: i+1,
-        name: r[0]||"",
-        description: r[1]||"",
-        qty, unit_price: price, delivery_tax: dtax,
-        link: r[5]||"",
-        total: qty*price
-      };
+    const {data, error} = await supabaseClient.rpc("create_requisition", {
+      p_header: header, p_items: items, p_signers: signers
     });
-    const {error: itemsErr} = await supabaseClient.from("requisition_items").insert(itemRows);
-    if(itemsErr) throw itemsErr;
+    if(error) throw error;
+    if(!data.success) throw new Error(data.error || "Unknown error");
 
-    updateSubmitBtnLabel();
-    showTrackingBadge(trackingNo);
+    currentRequisitionId = data.requisition_id;
     saveForm();
-    setStatus(`${wasUpdate?"Updated":"Submitted"} — tracking no. ${trackingNo}. Open the dashboard to follow its approval status.`);
+    showSubmitResult(data.tracking_no, data.first_token, manager.name);
+    renderProgressStrip(["Manager Approval","Procurement Approval","Purchase","Received"],
+      [manager.name, approver.name, purchaser.name, receiver.name], 0);
+    setStatus(`Submitted — tracking no. ${data.tracking_no}.`);
   }catch(e){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
-  }finally{
-    btn.disabled=false;
-    updateSubmitBtnLabel();
+    btn.disabled=false; btn.textContent="Submit to Dashboard";
   }
 }
 
-function showTrackingBadge(trackingNo){
-  let badge=document.getElementById("trackingBadge");
-  if(!badge){
-    badge=document.createElement("div");
-    badge.id="trackingBadge";
-    badge.style.cssText="min-width:960px;margin-bottom:10px;font-size:12.5px;font-weight:700;color:#2050bd;background:#eef4ff;border:1px solid #cddcfb;padding:8px 14px;border-radius:8px;display:inline-block";
-    document.querySelector(".sheet").insertBefore(badge, document.querySelector(".header"));
-  }
-  badge.textContent = `Tracking No: ${trackingNo}`;
+function renderProgressStrip(stages, names, currentIdx, declinedIdx){
+  const el=document.getElementById("progressStrip");
+  el.style.display="flex";
+  el.innerHTML = stages.map((s,i)=>{
+    let cls="";
+    if(declinedIdx===i) cls="declined";
+    else if(i<currentIdx) cls="done";
+    else if(i===currentIdx) cls="current";
+    return `<div class="progress-step ${cls}">${s}<span class="p-name">${escHtml(names[i]||"")}</span></div>`;
+  }).join("");
+}
+function escHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function showSubmitResult(trackingNo, firstToken, managerName){
+  const link = new URL("sign.html", window.location.href);
+  link.searchParams.set("token", firstToken);
+  document.getElementById("submitResultTitle").textContent = `Submitted — ${trackingNo}`;
+  document.getElementById("submitResultBody").innerHTML = `
+    <p>This requisition is now waiting on <strong>${escHtml(managerName)}</strong> (Team Manager) to e-sign.</p>
+    <div class="link-copy-box">
+      <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
+      <button type="button" onclick="copySignLink()">Copy</button>
+    </div>
+    <p class="muted" style="font-size:12px">Send this link to ${escHtml(managerName)} along with: "Please open this link and enter your name + PIN to approve or decline this purchase request." The next signer's link will only appear after they act.</p>
+    <p class="muted" style="font-size:12px">Track the full approval chain any time on the <a href="dashboard.html" target="_blank">dashboard</a>.</p>
+  `;
+  document.getElementById("submitResultModal").style.display="flex";
+}
+function copySignLink(){
+  const inp=document.getElementById("firstSignLinkInput");
+  inp.select(); document.execCommand("copy");
+  setStatus("Link copied.");
+}
+function closeSubmitResultModal(){
+  document.getElementById("submitResultModal").style.display="none";
 }
 
 function exportCSV(){
@@ -968,6 +1140,7 @@ async function shareFile(){
 document.getElementById("formDate").value=todayISO();
 addRow();
 recalc();
+loadPeople();
 
 // Resume an in-progress submission if this browser has one saved
 (function resumeDraft(){
@@ -978,6 +1151,7 @@ recalc();
     if(data._requisitionId){
       currentRequisitionId=data._requisitionId;
       updateSubmitBtnLabel();
+      setStatus("This browser already has a submitted requisition open. Click \"New Requisition\" to start another.");
     }
   }catch(e){}
 })();

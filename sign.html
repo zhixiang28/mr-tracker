@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — E-Sign Approval</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0;
+    --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#ffffff;
+    --danger:#dc2626; --success:#16a34a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); padding:20px;
+  }
+  .card{
+    background:var(--paper); border-radius:16px; box-shadow:0 12px 32px rgba(15,23,42,.1);
+    max-width:460px; width:100%; padding:30px 28px;
+  }
+  .brand{ font-weight:800; font-size:15px; letter-spacing:-.2px; margin-bottom:4px; color:var(--muted); }
+  h1{ font-size:20px; margin:0 0 18px; }
+  .summary{
+    background:#f8fafc; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:20px;
+    font-size:13px; line-height:1.7;
+  }
+  .summary b{ color:var(--ink); }
+  .summary .row{ display:flex; justify-content:space-between; gap:10px; }
+  .stage-tag{
+    display:inline-block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+    color:#fff; background:var(--accent); padding:4px 10px; border-radius:999px; margin-bottom:12px;
+  }
+  label{ display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin:14px 0 6px; }
+  input{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    font:inherit; font-size:15px;
+  }
+  input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
+  .actions{ display:flex; gap:10px; margin-top:22px; }
+  button{
+    flex:1; border:none; border-radius:10px; padding:13px; font:inherit; font-weight:700;
+    font-size:14px; cursor:pointer;
+  }
+  .btn-approve{ background:var(--success); color:#fff; }
+  .btn-decline{ background:#fff; color:var(--danger); border:1.5px solid var(--danger); }
+  .msg{ font-size:13px; margin-top:14px; padding:10px 12px; border-radius:8px; display:none; line-height:1.5; }
+  .msg.error{ background:#fef2f2; color:var(--danger); border:1px solid #fecaca; display:block; }
+  .msg.success{ background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; display:block; }
+  .decline-panel{ display:none; margin-top:14px; }
+  .link-copy-box{
+    display:flex; gap:8px; margin:12px 0; align-items:center; background:#f4f6f8;
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+  }
+  .link-copy-box input{ flex:1; border:0; background:transparent; font-size:12px; padding:2px; }
+  .link-copy-box button{ flex:none; padding:8px 14px; font-size:12px; background:var(--accent); color:#fff; }
+  .center-note{ text-align:center; color:var(--muted); font-size:13px; padding:30px 0; }
+  a{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="brand">SPACElogic</div>
+  <div class="center-note" id="loadingNote">Loading requisition...</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token");
+const card = document.getElementById("card");
+
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function money(n){ return "$ "+Number(n||0).toFixed(2); }
+
+async function init(){
+  if(!token){
+    card.innerHTML = `<div class="brand">SPACElogic</div><div class="center-note">No signing link provided. Ask whoever sent this for the full link.</div>`;
+    return;
+  }
+  const {data: step, error: stepErr} = await supabaseClient
+    .from("approval_steps").select("*").eq("token", token).single();
+  if(stepErr || !step){
+    card.innerHTML = `<div class="brand">SPACElogic</div><div class="center-note">This signing link isn't valid. Ask whoever sent it to resend from the dashboard.</div>`;
+    return;
+  }
+  const {data: req} = await supabaseClient
+    .from("requisitions").select("*").eq("id", step.requisition_id).single();
+  const {data: prevSteps} = await supabaseClient
+    .from("approval_steps").select("*").eq("requisition_id", step.requisition_id).order("step_order");
+
+  renderCard(step, req, prevSteps || []);
+}
+
+function renderCard(step, req, allSteps){
+  const prevIncomplete = allSteps.find(s=>s.step_order < step.step_order && s.status!=="Signed");
+
+  if(step.status==="Signed"){
+    card.innerHTML = statusOnlyView(step, req, "success",
+      `${escHtml(step.assigned_person_name)} already signed off on <b>${escHtml(step.stage_name)}</b> on ${new Date(step.signed_at).toLocaleString()}.`);
+    return;
+  }
+  if(step.status==="Declined"){
+    card.innerHTML = statusOnlyView(step, req, "error",
+      `This requisition was declined at the <b>${escHtml(step.stage_name)}</b> step. Reason: "${escHtml(step.decline_reason||"—")}"`);
+    return;
+  }
+  if(req.status==="Declined"){
+    card.innerHTML = statusOnlyView(step, req, "error", `This requisition was declined earlier in the chain and can't proceed.`);
+    return;
+  }
+  if(prevIncomplete){
+    card.innerHTML = statusOnlyView(step, req, "error",
+      `Waiting on <b>${escHtml(prevIncomplete.assigned_person_name)}</b> to complete the <b>${escHtml(prevIncomplete.stage_name)}</b> step first. Check back once they've signed.`);
+    return;
+  }
+
+  card.innerHTML = `
+    <div class="brand">SPACElogic</div>
+    <div class="stage-tag">${escHtml(step.stage_name)}</div>
+    <h1>E-Sign Approval</h1>
+    <div class="summary">
+      <div class="row"><span>Tracking No.</span><b>${escHtml(req.tracking_no)}</b></div>
+      <div class="row"><span>Project</span><b>${escHtml(req.project_name||"-")}</b></div>
+      <div class="row"><span>Requested by</span><b>${escHtml(req.request_by||"-")}</b></div>
+      <div class="row"><span>Grand total</span><b>${money(req.grand_total)}</b></div>
+    </div>
+    <div style="font-size:13.5px;margin-bottom:6px">
+      You're signing as <b>${escHtml(step.assigned_person_name)}</b>. Enter your 4-digit PIN to confirm.
+    </div>
+    <label>Your PIN</label>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••">
+    <div class="actions">
+      <button class="btn-approve" id="approveBtn" onclick="doApprove('${step.token}')">Approve &amp; Sign</button>
+      <button class="btn-decline" onclick="toggleDeclinePanel()">Decline</button>
+    </div>
+    <div class="decline-panel" id="declinePanel">
+      <label>Reason for declining</label>
+      <input type="text" id="declineReason" placeholder="e.g. Budget not approved this quarter">
+      <div class="actions">
+        <button class="btn-decline" style="flex:1" onclick="doDecline('${step.token}')">Confirm Decline</button>
+      </div>
+    </div>
+    <div class="msg" id="msg"></div>
+  `;
+}
+
+function statusOnlyView(step, req, kind, html){
+  return `
+    <div class="brand">SPACElogic</div>
+    <div class="stage-tag">${escHtml(step.stage_name)}</div>
+    <h1>${escHtml(req.tracking_no)} — ${escHtml(req.project_name||"")}</h1>
+    <div class="msg ${kind}" style="display:block">${html}</div>
+    <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
+  `;
+}
+
+function toggleDeclinePanel(){
+  const p=document.getElementById("declinePanel");
+  p.style.display = p.style.display==="block" ? "none" : "block";
+}
+
+async function doApprove(tok){
+  const pin=document.getElementById("pinInput").value.trim();
+  const msg=document.getElementById("msg");
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your 4-digit PIN."; return; }
+  document.getElementById("approveBtn").disabled=true;
+  document.getElementById("approveBtn").textContent="Signing...";
+
+  const {data, error} = await supabaseClient.rpc("sign_step", {p_token: tok, p_pin: pin});
+  if(error || !data.success){
+    msg.className="msg error"; msg.style.display="block";
+    msg.textContent = (data && data.error) || (error && error.message) || "Something went wrong.";
+    document.getElementById("approveBtn").disabled=false;
+    document.getElementById("approveBtn").textContent="Approve & Sign";
+    return;
+  }
+
+  let nextLinkHtml="";
+  if(data.next_token){
+    const nextUrl = new URL("sign.html", window.location.href);
+    nextUrl.searchParams.set("token", data.next_token);
+    nextLinkHtml = `
+      <p style="margin-top:14px;font-size:13px">Next up: send this link to the next signer.</p>
+      <div class="link-copy-box">
+        <input type="text" readonly value="${nextUrl.toString()}" id="nextLinkInput">
+        <button type="button" onclick="copyNextLink()">Copy</button>
+      </div>`;
+  } else {
+    nextLinkHtml = `<p style="margin-top:14px;font-size:13px">This was the final step — the requisition is now fully <b>Received</b>.</p>`;
+  }
+
+  card.innerHTML = `
+    <div class="brand">SPACElogic</div>
+    <div class="msg success" style="display:block">You signed off on <b>${escHtml(data.stage)}</b> as ${escHtml(data.signed_by)}.</div>
+    ${nextLinkHtml}
+    <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
+  `;
+}
+function copyNextLink(){
+  const inp=document.getElementById("nextLinkInput");
+  inp.select(); document.execCommand("copy");
+}
+
+async function doDecline(tok){
+  const pin=document.getElementById("pinInput").value.trim();
+  const reason=document.getElementById("declineReason").value.trim();
+  const msg=document.getElementById("msg");
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your 4-digit PIN."; return; }
+  if(!reason){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Please give a short reason."; return; }
+
+  const {data, error} = await supabaseClient.rpc("decline_step", {p_token: tok, p_pin: pin, p_reason: reason});
+  if(error || !data.success){
+    msg.className="msg error"; msg.style.display="block";
+    msg.textContent = (data && data.error) || (error && error.message) || "Something went wrong.";
+    return;
+  }
+  card.innerHTML = `
+    <div class="brand">SPACElogic</div>
+    <div class="msg error" style="display:block">You declined this requisition at <b>${escHtml(data.stage)}</b>. The requester has been flagged on the dashboard.</div>
+    <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
+  `;
+}
+
+init();
+</script>
+</body>
+</html>
