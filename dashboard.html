@@ -29,6 +29,12 @@
   .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .primary:hover{ background:var(--accent-dark); }
   .view-badge{ font-size:11px; font-weight:700; color:var(--muted); background:#eef1f6; border:1px solid var(--line); padding:5px 10px; border-radius:999px; }
+  .admin-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin-bottom:16px; font-size:12px; }
+  .admin-bar.active{ background:#f0f5ff; border-color:var(--accent); }
+  .admin-only{ display:none; }
+  .admin-mode .admin-only{ display:block; }
+  .override-row{ display:flex; gap:6px; margin-top:8px; align-items:center; }
+  .view-form-link{ font-size:11px; margin-top:6px; }
 
   .pipeline{ display:grid; grid-template-columns:repeat(6,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
   .stage-cell{ padding:16px 10px; position:relative; border-right:1px solid var(--line); cursor:pointer; transition:background .15s ease; }
@@ -96,8 +102,15 @@
     <div class="actions">
       <span class="view-badge">👁 View-only — sign with name + PIN to act</span>
       <button onclick="loadData()">Refresh</button>
+      <a href="admin.html"><button type="button">⚙ Admin</button></a>
       <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
     </div>
+  </div>
+  <div class="admin-bar" id="adminBar">
+    <span id="adminBarText">Not logged in as admin.</span>
+    <select id="adminPersonSelect" style="max-width:180px"></select>
+    <input type="password" id="adminPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="max-width:80px">
+    <button onclick="adminLogin()">Admin Login</button>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -151,6 +164,29 @@ const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","P
 let allReqs = [];
 let openRows = new Set();
 let activeStageFilter = "";
+let peopleForAdmin = [];
+let adminId = null, adminPin = null, adminName = null;
+
+async function loadPeopleForAdmin(){
+  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
+  peopleForAdmin = data || [];
+  const sel=document.getElementById("adminPersonSelect");
+  sel.innerHTML = '<option value="">Name</option>' + peopleForAdmin.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+}
+
+async function adminLogin(){
+  const personId = document.getElementById("adminPersonSelect").value;
+  const pin = document.getElementById("adminPinInput").value.trim();
+  if(!personId || !/^\d{4}$/.test(pin)){ setStatus("Select your name and enter your 4-digit PIN."); return; }
+  const {data, error} = await supabaseClient.rpc("verify_admin", {p_person_id: personId, p_pin: pin});
+  if(error || !data){ setStatus("Not an admin, or wrong PIN."); return; }
+  adminId = personId; adminPin = pin;
+  adminName = peopleForAdmin.find(p=>p.id===personId)?.name || "";
+  document.getElementById("adminBar").classList.add("active");
+  document.getElementById("adminBarText").textContent = `Admin mode: ${adminName}`;
+  document.body.classList.add("admin-mode");
+  render();
+}
 
 function setStatus(t){
   const el=document.getElementById("statusMsg");
@@ -208,9 +244,46 @@ function render(){
         <td>${fmtMoney(r.grand_total)}</td>
         <td><span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span></td>
       </tr>`;
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}${renderTimelineBlock(r)}</div></td></tr>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${renderAdminControls(r)}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
+}
+
+function renderAdminControls(r){
+  if(!adminId) return "";
+  const stages = ["Manager Approved","Procurement Approved","Purchased","Received"];
+  const options = stages.map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${s}</option>`).join("");
+  let reopenBtn = "";
+  if(r.status==="Declined"){
+    reopenBtn = `<button onclick="event.stopPropagation();adminReopen('${r.id}')">Reopen this requisition</button>`;
+  }
+  return `
+    <div class="admin-only" style="margin-top:12px;border-top:1px dashed var(--line);padding-top:10px">
+      <div style="font-weight:700;font-size:11.5px;margin-bottom:6px">Admin controls</div>
+      <div class="override-row">
+        <select id="override-${r.id}">${options}</select>
+        <button onclick="event.stopPropagation();adminOverride('${r.id}')">Force stage</button>
+        ${reopenBtn}
+      </div>
+    </div>`;
+}
+
+async function adminOverride(reqId){
+  const target = document.getElementById("override-"+reqId).value;
+  const {data, error} = await supabaseClient.rpc("admin_override_stage", {
+    p_admin_id: adminId, p_admin_pin: adminPin, p_requisition_id: reqId, p_target_status: target
+  });
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed."); return; }
+  setStatus(`Stage forced to ${data.new_status} by ${data.overridden_by}.`);
+  await loadData();
+}
+async function adminReopen(reqId){
+  const {data, error} = await supabaseClient.rpc("admin_reopen_declined", {
+    p_admin_id: adminId, p_admin_pin: adminPin, p_requisition_id: reqId
+  });
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed."); return; }
+  setStatus(`Reopened by ${data.reopened_by}.`);
+  await loadData();
 }
 
 function renderItemsBlock(r){
@@ -251,19 +324,26 @@ function renderTimelineBlock(r){
     let metaLine="";
     if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.signed_at).toLocaleString()}`;
     else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.declined_at).toLocaleString()}`;
-    else metaLine = `Assigned to ${escapeHtml(s.assigned_person_name)} — pending`;
+    else if(s.assigned_person_name) metaLine = `Assigned to ${escapeHtml(s.assigned_person_name)} — pending`;
+    else metaLine = `Not yet claimed — waiting for someone to sign`;
 
     const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
+    const isUnclaimed = !s.assigned_person_id;
+
+    const identityHtml = isUnclaimed ? `
+        <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off">
+        <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>` : "";
 
     const actionHtml = isActionable ? `
-      <button class="open-link-btn" onclick="event.stopPropagation();toggleSignBox('${s.id}')">Sign / Decline as ${escapeHtml(s.assigned_person_name)}</button>
+      <button class="open-link-btn" onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign this step" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>
       <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
-        <input type="password" inputmode="numeric" maxlength="4" placeholder="4-digit PIN" id="pin-${s.id}">
+        ${identityHtml}
+        <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
         <input type="text" placeholder="Reason (only needed to decline)" id="reason-${s.id}">
         <div class="row">
-          <button class="primary" onclick="dashApprove('${s.token}','${s.id}')">Approve</button>
-          <button onclick="dashDecline('${s.token}','${s.id}')">Decline</button>
+          <button class="primary" onclick="dashApprove('${s.token}','${s.id}',${isUnclaimed})">Approve</button>
+          <button onclick="dashDecline('${s.token}','${s.id}',${isUnclaimed})">Decline</button>
         </div>
         <div class="sign-error" id="signerr-${s.id}"></div>
       </div>` : "";
@@ -292,21 +372,50 @@ function toggleSignBox(stepId){
   box.style.display = box.style.display==="block" ? "none" : "block";
 }
 
-async function dashApprove(token, stepId){
+async function dashEnsureClaimed(token, stepId, pin, errEl){
+  const nameInput = document.getElementById("name-"+stepId);
+  if(!nameInput) return true;
+  const name = nameInput.value.trim();
+  if(!name){ errEl.textContent="Enter your name."; return false; }
+
+  const existing = peopleForAdmin.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  let personId = existing ? existing.id : null;
+
+  if(!personId){
+    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register."; return false; }
+    personId = regData.id;
+    await loadPeopleForAdmin();
+  }
+
+  const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
+  if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
+  return true;
+}
+
+async function dashApprove(token, stepId, isUnclaimed){
   const pin=document.getElementById("pin-"+stepId).value.trim();
   const errEl=document.getElementById("signerr-"+stepId);
   if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
+  if(isUnclaimed){
+    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
+    if(!claimed) return;
+  }
   const {data, error} = await supabaseClient.rpc("sign_step", {p_token: token, p_pin: pin});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
   setStatus(`Signed off by ${data.signed_by} on ${data.stage}.`);
   await loadData(true);
 }
-async function dashDecline(token, stepId){
+async function dashDecline(token, stepId, isUnclaimed){
   const pin=document.getElementById("pin-"+stepId).value.trim();
   const reason=document.getElementById("reason-"+stepId).value.trim();
   const errEl=document.getElementById("signerr-"+stepId);
   if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
   if(!reason){ errEl.textContent="Enter a reason to decline."; return; }
+  if(isUnclaimed){
+    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
+    if(!claimed) return;
+  }
   const {data, error} = await supabaseClient.rpc("decline_step", {p_token: token, p_pin: pin, p_reason: reason});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
   setStatus(`Declined by ${data.declined_by} at ${data.stage}.`);
@@ -326,6 +435,7 @@ async function loadData(keepOpen){
 }
 
 loadData();
+loadPeopleForAdmin();
 </script>
 </body>
 </html>

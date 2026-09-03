@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Admin Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --success:#16a34a; }
+  *{box-sizing:border-box}
+  body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap{ max-width:640px; margin:40px auto 60px; padding:0 16px; }
+  .brand{ font-weight:800; font-size:18px; margin-bottom:18px; }
+  .brand span{ font-weight:400; color:var(--muted); }
+  .card{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:24px; margin-bottom:20px; }
+  h2{ font-size:15px; margin:0 0 4px; }
+  .desc{ font-size:12.5px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+  label{ display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin:10px 0 4px; }
+  input,select{ width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 12px; font:inherit; font-size:13px; }
+  button{ border:none; background:var(--accent); color:#fff; padding:10px 16px; border-radius:8px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; margin-top:14px; }
+  button:hover{ background:var(--accent-dark); }
+  button.secondary{ background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .msg{ font-size:12.5px; margin-top:10px; padding:9px 12px; border-radius:8px; display:none; }
+  .msg.error{ background:#fef2f2; color:var(--danger); border:1px solid #fecaca; display:block; }
+  .msg.success{ background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; display:block; }
+  .person-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #eef0f2; font-size:13px; }
+  .person-row:last-child{ border-bottom:none; }
+  .badge{ font-size:10.5px; font-weight:700; color:#fff; background:var(--accent); padding:3px 8px; border-radius:999px; margin-left:8px; }
+  a{ color:var(--accent); font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">SPACE<span>logic</span> — Admin Settings</div>
+
+  <div class="card" id="claimCard" style="display:none">
+    <h2>Claim the first admin slot</h2>
+    <div class="desc">Nobody is an admin yet. Whoever holds the master setup code can claim it once — this locks the code afterward.</div>
+    <label>Your name</label>
+    <select id="claimPersonSelect"></select>
+    <label>Your PIN</label>
+    <input type="password" id="claimPin" inputmode="numeric" maxlength="4" placeholder="••••">
+    <label>Master setup code</label>
+    <input type="text" id="claimCode" placeholder="Given to you privately">
+    <button onclick="doClaim()">Claim Admin</button>
+    <div class="msg" id="claimMsg"></div>
+  </div>
+
+  <div class="card" id="loginCard">
+    <h2>Admin login</h2>
+    <div class="desc">Enter your name and PIN to manage admins.</div>
+    <label>Your name</label>
+    <select id="loginPersonSelect"></select>
+    <label>Your PIN</label>
+    <input type="password" id="loginPin" inputmode="numeric" maxlength="4" placeholder="••••">
+    <button onclick="doLogin()">Unlock</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div class="card" id="manageCard" style="display:none">
+    <h2>People &amp; admin access</h2>
+    <div class="desc">Logged in as <strong id="loggedInName"></strong>. Promote or demote anyone below.</div>
+    <div id="peopleList"></div>
+  </div>
+
+  <div style="text-align:center;margin-top:10px"><a href="dashboard.html">← Back to Dashboard</a></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let people = [];
+let loggedInAdminId = null, loggedInAdminPin = null;
+
+async function loadPeople(){
+  const {data, error} = await supabaseClient.from("people_public").select("id,name,is_admin").order("name");
+  if(error){ console.error(error); return; }
+  people = data || [];
+  const hasAdmin = people.some(p=>p.is_admin);
+  document.getElementById("claimCard").style.display = hasAdmin ? "none" : "block";
+  fillSelect("claimPersonSelect");
+  fillSelect("loginPersonSelect");
+  if(loggedInAdminId) renderPeopleList();
+}
+
+function fillSelect(id){
+  const sel=document.getElementById(id);
+  sel.innerHTML = '<option value="">— Select your name —</option>' +
+    people.map(p=>`<option value="${p.id}">${escHtml(p.name)}</option>`).join("");
+}
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+async function doClaim(){
+  const personId = document.getElementById("claimPersonSelect").value;
+  const pin = document.getElementById("claimPin").value.trim();
+  const code = document.getElementById("claimCode").value.trim();
+  const msg = document.getElementById("claimMsg");
+  if(!personId){ msg.className="msg error"; msg.textContent="Select your name."; return; }
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.textContent="Enter your 4-digit PIN."; return; }
+  if(!code){ msg.className="msg error"; msg.textContent="Enter the master setup code."; return; }
+
+  const {data, error} = await supabaseClient.rpc("claim_first_admin", {p_person_id: personId, p_pin: pin, p_code: code});
+  if(error || !data.success){
+    msg.className="msg error"; msg.textContent = (data&&data.error) || (error&&error.message) || "Failed.";
+    return;
+  }
+  msg.className="msg success"; msg.textContent="You're now an admin. Log in below to manage the team.";
+  await loadPeople();
+}
+
+async function doLogin(){
+  const personId = document.getElementById("loginPersonSelect").value;
+  const pin = document.getElementById("loginPin").value.trim();
+  const msg = document.getElementById("loginMsg");
+  if(!personId){ msg.className="msg error"; msg.textContent="Select your name."; return; }
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.textContent="Enter your 4-digit PIN."; return; }
+
+  const {data, error} = await supabaseClient.rpc("verify_admin", {p_person_id: personId, p_pin: pin});
+  if(error || !data){
+    msg.className="msg error"; msg.textContent="Not an admin, or wrong PIN.";
+    return;
+  }
+  loggedInAdminId = personId; loggedInAdminPin = pin;
+  document.getElementById("loginCard").style.display="none";
+  document.getElementById("manageCard").style.display="block";
+  document.getElementById("loggedInName").textContent = people.find(p=>p.id===personId)?.name || "";
+  renderPeopleList();
+}
+
+function renderPeopleList(){
+  const el = document.getElementById("peopleList");
+  el.innerHTML = people.map(p=>`
+    <div class="person-row">
+      <div>${escHtml(p.name)} ${p.is_admin ? '<span class="badge">Admin</span>' : ''}</div>
+      <button class="secondary" onclick="toggleRole('${p.id}', ${!p.is_admin})">${p.is_admin ? "Remove admin" : "Make admin"}</button>
+    </div>
+  `).join("");
+}
+
+async function toggleRole(targetId, makeAdmin){
+  const {data, error} = await supabaseClient.rpc("admin_set_role", {
+    p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_target_id: targetId, p_make_admin: makeAdmin
+  });
+  if(error || !data.success){
+    alert((data&&data.error) || (error&&error.message) || "Failed.");
+    return;
+  }
+  await loadPeople();
+}
+
+loadPeople();
+</script>
+</body>
+</html>

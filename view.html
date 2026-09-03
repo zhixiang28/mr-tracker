@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — View Requisition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd;
+    --bg:#eef1f6; --paper:#ffffff; --success:#16a34a; --danger:#dc2626; --pending:#94a3b8;
+  }
+  *{box-sizing:border-box}
+  body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap{ max-width:900px; margin:24px auto 60px; padding:0 16px; }
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  .brand{ font-weight:800; font-size:16px; }
+  .brand span{ font-weight:400; color:var(--muted); }
+  button, a.btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:8px 14px; border-radius:8px; cursor:pointer; font:inherit; font-weight:600; font-size:12.5px; text-decoration:none; display:inline-block; }
+  .view-tag{ font-size:11px; font-weight:700; color:var(--muted); background:#eef1f6; border:1px solid var(--line); padding:5px 10px; border-radius:999px; }
+
+  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:30px; }
+  .form-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:18px; }
+  .form-title{ font-size:20px; font-weight:800; }
+  .form-sub{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  .status-pill{ display:inline-block; padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700; color:#fff; }
+
+  .meta-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px 30px; margin-bottom:22px; font-size:13px; }
+  .meta-row{ display:flex; justify-content:space-between; border-bottom:1px dotted var(--line); padding:5px 0; }
+  .meta-row .k{ color:var(--muted); font-weight:600; }
+  .meta-row .v{ font-weight:600; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:22px; }
+  th{ text-align:left; font-size:10.5px; text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--ink); padding:6px 8px; }
+  td{ padding:8px; border-bottom:1px solid var(--line); }
+  td.num, th.num{ text-align:right; }
+  tfoot td{ font-weight:700; border-bottom:none; padding-top:8px; }
+
+  .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .sign-card{ border:1.5px solid var(--line); border-radius:10px; padding:14px; }
+  .sign-role{ font-size:11px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; margin-bottom:8px; }
+  .sign-name{ font-size:15px; font-weight:700; margin-bottom:4px; }
+  .sign-status{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; color:#fff; }
+  .sign-status.signed{ background:var(--success); }
+  .sign-status.pending{ background:var(--pending); }
+  .sign-status.declined{ background:var(--danger); }
+  .sign-meta{ font-size:11.5px; color:var(--muted); margin-top:6px; }
+  .decline-box{ font-size:11.5px; color:var(--danger); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:6px; }
+  .override-tag{ font-size:10.5px; color:#7c3aed; font-style:italic; margin-top:4px; }
+  .center-note{ text-align:center; color:var(--muted); padding:60px 0; }
+  @media(max-width:640px){ .meta-grid,.sign-grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <div class="brand">SPACE<span>logic</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="view-tag">👁 View only — no editing here</span>
+      <a class="btn" href="dashboard.html">← Back to Dashboard</a>
+    </div>
+  </div>
+  <div class="sheet" id="content"><div class="center-note">Loading...</div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const STAGE_VARS = { "Submitted":"#94a3b8","Manager Approved":"#f59e0b","Procurement Approved":"#8b5cf6","Purchased":"#2f6fed","Received":"#16a34a","Declined":"#dc2626" };
+
+function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function money(n){ return "$ "+Number(n||0).toFixed(2); }
+
+async function init(){
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+  const content = document.getElementById("content");
+  if(!id){ content.innerHTML = '<div class="center-note">No requisition specified.</div>'; return; }
+
+  const {data: req, error} = await supabaseClient
+    .from("requisitions").select("*, requisition_items(*), approval_steps(*)").eq("id", id).single();
+  if(error || !req){ content.innerHTML = '<div class="center-note">Requisition not found.</div>'; return; }
+
+  render(req);
+}
+
+function signCard(step){
+  if(!step) return '<div class="sign-card"><div class="sign-status pending">Not assigned</div></div>';
+  let statusHtml, metaHtml="", declineHtml="", overrideHtml="";
+  if(step.status==="Signed"){
+    statusHtml = `<span class="sign-status signed">✓ Signed</span>`;
+    metaHtml = `<div class="sign-meta">${new Date(step.signed_at).toLocaleString()}</div>`;
+    if(step.is_override) overrideHtml = `<div class="override-tag">Fast-forwarded by admin (${escHtml(step.override_by)})</div>`;
+  } else if(step.status==="Declined"){
+    statusHtml = `<span class="sign-status declined">✕ Declined</span>`;
+    metaHtml = `<div class="sign-meta">${new Date(step.declined_at).toLocaleString()}</div>`;
+    declineHtml = `<div class="decline-box">Reason: ${escHtml(step.decline_reason||"—")}</div>`;
+  } else {
+    statusHtml = `<span class="sign-status pending">Pending</span>`;
+  }
+  return `
+    <div class="sign-card">
+      <div class="sign-role">${escHtml(step.stage_name)}</div>
+      <div class="sign-name">${escHtml(step.assigned_person_name||"—")}</div>
+      ${statusHtml}
+      ${metaHtml}
+      ${declineHtml}
+      ${overrideHtml}
+    </div>`;
+}
+
+function render(req){
+  const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+  const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);
+
+  const itemRows = items.map(it=>`
+    <tr>
+      <td>${it.sn}</td>
+      <td>${escHtml(it.name)}${it.link?` — <a href="${escHtml(it.link)}" target="_blank">link ↗</a>`:""}</td>
+      <td>${escHtml(it.description)}</td>
+      <td class="num">${it.qty}</td>
+      <td class="num">${money(it.unit_price)}</td>
+      <td class="num">${money(it.delivery_tax)}</td>
+      <td class="num">${money(it.total)}</td>
+    </tr>`).join("");
+
+  document.getElementById("content").innerHTML = `
+    <div class="form-header">
+      <div>
+        <div class="form-title">${escHtml(req.project_name||"Untitled Project")}</div>
+        <div class="form-sub">Materials Requisition — ${escHtml(req.tracking_no)}</div>
+      </div>
+      <span class="status-pill" style="background:${STAGE_VARS[req.status]||'#94a3b8'}">${escHtml(req.status)}</span>
+    </div>
+
+    ${req.status==="Declined" ? `<div class="decline-box" style="margin-bottom:16px">Declined by ${escHtml(req.declined_by)} on ${req.declined_at?new Date(req.declined_at).toLocaleString():""} — Reason: ${escHtml(req.decline_reason||"—")}</div>` : ""}
+
+    <div class="meta-grid">
+      <div class="meta-row"><span class="k">Project Location</span><span class="v">${escHtml(req.project_location||"-")}</span></div>
+      <div class="meta-row"><span class="k">Requested By</span><span class="v">${escHtml(req.request_by||"-")}</span></div>
+      <div class="meta-row"><span class="k">Form Date</span><span class="v">${escHtml(req.form_date||"-")}</span></div>
+      <div class="meta-row"><span class="k">Supply Date</span><span class="v">${escHtml(req.supply_date||"-")}</span></div>
+      <div class="meta-row"><span class="k">PC No.</span><span class="v">${escHtml(req.pc_no||"-")}</span></div>
+      <div class="meta-row"><span class="k">PM In-Charge</span><span class="v">${escHtml(req.pm_incharge||"-")}</span></div>
+    </div>
+
+    <table>
+      <thead><tr><th>S/N</th><th>Name</th><th>Description</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Delv/Tax</th><th class="num">Total</th></tr></thead>
+      <tbody>${itemRows || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>
+      <tfoot>
+        <tr><td colspan="6">Materials Subtotal</td><td class="num">${money(req.materials_subtotal)}</td></tr>
+        <tr><td colspan="6">Delivery / Tax Subtotal</td><td class="num">${money(req.delivery_tax_subtotal)}</td></tr>
+        <tr><td colspan="6">GRAND TOTAL</td><td class="num">${money(req.grand_total)}</td></tr>
+      </tfoot>
+    </table>
+
+    <div class="sign-grid">
+      ${signCard(byOrder[1])}
+      ${signCard(byOrder[2])}
+      ${signCard(byOrder[3])}
+      ${signCard(byOrder[4])}
+    </div>
+  `;
+}
+
+init();
+</script>
+</body>
+</html>

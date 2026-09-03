@@ -262,6 +262,29 @@
     -webkit-appearance:none;
     cursor:pointer;
   }
+  .assign-box{
+    border:1.5px dashed #c7ccd3;
+    border-radius:8px;
+    padding:10px 12px;
+    background:#fafbfc;
+  }
+  .assign-box select{
+    width:100%;
+    border:1px solid #c7ccd3;
+    border-radius:6px;
+    padding:6px 8px;
+    font:inherit;
+    font-size:12.5px;
+    background:#fff;
+    cursor:pointer;
+  }
+  .assign-note{
+    font-size:10px;
+    color:#94a3b8;
+    text-align:center;
+    margin-top:6px;
+    font-style:italic;
+  }
   .progress-strip{
     display:flex; gap:0; margin:14px 0 18px; border-radius:10px; overflow:hidden;
     border:1px solid var(--line);
@@ -331,7 +354,7 @@
     .header{background:#fff!important;color:#000!important;border:2px solid #111;border-radius:0}
     .logo{background:none!important;border:1px solid #111}
     th{background:#111!important;color:#fff!important}
-    .sig-box{border-color:#000; min-height:100px; background:#fff!important}
+    .sig-box,.assign-box{border-color:#000; min-height:100px; background:#fff!important}
     @page{size:A4 landscape;margin:8mm}
   }
 </style>
@@ -424,63 +447,16 @@
     </div>
 
     <div class="footer">
-      <div class="section-title">Approval &amp; Sign-Off</div>
-      <div id="progressStrip" class="progress-strip" style="display:none"></div>
-      <div class="sig-groups">
-        <div class="sig-group">
-          <div class="sig-group-title">TEAM MANAGER</div>
-          <div class="sig-box">
-            <div class="sig-line"></div>
-            <select id="manager" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
-          </div>
-        </div>
-
-        <div class="sig-group">
-          <div class="sig-group-title">PROCUREMENT DEPT</div>
-          <div class="sig-subrow">
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <select id="approveBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
-              <div class="sig-sublabel">APPROVED BY</div>
-            </div>
-            <div class="sig-box">
-              <div class="sig-line"></div>
-              <select id="purchaseBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
-              <div class="sig-sublabel">PURCHASED BY</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="sig-group">
-          <div class="sig-group-title">RECEIVED BY</div>
-          <div class="sig-box">
-            <div class="sig-line"></div>
-            <select id="receivedBy" class="sig-name-input person-select" onchange="handlePersonSelect(this)"></select>
-          </div>
-        </div>
+      <div class="section-title">Approval Chain</div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
+        You don't need to know who the signers are. After you submit, you'll get one link for the first step (Team Manager approval).
+        Send that link to whoever should approve it — they'll register themselves (or sign in if already registered) and sign right there.
+        Each time someone signs, a new link appears for the next step, so it passes down the chain automatically:
+        Manager → Procurement Approval → Purchase → Received.
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div class="status" id="status"></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============ Add person modal ============ -->
-<div id="personModal" class="modal-overlay" style="display:none">
-  <div class="modal-box">
-    <h3 style="margin:0 0 4px">Register a new signer</h3>
-    <div class="muted" style="font-size:12.5px;margin-bottom:14px">They'll use this name + PIN to e-sign their step later. Make sure they know their PIN — it isn't shown again.</div>
-    <label class="modal-label">Full name</label>
-    <input id="newPersonName" type="text" placeholder="e.g. Jane Tan">
-    <label class="modal-label">Choose a 4-digit PIN</label>
-    <input id="newPersonPin" type="password" inputmode="numeric" maxlength="4" placeholder="1234">
-    <label class="modal-label">Confirm PIN</label>
-    <input id="newPersonPinConfirm" type="password" inputmode="numeric" maxlength="4" placeholder="1234">
-    <div class="modal-error" id="personModalError"></div>
-    <div class="modal-actions">
-      <button type="button" onclick="closePersonModal()">Cancel</button>
-      <button type="button" class="primary" onclick="submitNewPerson()">Register</button>
     </div>
   </div>
 </div>
@@ -583,9 +559,7 @@ function collect(){
     meta:{
       projectName:val("projectName"), projectLocation:val("projectLocation"),
       requestBy:val("requestBy"), supplyDate:val("supplyDate"), formDate:val("formDate"),
-      pcNo:val("pcNo"), pmIncharge:val("pmIncharge"),
-      manager:val("manager"), approveBy:val("approveBy"),
-      purchaseBy:val("purchaseBy"), receivedBy:val("receivedBy")
+      pcNo:val("pcNo"), pmIncharge:val("pmIncharge")
     },
     rows:[...document.querySelectorAll("#itemsBody tr")].map(tr=>[
       valEl(tr,".r-name"),valEl(tr,".r-desc"),valEl(tr,".r-qty"),valEl(tr,".r-price"),
@@ -611,7 +585,6 @@ function apply(data){
 
 function saveForm(){
   const data=collect();
-  data._requisitionId=currentRequisitionId;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   setStatus("Draft saved locally in this browser.");
 }
@@ -622,8 +595,6 @@ function loadForm(){
   try{
     const data=JSON.parse(raw);
     apply(data);
-    currentRequisitionId=data._requisitionId||null;
-    updateSubmitBtnLabel();
     setStatus("Draft loaded.");
   }
   catch(e){setStatus("Could not load draft.");}
@@ -636,106 +607,20 @@ function newForm(){
   document.getElementById("supplyDate").value="";
   document.getElementById("pcNo").value="-";
   document.getElementById("pmIncharge").value="-";
-  document.querySelectorAll(".sig-name-input").forEach(i=>i.value="");
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   currentRequisitionId=null;
-  document.getElementById("progressStrip").style.display="none";
   updateSubmitBtnLabel();
   setStatus("New blank requisition created.");
 }
 
 function updateSubmitBtnLabel(){
   const btn=document.getElementById("submitBtn");
-  btn.disabled = !!currentRequisitionId;
-  btn.textContent = currentRequisitionId ? "Already Submitted" : "Submit to Dashboard";
+  btn.disabled = false;
+  btn.textContent = "Submit to Dashboard";
 }
 
-// ---------------- Person directory / dropdowns ----------------
-const ADD_NEW_VALUE = "__add_new__";
-let peopleCache = [];
-let activeSelectForModal = null;
-
-async function loadPeople(){
-  if(!supabaseClient) return;
-  const {data, error} = await supabaseClient.from("people_public").select("id,name").order("name");
-  if(error){ console.error(error); return; }
-  peopleCache = data || [];
-  populatePersonSelects();
-}
-
-function populatePersonSelects(){
-  document.querySelectorAll(".person-select").forEach(sel=>{
-    const prevId = sel.value && sel.value!==ADD_NEW_VALUE
-      ? (sel.selectedOptions[0]?.dataset.personId || "")
-      : "";
-    sel.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value=""; placeholder.textContent="— Select a person —";
-    sel.appendChild(placeholder);
-    peopleCache.forEach(p=>{
-      const opt=document.createElement("option");
-      opt.value=p.name; opt.dataset.personId=p.id;
-      opt.textContent=p.name;
-      if(p.id===prevId) opt.selected=true;
-      sel.appendChild(opt);
-    });
-    const addOpt=document.createElement("option");
-    addOpt.value=ADD_NEW_VALUE; addOpt.textContent="＋ Add new person...";
-    sel.appendChild(addOpt);
-  });
-}
-
-function handlePersonSelect(sel){
-  if(sel.value===ADD_NEW_VALUE){
-    activeSelectForModal = sel;
-    sel.value="";
-    openPersonModal();
-  }
-}
-
-function openPersonModal(){
-  document.getElementById("newPersonName").value="";
-  document.getElementById("newPersonPin").value="";
-  document.getElementById("newPersonPinConfirm").value="";
-  document.getElementById("personModalError").textContent="";
-  document.getElementById("personModal").style.display="flex";
-}
-function closePersonModal(){
-  document.getElementById("personModal").style.display="none";
-  activeSelectForModal=null;
-}
-
-async function submitNewPerson(){
-  const name=document.getElementById("newPersonName").value.trim();
-  const pin=document.getElementById("newPersonPin").value.trim();
-  const pinConfirm=document.getElementById("newPersonPinConfirm").value.trim();
-  const errEl=document.getElementById("personModalError");
-  if(!name){ errEl.textContent="Enter a name."; return; }
-  if(!/^\d{4}$/.test(pin)){ errEl.textContent="PIN must be exactly 4 digits."; return; }
-  if(pin!==pinConfirm){ errEl.textContent="PINs don't match."; return; }
-  if(!supabaseClient){ errEl.textContent="Supabase isn't configured."; return; }
-
-  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
-  if(error || !data.success){
-    errEl.textContent = (data && data.error) || error.message || "Could not register.";
-    return;
-  }
-  peopleCache.push({id:data.id, name:data.name});
-  peopleCache.sort((a,b)=>a.name.localeCompare(b.name));
-  populatePersonSelects();
-  if(activeSelectForModal){
-    activeSelectForModal.value = data.name;
-  }
-  closePersonModal();
-  setStatus(`Registered ${data.name}. Make sure they know their PIN — it can't be shown again.`);
-}
-
-function getPersonSelection(id){
-  const sel=document.getElementById(id);
-  const opt=sel.selectedOptions[0];
-  return { name: sel.value || "", person_id: (opt && opt.dataset.personId) || null };
-}
+function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 // ---------------- Submission ----------------
 async function submitToDashboard(){
@@ -743,19 +628,8 @@ async function submitToDashboard(){
     setStatus("Supabase isn't configured yet — edit SUPABASE_URL / SUPABASE_ANON_KEY in this file's script.");
     return;
   }
-  if(currentRequisitionId){
-    setStatus("This requisition is already submitted and in the approval chain.");
-    return;
-  }
   const {meta, rows} = collect();
   if(!meta.projectName){ setStatus("Please enter a Project Name before submitting."); return; }
-
-  const manager=getPersonSelection("manager"), approver=getPersonSelection("approveBy"),
-        purchaser=getPersonSelection("purchaseBy"), receiver=getPersonSelection("receivedBy");
-  if(!manager.name || !approver.name || !purchaser.name || !receiver.name){
-    setStatus("Please select all four signers (Manager, Approved By, Purchased By, Received By) before submitting.");
-    return;
-  }
 
   const realRows = rows.filter(r=>r[0] || r[1]);
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
@@ -776,29 +650,22 @@ async function submitToDashboard(){
       form_date: meta.formDate || null,
       pc_no: meta.pcNo || null,
       pm_incharge: meta.pmIncharge || null,
-      manager_name: manager.name, approve_by: approver.name,
-      purchase_by: purchaser.name, received_by: receiver.name,
-      manager_person_id: manager.person_id, approve_person_id: approver.person_id,
-      purchase_person_id: purchaser.person_id, received_person_id: receiver.person_id,
       materials_subtotal: itemsTotal, delivery_tax_subtotal: dtaxTotal, grand_total: grand
     };
     const items = realRows.map((r,i)=>({
       sn:i+1, name:r[0]||"", description:r[1]||"",
       qty:Number(r[2]||0), unit_price:Number(r[3]||0), delivery_tax:Number(r[4]||0), link:r[5]||""
     }));
-    const signers = [manager, approver, purchaser, receiver];
 
     const {data, error} = await supabaseClient.rpc("create_requisition", {
-      p_header: header, p_items: items, p_signers: signers
+      p_header: header, p_items: items
     });
     if(error) throw error;
     if(!data.success) throw new Error(data.error || "Unknown error");
 
     currentRequisitionId = data.requisition_id;
-    saveForm();
-    showSubmitResult(data.tracking_no, data.first_token, manager.name);
-    renderProgressStrip(["Manager Approval","Procurement Approval","Purchase","Received"],
-      [manager.name, approver.name, purchaser.name, receiver.name], 0);
+    showSubmitResult(data.tracking_no, data.first_token);
+    resetFormForNext();
     setStatus(`Submitted — tracking no. ${data.tracking_no}.`);
   }catch(e){
     console.error(e);
@@ -807,31 +674,32 @@ async function submitToDashboard(){
   }
 }
 
-function renderProgressStrip(stages, names, currentIdx, declinedIdx){
-  const el=document.getElementById("progressStrip");
-  el.style.display="flex";
-  el.innerHTML = stages.map((s,i)=>{
-    let cls="";
-    if(declinedIdx===i) cls="declined";
-    else if(i<currentIdx) cls="done";
-    else if(i===currentIdx) cls="current";
-    return `<div class="progress-step ${cls}">${s}<span class="p-name">${escHtml(names[i]||"")}</span></div>`;
-  }).join("");
+function resetFormForNext(){
+  document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
+  document.getElementById("formDate").value=todayISO();
+  document.getElementById("supplyDate").value="";
+  document.getElementById("pcNo").value="-";
+  document.getElementById("pmIncharge").value="-";
+  document.getElementById("itemsBody").innerHTML="";
+  addRow();
+  recalc();
+  currentRequisitionId=null;
+  updateSubmitBtnLabel();
+  localStorage.removeItem(STORAGE_KEY);
 }
-function escHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
-function showSubmitResult(trackingNo, firstToken, managerName){
+function showSubmitResult(trackingNo, firstToken){
   const link = new URL("sign.html", window.location.href);
   link.searchParams.set("token", firstToken);
   document.getElementById("submitResultTitle").textContent = `Submitted — ${trackingNo}`;
   document.getElementById("submitResultBody").innerHTML = `
-    <p>This requisition is now waiting on <strong>${escHtml(managerName)}</strong> (Team Manager) to e-sign.</p>
+    <p>This requisition needs a <strong>Team Manager</strong> to approve it first.</p>
     <div class="link-copy-box">
       <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
       <button type="button" onclick="copySignLink()">Copy</button>
     </div>
-    <p class="muted" style="font-size:12px">Send this link to ${escHtml(managerName)} along with: "Please open this link and enter your name + PIN to approve or decline this purchase request." The next signer's link will only appear after they act.</p>
-    <p class="muted" style="font-size:12px">Track the full approval chain any time on the <a href="dashboard.html" target="_blank">dashboard</a>.</p>
+    <p class="muted" style="font-size:12px">Send this link to whoever should approve as Manager, along with: "Please open this link — you'll register or sign in, then approve or decline." Once they act, a new link for the next step (Procurement Approval) will appear for them to pass along — and so on down the chain.</p>
+    <p class="muted" style="font-size:12px">You can also just open the <a href="dashboard.html" target="_blank">dashboard</a> anytime and let the right person sign directly from there instead of chasing links.</p>
   `;
   document.getElementById("submitResultModal").style.display="flex";
 }
@@ -1075,6 +943,9 @@ function buildPDF(){
     doc.text(s.label, sx+sigColW/2, finalY+56, {align:"center"});
     doc.setFont("helvetica","normal");
   });
+  doc.setFontSize(8);
+  doc.setTextColor(...muted);
+  doc.text("Signatures are captured digitally through the approval chain — see the tracking dashboard for signer names and dates.", margin, finalY+sigBoxH+16);
 
   return doc;
 }
@@ -1140,20 +1011,19 @@ async function shareFile(){
 document.getElementById("formDate").value=todayISO();
 addRow();
 recalc();
-loadPeople();
 
-// Resume an in-progress submission if this browser has one saved
-(function resumeDraft(){
+// Clear out any stale submission-lock data from earlier versions of this tool
+(function clearStaleState(){
   const raw=localStorage.getItem(STORAGE_KEY);
   if(!raw) return;
   try{
     const data=JSON.parse(raw);
     if(data._requisitionId){
-      currentRequisitionId=data._requisitionId;
-      updateSubmitBtnLabel();
-      setStatus("This browser already has a submitted requisition open. Click \"New Requisition\" to start another.");
+      localStorage.removeItem(STORAGE_KEY);
     }
-  }catch(e){}
+  }catch(e){
+    localStorage.removeItem(STORAGE_KEY);
+  }
 })();
 </script>
 </body>
