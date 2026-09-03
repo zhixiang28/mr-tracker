@@ -136,10 +136,14 @@ function renderCard(step, req, allSteps){
   const identityHtml = isUnclaimed ? `
     <div style="font-size:13.5px;margin-bottom:6px">This step hasn't been claimed yet. Type your name — if you've registered before, pick your name from the suggestions; if not, this registers you now.</div>
     <label>Your name</label>
-    <input type="text" id="nameInput" list="peopleList" placeholder="Full name" autocomplete="off">
+    <input type="text" id="nameInput" list="peopleList" placeholder="Full name" autocomplete="off" oninput="toggleConfirmPin()">
     <datalist id="peopleList">${peopleCache.map(p=>`<option value="${escHtml(p.name)}">`).join("")}</datalist>
-    <label>${peopleCache.length ? "Your PIN (existing) or choose a new 4-digit PIN" : "Choose a 4-digit PIN"}</label>
+    <label id="pinLabel">${peopleCache.length ? "Your PIN (existing) or choose a new 4-digit PIN" : "Choose a 4-digit PIN"}</label>
     <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••">
+    <div id="confirmPinWrap" style="display:none">
+      <label>Confirm new PIN</label>
+      <input type="password" id="confirmPinInput" inputmode="numeric" maxlength="4" placeholder="••••">
+    </div>
   ` : `
     <div style="font-size:13.5px;margin-bottom:6px">
       You're signing as <b>${escHtml(step.assigned_person_name)}</b>. Enter your 4-digit PIN to confirm.
@@ -207,6 +211,15 @@ function toggleDeclinePanel(){
   p.style.display = p.style.display==="block" ? "none" : "block";
 }
 
+function toggleConfirmPin(){
+  const nameInput = document.getElementById("nameInput");
+  const wrap = document.getElementById("confirmPinWrap");
+  if(!nameInput || !wrap) return;
+  const name = nameInput.value.trim().toLowerCase();
+  const isNew = name && !peopleCache.some(p=>p.name.toLowerCase()===name);
+  wrap.style.display = isNew ? "block" : "none";
+}
+
 async function ensureClaimed(tok, pin, msg){
   const nameInput = document.getElementById("nameInput");
   if(!nameInput) return true; // already claimed, nothing to do
@@ -217,6 +230,9 @@ async function ensureClaimed(tok, pin, msg){
   let personId = existing ? existing.id : null;
 
   if(!personId){
+    const confirmPin = (document.getElementById("confirmPinInput")||{}).value?.trim() || "";
+    if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Choose a 4-digit PIN."; return false; }
+    if(pin !== confirmPin){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — re-enter both."; return false; }
     const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
     if(regErr || !regData.success){
       msg.className="msg error"; msg.style.display="block";

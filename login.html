@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Sign In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --success:#16a34a; }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg); padding:20px;
+  }
+  .card{ background:var(--paper); border-radius:16px; box-shadow:0 12px 32px rgba(15,23,42,.1); max-width:400px; width:100%; padding:34px 30px; }
+  .brand{ font-weight:800; font-size:19px; text-align:center; margin-bottom:2px; }
+  .brand span{ font-weight:400; color:var(--muted); }
+  h1{ font-size:16px; text-align:center; margin:2px 0 6px; font-weight:700; color:var(--muted); }
+  .desc{ font-size:12.5px; color:var(--muted); text-align:center; margin-bottom:24px; line-height:1.5; }
+  label{ display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin:14px 0 5px; }
+  input{ width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; font-size:14px; }
+  input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
+  button{ width:100%; border:none; background:var(--accent); color:#fff; padding:12px; border-radius:9px; font:inherit; font-weight:700; font-size:14px; cursor:pointer; margin-top:20px; }
+  button:hover{ background:var(--accent-dark); }
+  button.secondary{ background:#fff; color:var(--ink); border:1px solid var(--line); margin-top:8px; }
+  .msg{ font-size:12.5px; margin-top:10px; padding:9px 12px; border-radius:8px; display:none; text-align:center; }
+  .msg.error{ background:#fef2f2; color:var(--danger); border:1px solid #fecaca; display:block; }
+  .msg.success{ background:#f0fdf4; color:var(--success); border:1px solid #bbf7d0; display:block; }
+  .signup-panel{ display:none; }
+  .signup-note{ font-size:11.5px; color:var(--accent-dark); background:#eef4ff; border:1px solid #cddcfb; border-radius:8px; padding:8px 10px; margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">SPACE<span>logic</span></div>
+  <h1>MR Tracker</h1>
+
+  <div id="loginPanel">
+    <div class="desc">Sign in with your name and PIN.</div>
+    <label>Your name</label>
+    <input type="text" id="nameInput" list="peopleList" placeholder="Full name" autocomplete="off">
+    <datalist id="peopleList"></datalist>
+    <label>Your PIN</label>
+    <input type="password" id="pinInput" placeholder="••••" maxlength="4" inputmode="numeric">
+    <button onclick="handleContinue()">Continue</button>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="signup-panel" id="signupPanel">
+    <div class="signup-note">We don't recognize that name — let's set up a new account. Choose a 4-digit PIN and enter it twice to confirm.</div>
+    <label>Choose a 4-digit PIN</label>
+    <input type="password" id="signupPin1" placeholder="••••" maxlength="4" inputmode="numeric">
+    <label>Confirm PIN</label>
+    <input type="password" id="signupPin2" placeholder="••••" maxlength="4" inputmode="numeric">
+    <button onclick="handleSignup()">Create Account</button>
+    <button class="secondary" onclick="cancelSignup()">Back</button>
+    <div class="msg" id="signupMsg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let people = [];
+const params = new URLSearchParams(window.location.search);
+const redirectTo = params.get("redirect") || "dashboard.html";
+
+async function loadPeople(){
+  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
+  people = data || [];
+  document.getElementById("peopleList").innerHTML = people.map(p=>`<option value="${escHtml(p.name)}">`).join("");
+}
+function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function findExisting(name){
+  return people.find(p=>p.name.toLowerCase()===name.trim().toLowerCase());
+}
+
+async function handleContinue(){
+  const name = document.getElementById("nameInput").value.trim();
+  const pin = document.getElementById("pinInput").value.trim();
+  const msg = document.getElementById("msg");
+  msg.style.display="none";
+
+  if(!name){ msg.className="msg error"; msg.textContent="Enter your name."; return; }
+
+  const existing = findExisting(name);
+  if(!existing){
+    document.getElementById("loginPanel").style.display="none";
+    document.getElementById("signupPanel").style.display="block";
+    return;
+  }
+
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.textContent="Enter your 4-digit PIN."; return; }
+
+  const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
+  if(error || !data.success){ msg.className="msg error"; msg.textContent=(data&&data.error)||"Login failed."; return; }
+
+  completeLogin(data.id, data.name, pin);
+}
+
+function cancelSignup(){
+  document.getElementById("signupPanel").style.display="none";
+  document.getElementById("loginPanel").style.display="block";
+  document.getElementById("signupPin1").value="";
+  document.getElementById("signupPin2").value="";
+  document.getElementById("signupMsg").style.display="none";
+}
+
+async function handleSignup(){
+  const name = document.getElementById("nameInput").value.trim();
+  const pin1 = document.getElementById("signupPin1").value.trim();
+  const pin2 = document.getElementById("signupPin2").value.trim();
+  const msg = document.getElementById("signupMsg");
+
+  if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
+  if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
+
+  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin1});
+  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not create account."; return; }
+
+  completeLogin(data.id, data.name, pin1);
+}
+
+function completeLogin(id, name, pin){
+  sessionStorage.setItem("sl_person_id", id);
+  sessionStorage.setItem("sl_person_name", name);
+  sessionStorage.setItem("sl_pin", pin);
+  localStorage.setItem("requesterName", name);
+  window.location.href = redirectTo;
+}
+
+loadPeople();
+document.getElementById("nameInput").value = localStorage.getItem("requesterName") || "";
+</script>
+</body>
+</html>

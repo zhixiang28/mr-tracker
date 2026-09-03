@@ -332,6 +332,15 @@
     display:flex; gap:8px; margin:10px 0; align-items:center; background:#f4f6f8;
     border:1px solid var(--line,#d7dbe0); border-radius:8px; padding:8px 10px;
   }
+  .draft-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:10px 4px; border-bottom:1px solid #eef0f2;
+  }
+  .draft-row:last-child{ border-bottom:none; }
+  .draft-info .draft-title{ font-weight:700; font-size:13px; }
+  .draft-info .draft-meta{ font-size:11px; color:#6b7280; }
+  .draft-row .draft-actions{ display:flex; gap:6px; flex:none; }
+  .draft-row .draft-actions button{ font-size:11px; padding:6px 10px; }
   .link-copy-box input{ flex:1; border:0; background:transparent; font-size:12px; margin:0; }
   .link-copy-box button{ white-space:nowrap; }
   .hint{
@@ -376,7 +385,7 @@
       <div class="btn-group">
         <button onclick="newForm()">New</button>
         <button onclick="saveForm()">Save Draft</button>
-        <button onclick="loadForm()">Load Draft</button>
+        <button onclick="openDraftsModal()">My Drafts</button>
       </div>
       <div class="divider"></div>
       <div class="btn-group">
@@ -398,9 +407,10 @@
 
   <div class="login-bar" id="loginBar">
     <span id="loginBarText">Not logged in — drafts save only in this browser.</span>
-    <input type="text" id="loginNameInput" list="loginPeopleList" placeholder="Your name" autocomplete="off">
+    <input type="text" id="loginNameInput" list="loginPeopleList" placeholder="Your name" autocomplete="off" oninput="toggleLoginConfirmPin()">
     <datalist id="loginPeopleList"></datalist>
     <input type="password" id="loginPinInput" placeholder="PIN" maxlength="4" inputmode="numeric">
+    <input type="password" id="loginConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="display:none">
     <button onclick="requesterLogin()">Log in / Register</button>
     <button id="logoutBtn" onclick="requesterLogout()" style="display:none">Log out</button>
   </div>
@@ -467,7 +477,7 @@
     <div class="footer">
       <div class="section-title">Approval Chain</div>
       <div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
-        After you submit, copy the link you're given and send it to the Team Manager. From there it passes itself along — each person's signature reveals the next link, and you're told exactly who to send it to.
+        This gets signed off in order — <strong>Team Manager → Procurement Approval → Purchase → Received</strong>. After you submit, copy the link and send it to the Team Manager. Each signature reveals the next link, and tells you exactly which role to send it to next.
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
@@ -483,6 +493,18 @@
     <div id="submitResultBody" style="font-size:13px;line-height:1.5"></div>
     <div class="modal-actions">
       <button type="button" class="primary" onclick="closeSubmitResultModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ My Drafts modal ============ -->
+<div id="draftsModal" class="modal-overlay" style="display:none">
+  <div class="modal-box" style="max-width:460px">
+    <h3 style="margin:0 0 4px">My Drafts</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:12px" id="draftsModalNote">Log in above to save drafts to your account and pick up where you left off.</div>
+    <div id="draftsList" style="max-height:320px;overflow-y:auto"></div>
+    <div class="modal-actions">
+      <button type="button" onclick="closeDraftsModal()">Close</button>
     </div>
   </div>
 </div>
@@ -541,6 +563,13 @@ function updateLoginBar(){
   }
 }
 
+function toggleLoginConfirmPin(){
+  const name = document.getElementById("loginNameInput").value.trim().toLowerCase();
+  const confirmInput = document.getElementById("loginConfirmPinInput");
+  const isNew = name && !requesterPeople.some(p=>p.name.toLowerCase()===name);
+  confirmInput.style.display = isNew ? "inline-block" : "none";
+}
+
 async function requesterLogin(){
   const name = document.getElementById("loginNameInput").value.trim();
   const pin = document.getElementById("loginPinInput").value.trim();
@@ -553,6 +582,8 @@ async function requesterLogin(){
     if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Login failed."); return; }
     requesterId = data.id; requesterName = data.name;
   } else {
+    const confirmPin = document.getElementById("loginConfirmPinInput").value.trim();
+    if(pin !== confirmPin){ setStatus("PINs don't match — re-enter your PIN in both boxes."); return; }
     const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
     if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not register."); return; }
     requesterId = data.id; requesterName = data.name;
@@ -564,14 +595,13 @@ async function requesterLogin(){
   sessionStorage.setItem("sl_person_id", requesterId);
   sessionStorage.setItem("sl_person_name", requesterName);
   sessionStorage.setItem("sl_pin", requesterPin);
+  document.getElementById("loginConfirmPinInput").style.display="none";
   updateLoginBar();
 
-  // Offer to load their saved draft, if any
-  const {data: draftData} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin});
-  if(draftData && draftData.success && draftData.header){
-    if(confirm(`You have a saved draft (last updated ${new Date(draftData.updated_at).toLocaleString()}). Load it now?`)){
-      apply({meta: draftData.header, rows: draftData.items});
-    }
+  // Let them know if they have drafts waiting, without forcing a choice
+  const {data: draftsData} = await supabaseClient.rpc("list_my_drafts", {p_person_id: requesterId, p_pin: requesterPin});
+  if(draftsData && draftsData.success && (draftsData.drafts||[]).length > 0){
+    setStatus(`Logged in as ${requesterName}. You have ${draftsData.drafts.length} saved draft(s) — click "My Drafts" to continue one.`);
   }
 }
 
@@ -679,37 +709,97 @@ function apply(data){
   recalc();
 }
 
+let currentDraftId = null;
+
 async function saveForm(){
   const data=collect();
   if(requesterId && requesterPin){
+    const label = data.meta.projectName || `Draft ${new Date().toLocaleDateString()}`;
     const {data: res, error} = await supabaseClient.rpc("save_draft", {
-      p_person_id: requesterId, p_pin: requesterPin, p_header: data.meta, p_items: data.rows
+      p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
+      p_label: label, p_header: data.meta, p_items: data.rows
     });
     if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not save draft."); return; }
-    setStatus(`Draft saved to your account (${requesterName}).`);
+    currentDraftId = res.id;
+    setStatus(`Draft "${label}" saved to your account.`);
     return;
   }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-  setStatus("Draft saved locally in this browser.");
+  setStatus("Draft saved locally in this browser. Log in to save multiple drafts and access them from any device.");
 }
 
-async function loadForm(){
-  if(requesterId && requesterPin){
-    const {data: res, error} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin});
-    if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not load draft."); return; }
-    if(!res.header){ setStatus("No saved draft found on your account."); return; }
-    apply({meta: res.header, rows: res.items});
-    setStatus("Draft loaded from your account.");
+async function openDraftsModal(){
+  const modal = document.getElementById("draftsModal");
+  const note = document.getElementById("draftsModalNote");
+  const list = document.getElementById("draftsList");
+  modal.style.display="flex";
+
+  if(!(requesterId && requesterPin)){
+    note.style.display="block";
+    list.innerHTML = "";
+    // Still offer the single local draft, if any, for guests
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      try{
+        const data = JSON.parse(raw);
+        list.innerHTML = `
+          <div class="draft-row">
+            <div class="draft-info">
+              <div class="draft-title">${escHtml(data.meta?.projectName || "Untitled (this browser only)")}</div>
+              <div class="draft-meta">Saved locally — not tied to an account</div>
+            </div>
+            <div class="draft-actions">
+              <button class="primary" onclick="loadLocalDraft()">Continue</button>
+            </div>
+          </div>`;
+      }catch(e){}
+    }
     return;
   }
+  note.style.display="none";
+  list.innerHTML = "Loading...";
+  const {data: res, error} = await supabaseClient.rpc("list_my_drafts", {p_person_id: requesterId, p_pin: requesterPin});
+  if(error || !res.success){ list.innerHTML = `<div class="muted">${(res&&res.error)||(error&&error.message)||"Could not load drafts."}</div>`; return; }
+  const drafts = res.drafts || [];
+  if(drafts.length===0){ list.innerHTML = `<div class="muted" style="padding:14px 0">No saved drafts yet. Fill in the form and click "Save Draft" any time.</div>`; return; }
+  list.innerHTML = drafts.map(d=>`
+    <div class="draft-row">
+      <div class="draft-info">
+        <div class="draft-title">${escHtml(d.label || d.header?.projectName || "Untitled draft")}</div>
+        <div class="draft-meta">Last saved ${new Date(d.updated_at).toLocaleString()}</div>
+      </div>
+      <div class="draft-actions">
+        <button class="primary" onclick="continueDraft('${d.id}')">Continue</button>
+        <button onclick="deleteDraftFromList('${d.id}')">Delete</button>
+      </div>
+    </div>`).join("");
+}
+function closeDraftsModal(){
+  document.getElementById("draftsModal").style.display="none";
+}
+function loadLocalDraft(){
   const raw=localStorage.getItem(STORAGE_KEY);
   if(!raw){setStatus("No saved draft found.");return}
   try{
-    const data=JSON.parse(raw);
-    apply(data);
+    apply(JSON.parse(raw));
     setStatus("Draft loaded.");
-  }
-  catch(e){setStatus("Could not load draft.");}
+    closeDraftsModal();
+  }catch(e){setStatus("Could not load draft.");}
+}
+async function continueDraft(draftId){
+  const {data: res, error} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
+  if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not load draft."); return; }
+  apply({meta: res.header, rows: res.items});
+  currentDraftId = draftId;
+  closeDraftsModal();
+  setStatus("Draft loaded — continue editing and submit when ready.");
+}
+async function deleteDraftFromList(draftId){
+  if(!confirm("Delete this draft? This can't be undone.")) return;
+  const {data: res, error} = await supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
+  if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not delete draft."); return; }
+  if(currentDraftId===draftId) currentDraftId=null;
+  openDraftsModal();
 }
 
 function newForm(){
@@ -722,6 +812,7 @@ function newForm(){
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   currentRequisitionId=null;
+  currentDraftId=null;
   updateSubmitBtnLabel();
   setStatus("New blank requisition created.");
 }
@@ -777,11 +868,11 @@ async function submitToDashboard(){
 
     currentRequisitionId = data.requisition_id;
     showSubmitResult(data.tracking_no, data.first_token);
-    resetFormForNext();
-    if(requesterId && requesterPin){
-      // Clear their saved draft now that it's been submitted
-      supabaseClient.rpc("save_draft", {p_person_id: requesterId, p_pin: requesterPin, p_header: {}, p_items: []});
+    if(requesterId && requesterPin && currentDraftId){
+      // This draft has now been submitted — remove it from the drafts list
+      supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
     }
+    resetFormForNext();
     setStatus(`Submitted — tracking no. ${data.tracking_no}.`);
   }catch(e){
     console.error(e);
@@ -800,6 +891,7 @@ function resetFormForNext(){
   addRow();
   recalc();
   currentRequisitionId=null;
+  currentDraftId=null;
   updateSubmitBtnLabel();
   localStorage.removeItem(STORAGE_KEY);
   updateLoginBar();
@@ -1130,6 +1222,16 @@ addRow();
 recalc();
 loadRequesterPeopleList();
 updateLoginBar();
+
+// Support jumping straight into drafts from a dashboard shortcut link
+(function handleQueryParams(){
+  const params = new URLSearchParams(window.location.search);
+  if(params.get("draftId") && requesterId && requesterPin){
+    continueDraft(params.get("draftId"));
+  } else if(params.get("drafts")==="1"){
+    openDraftsModal();
+  }
+})();
 
 // Clear out any stale submission-lock data from earlier versions of this tool
 (function clearStaleState(){

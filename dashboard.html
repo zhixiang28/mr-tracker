@@ -33,6 +33,21 @@
   .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
   .mode-badge.admin{ color:#fff; background:var(--admin); }
 
+  .stats-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:16px; }
+  .stat-card{ background:#fff; border-radius:12px; box-shadow:0 6px 18px rgba(15,23,42,.06); padding:16px; }
+  .stat-card .stat-num{ font-size:26px; font-weight:800; line-height:1; }
+  .stat-card .stat-label{ font-size:11.5px; color:var(--muted); font-weight:600; margin-top:6px; }
+  .stat-card.alert .stat-num{ color:var(--admin); }
+  @media(max-width:800px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+
+  .quick-actions{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+  .quick-actions button{ padding:10px 16px; }
+  #actionFilterBtn.active{ background:var(--admin); border-color:var(--admin); color:#fff; }
+
+  th.sortable{ cursor:pointer; user-select:none; }
+  th.sortable:hover{ color:var(--ink); }
+  .sort-arrow{ font-size:9px; }
+
   .login-gate{ max-width:420px; margin:80px auto; background:#fff; border-radius:16px; box-shadow:0 12px 32px rgba(15,23,42,.1); padding:28px; text-align:center; }
   .login-gate h2{ margin:0 0 6px; font-size:18px; }
   .login-gate .desc{ font-size:12.5px; color:var(--muted); margin-bottom:18px; }
@@ -122,9 +137,16 @@
       <span class="muted" id="whoami"></span>
       <button onclick="loadData()">Refresh</button>
       <a href="admin.html"><button type="button">⚙ Admin Settings</button></a>
-      <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
       <button onclick="logout()">Log out</button>
     </div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="quick-actions">
+    <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
+    <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
+    <button type="button" id="actionFilterBtn" onclick="toggleActionFilter()">⚠ Needs Your Action</button>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -148,12 +170,12 @@
       <thead>
         <tr>
           <th style="width:26px"></th>
-          <th>Tracking No</th>
-          <th>Project</th>
-          <th>Requested By</th>
-          <th>Date</th>
-          <th>Grand Total</th>
-          <th>Stage</th>
+          <th class="sortable" data-sort="tracking_no" onclick="setSort('tracking_no')">Tracking No <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="project_name" onclick="setSort('project_name')">Project <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="request_by" onclick="setSort('request_by')">Requested By <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="form_date" onclick="setSort('form_date')">Date <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="grand_total" onclick="setSort('grand_total')">Grand Total <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="status" onclick="setSort('status')">Stage <span class="sort-arrow"></span></th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -164,19 +186,6 @@
     </div>
   </div>
   <div class="status-msg" id="statusMsg"></div>
-</div>
-
-<div class="login-gate" id="loginGate">
-  <div class="brand" style="margin-bottom:10px">SPACE<span>logic</span></div>
-  <h2>Sign in to continue</h2>
-  <div class="desc">You'll only see requisitions you submitted or were asked to sign. Admins see everything.</div>
-  <label>Your name</label>
-  <input type="text" id="gateNameInput" list="gatePeopleList" placeholder="Full name" autocomplete="off">
-  <datalist id="gatePeopleList"></datalist>
-  <label>Your PIN</label>
-  <input type="password" id="gatePinInput" placeholder="••••" maxlength="4" inputmode="numeric">
-  <button class="primary" onclick="gateLogin()">Log in / Register</button>
-  <div class="login-err" id="gateErr"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -203,50 +212,14 @@ function setStatus(t){
   window._st=setTimeout(()=>el.textContent="",6000);
 }
 
-async function loadGatePeopleList(){
-  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
-  document.getElementById("gatePeopleList").innerHTML = (data||[]).map(p=>`<option value="${escapeHtml(p.name)}">`).join("");
-  return data || [];
-}
-
-async function gateLogin(){
-  const name = document.getElementById("gateNameInput").value.trim();
-  const pin = document.getElementById("gatePinInput").value.trim();
-  const err = document.getElementById("gateErr");
-  if(!name){ err.textContent="Enter your name."; return; }
-  if(!/^\d{4}$/.test(pin)){ err.textContent="Enter your 4-digit PIN."; return; }
-
-  const people = await loadGatePeopleList();
-  const existing = people.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  let id, resolvedName;
-  if(existing){
-    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
-    if(error || !data.success){ err.textContent = (data&&data.error)||(error&&error.message)||"Login failed."; return; }
-    id = data.id; resolvedName = data.name;
-  } else {
-    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
-    if(error || !data.success){ err.textContent = (data&&data.error)||(error&&error.message)||"Could not register."; return; }
-    id = data.id; resolvedName = data.name;
-  }
-  myId = id; myPin = pin; myName = resolvedName;
-  sessionStorage.setItem("sl_person_id", myId);
-  sessionStorage.setItem("sl_person_name", myName);
-  sessionStorage.setItem("sl_pin", myPin);
-  showApp();
-}
-
 function logout(){
   sessionStorage.removeItem("sl_person_id");
   sessionStorage.removeItem("sl_person_name");
   sessionStorage.removeItem("sl_pin");
-  myId = myPin = myName = null;
-  document.getElementById("app").style.display="none";
-  document.getElementById("loginGate").style.display="block";
-  document.getElementById("gatePinInput").value="";
+  window.location.href = "login.html?redirect=dashboard.html";
 }
 
 async function showApp(){
-  document.getElementById("loginGate").style.display="none";
   document.getElementById("app").style.display="block";
   document.getElementById("whoami").textContent = `Logged in as ${myName}`;
   await loadPeopleForAdmin();
@@ -256,6 +229,71 @@ async function showApp(){
 async function loadPeopleForAdmin(){
   const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
   peopleForAdmin = data || [];
+}
+
+function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
+  return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
+}
+
+function computeStats(){
+  let mySubmissions=0, awaitingMySignature=0, needsLinkSent=0, completed=0, declined=0;
+  allReqs.forEach(r=>{
+    if(r.requester_person_id===myId) mySubmissions++;
+    if(r.status==="Received") completed++;
+    if(r.status==="Declined") declined++;
+
+    const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+    let prevSignedUpTo=0;
+    while(prevSignedUpTo<steps.length && steps[prevSignedUpTo].status==="Signed") prevSignedUpTo++;
+    const activeStep = steps[prevSignedUpTo];
+    if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
+      if(activeStep.assigned_person_id===myId) awaitingMySignature++;
+      else if(!activeStep.assigned_person_id && (r.requester_person_id===myId || steps.some(s=>s.assigned_person_id===myId))) needsLinkSent++;
+    }
+  });
+  return {mySubmissions, awaitingMySignature, needsLinkSent, completed, declined, total: allReqs.length};
+}
+
+function renderStats(){
+  const s = computeStats();
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="stat-card"><div class="stat-num">${s.total}</div><div class="stat-label">${iAmAdmin?"Total in system":"Total involving you"}</div></div>
+    <div class="stat-card"><div class="stat-num">${s.mySubmissions}</div><div class="stat-label">Submitted by you</div></div>
+    <div class="stat-card ${s.awaitingMySignature>0?'alert':''}"><div class="stat-num">${s.awaitingMySignature}</div><div class="stat-label">Awaiting your signature</div></div>
+    <div class="stat-card ${s.needsLinkSent>0?'alert':''}"><div class="stat-num">${s.needsLinkSent}</div><div class="stat-label">Needs a link sent</div></div>
+  `;
+}
+
+let actionFilterOn = false;
+function toggleActionFilter(){
+  actionFilterOn = !actionFilterOn;
+  document.getElementById("actionFilterBtn").classList.toggle("active", actionFilterOn);
+  render();
+}
+
+let sortField = "created_at", sortDir = "desc";
+function setSort(field){
+  if(sortField===field){ sortDir = sortDir==="asc" ? "desc" : "asc"; }
+  else { sortField = field; sortDir = "asc"; }
+  render();
+}
+function applySort(list){
+  const sorted = list.slice().sort((a,b)=>{
+    let av=a[sortField], bv=b[sortField];
+    if(sortField==="grand_total"){ av=Number(av||0); bv=Number(bv||0); }
+    else { av=(av||"").toString().toLowerCase(); bv=(bv||"").toString().toLowerCase(); }
+    if(av<bv) return sortDir==="asc" ? -1 : 1;
+    if(av>bv) return sortDir==="asc" ? 1 : -1;
+    return 0;
+  });
+  return sorted;
+}
+function updateSortArrows(){
+  document.querySelectorAll("th.sortable").forEach(th=>{
+    const arrow = th.querySelector(".sort-arrow");
+    if(th.dataset.sort===sortField) arrow.textContent = sortDir==="asc" ? "▲" : "▼";
+    else arrow.textContent = "";
+  });
 }
 
 async function loadData(){
@@ -273,6 +311,7 @@ async function loadData(){
   document.getElementById("emptyStateText").textContent = iAmAdmin
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";
+  renderStats();
   setStatus("");
   render();
 }
@@ -304,9 +343,14 @@ function render(){
   const q = document.getElementById("searchBox").value.trim();
   const stageSel = document.getElementById("stageFilter").value;
   activeStageFilter = stageSel;
-  const filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel));
+  let filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel));
+  if(actionFilterOn){
+    filtered = filtered.filter(r=>needsMyAttention(r));
+  }
+  filtered = applySort(filtered);
   document.getElementById("countNote").textContent = `${filtered.length} of ${allReqs.length} requisitions`;
   renderPipeline();
+  updateSortArrows();
 
   const tbody = document.getElementById("tbody");
   document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
@@ -327,6 +371,17 @@ function render(){
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${iAmAdmin ? renderAdminPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
+}
+
+function needsMyAttention(r){
+  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+  let prevSignedUpTo=0;
+  while(prevSignedUpTo<steps.length && steps[prevSignedUpTo].status==="Signed") prevSignedUpTo++;
+  const activeStep = steps[prevSignedUpTo];
+  if(!activeStep || !isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)) return false;
+  if(activeStep.assigned_person_id===myId) return true;
+  if(!activeStep.assigned_person_id && (r.requester_person_id===myId || steps.some(s=>s.assigned_person_id===myId))) return true;
+  return false;
 }
 
 function renderItemsBlock(r){
@@ -375,7 +430,7 @@ function renderTimelineBlock(r){
     const isUnclaimed = !s.assigned_person_id;
 
     const identityHtml = isUnclaimed ? `
-        <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off">
+        <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off" oninput="toggleConfirmPin('${s.id}')">
         <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>` : "";
 
     const actionHtml = (s.status==="Pending") ? `
@@ -388,6 +443,7 @@ function renderTimelineBlock(r){
       <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
         ${identityHtml}
         <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
+        <input type="password" inputmode="numeric" maxlength="4" placeholder="Confirm new PIN" id="confirmpin-${s.id}" style="display:none">
         <input type="text" placeholder="Reason (only needed to decline)" id="reason-${s.id}">
         <div class="row">
           <button class="primary" onclick="dashApprove('${s.token}','${s.id}',${isUnclaimed})">Approve</button>
@@ -434,6 +490,14 @@ function copyRegenLink(stepId){
   setStatus("New link copied — the old one no longer works.");
 }
 
+function toggleConfirmPin(stepId){
+  const nameInput = document.getElementById("name-"+stepId);
+  const confirmInput = document.getElementById("confirmpin-"+stepId);
+  const name = nameInput.value.trim().toLowerCase();
+  const isNew = name && !peopleForAdmin.some(p=>p.name.toLowerCase()===name);
+  confirmInput.style.display = isNew ? "block" : "none";
+}
+
 async function dashEnsureClaimed(token, stepId, pin, errEl){
   const nameInput = document.getElementById("name-"+stepId);
   if(!nameInput) return true;
@@ -444,6 +508,9 @@ async function dashEnsureClaimed(token, stepId, pin, errEl){
   let personId = existing ? existing.id : null;
 
   if(!personId){
+    const confirmPin = document.getElementById("confirmpin-"+stepId).value.trim();
+    if(!/^\d{4}$/.test(pin)){ errEl.textContent="Choose a 4-digit PIN."; return false; }
+    if(pin !== confirmPin){ errEl.textContent="PINs don't match — re-enter both."; return false; }
     const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
     if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register."; return false; }
     personId = regData.id;
@@ -584,8 +651,7 @@ async function adminReassign(stepId){
   await loadData();
 }
 
-(async function init(){
-  await loadGatePeopleList();
+(function init(){
   const sid = sessionStorage.getItem("sl_person_id");
   const sname = sessionStorage.getItem("sl_person_name");
   const spin = sessionStorage.getItem("sl_pin");
@@ -593,7 +659,7 @@ async function adminReassign(stepId){
     myId = sid; myName = sname; myPin = spin;
     showApp();
   } else {
-    document.getElementById("gateNameInput").value = localStorage.getItem("requesterName") || "";
+    window.location.href = "login.html?redirect=dashboard.html";
   }
 })();
 </script>
