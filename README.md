@@ -1,57 +1,54 @@
-# SPACElogic MR Tracker
+# SPACElogic MR Tracker — e-Signature Edition
 
-Two pages backed by one free Supabase database:
+Three pages backed by one Supabase database (already fully set up — see "Database" below):
 
-- **`index.html`** — your original Materials Requisition form, unchanged, plus a **"Submit to Dashboard"** button that saves the requisition to Supabase (still keeps Export PDF / CSV / Print / Share exactly as before).
-- **`dashboard.html`** — a live tracker showing every submitted requisition, its approval stage (Submitted → Manager Approved → Procurement Approved → Purchased → Received), and which line items have arrived.
+- **`index.html`** — the requisition form. Manager / Approved By / Purchased By / Received By are now dropdowns pulled from a shared people directory (with a "+ Add new person" option to register someone new with a 4-digit PIN). Submitting creates the requisition and a 4-step approval chain, then shows you a link to send to the first signer (the Manager).
+- **`sign.html`** — the e-signature page. Whoever gets a link opens it, sees the requisition summary, and enters their name's PIN to **Approve** or **Decline** (with a reason). Only the person assigned to that step can sign it, and steps must be signed in order. Once someone signs, the page shows the next link to copy and send along.
+- **`dashboard.html`** — view-only for anyone with the link. Shows every requisition, its current stage, and — click a row — the full approval timeline (who signed, when, or why it was declined). The person whose turn it currently is can also sign/decline right there, after entering their name's PIN.
 
-Access model: anyone with the dashboard link can view and update status — there's no login. Treat the link like an internal tool and don't post it publicly.
+## How the chain works
 
-## 1. Create the Supabase project (free)
+1. You fill out the form and pick Manager / Approver / Purchaser / Receiver from the dropdowns (registering new people as needed).
+2. Submit → you get a link for the Manager. Copy it and send it however you like (WhatsApp, email, etc.) along with a short note telling them to open it and enter their PIN.
+3. The Manager opens the link, enters their PIN, and Approves or Declines.
+   - **Approve** → the requisition moves to "Manager Approved," and a new link appears for the next signer (Procurement Approver). Copy and send that one.
+   - **Decline** → they give a reason, the chain stops, and the requisition shows as "Declined" everywhere, with the reason visible on the dashboard.
+4. This repeats through Approver → Purchaser → Receiver. Once the Receiver signs, the requisition is fully "Received."
+5. Anyone can watch progress at any time on the dashboard — no PIN needed to *view*. A PIN is only needed to actually sign or decline.
 
-1. Go to [supabase.com](https://supabase.com) → sign up (free tier is enough for this) → **New project**.
-2. Pick any name/region and a database password (you won't need the password again — the app uses the API key instead).
-3. Once the project is ready, open **SQL Editor** in the left sidebar → **New query**.
-4. Paste in the entire contents of `supabase-setup.sql` (included in this folder) and click **Run**. This creates the two tables (`requisitions`, `requisition_items`), the auto-numbering, and the access policies.
-5. Go to **Project Settings → API**. You'll need two values:
-   - **Project URL** (e.g. `https://xxxxx.supabase.co`)
-   - **anon public** key (a long string under "Project API keys")
+## Security notes (what's already handled)
 
-## 2. Connect the two HTML files to your project
+- PINs are never stored in plain text and are never sent back to the browser — even the anon API key can't read them. All PIN checks happen inside database functions that only return true/false.
+- A step can only be signed by whoever it's assigned to, and only once the previous step is done — this is enforced in the database, not just hidden in the page, so it can't be bypassed by guessing a link.
+- 5 wrong PIN attempts on a step locks it for 15 minutes.
+- Anyone with the dashboard or a sign link can *view* that requisition — don't post links outside your team.
 
-Open both `index.html` and `dashboard.html` in a text editor and find this block near the top of the `<script>` section in each file:
+## Database (already done for this project)
 
-```js
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-```
+Your Supabase project (`mr-tracker`) already has all of this applied — you don't need to do anything here unless you're setting up a **new/separate** Supabase project. In that case, run `supabase-setup.sql` followed by `esignature-upgrade.sql` (both included) in the SQL Editor, in that order, then update `SUPABASE_URL` / `SUPABASE_ANON_KEY` in all three HTML files.
 
-Replace the two placeholder strings with the values from step 1.5. Save both files.
+## Publishing updates to GitHub Pages
 
-## 3. Publish with GitHub Pages (free)
+You already have a repo and Pages site running the earlier version. To push this upgrade:
 
-1. Create a new GitHub repository (public or private both work with Pages on a free plan — public is simplest).
-2. Upload `index.html`, `dashboard.html`, and `supabase-setup.sql` to the repository (drag-and-drop on github.com works fine, or `git push`).
-3. In the repo, go to **Settings → Pages**.
-4. Under "Build and deployment", set **Source** to "Deploy from a branch", branch `main`, folder `/ (root)`. Save.
-5. Wait ~1 minute, then GitHub shows your live URL, something like:
-   `https://yourusername.github.io/your-repo-name/`
-6. The form is at that URL directly (`.../index.html` or just `/`), and the dashboard is at
-   `https://yourusername.github.io/your-repo-name/dashboard.html`.
+1. Go to your GitHub repo.
+2. Upload the new/changed files — **`index.html`**, **`sign.html`** (new), **`dashboard.html`** — using "Add file → Upload files." When it asks about `index.html` and `dashboard.html` already existing, confirm you want to replace them.
+3. Commit the changes. GitHub Pages redeploys automatically within about a minute — no settings to touch.
+4. Your links stay the same as before:
+   - Form: `https://yourusername.github.io/your-repo-name/`
+   - Dashboard: `https://yourusername.github.io/your-repo-name/dashboard.html`
+   - Sign page (only reached via generated links, never typed directly): `.../sign.html?token=...`
 
-Share the dashboard link with whoever needs to see or update approval status.
+## Day-to-day use
 
-## How it works day to day
+- **Registering people**: do it inline from the form's dropdown ("+ Add new person") the first time you need someone. Anyone filling out the form can register a new signer — there's no separate admin step.
+- **Forgot to send a link / lost it**: open the dashboard, expand the requisition, and the "Sign / Decline as [name]" button for whoever's turn it currently is will be right there — no need to dig up the original link.
+- **A step was declined by mistake**: there's no "un-decline" button by design — start a fresh requisition. If you'd like a resubmit/reopen flow later, that's a reasonable next upgrade.
+- **Someone forgot their PIN**: there's no self-service reset yet. For now, open the Supabase dashboard's Table Editor → `people` table, delete their row, and have them re-register from the form's dropdown with a new PIN. (Happy to build a proper reset flow if this comes up often.)
 
-- Someone fills out the form and clicks **Submit to Dashboard**. This creates one row in `requisitions` (with an auto-generated tracking number like `REQ-00001`) and one row per material in `requisition_items`. The form shows the tracking number once it succeeds.
-- If they reopen the same browser/device and click Submit again before it's approved, it **updates** the same record instead of creating a duplicate (the button relabels itself "Update Submission"). Submitting from a different device always creates a new record — treat the form as source-of-truth only until submission.
-- On the dashboard, the stage pills at the top show a live count per approval stage. Click one to filter the table to just that stage.
-- Each row's **Stage** dropdown lets anyone move a requisition forward (or back) through the workflow; the timestamp for that stage is recorded automatically.
-- Clicking a row expands it to show every material line, with a checkbox to mark each as received. Once every item on a requisition is checked off, the requisition's stage automatically flips to "Received."
-- All of this is just data in your Supabase tables — you can always open the **Table Editor** in Supabase directly if you want to query, export, or bulk-edit something the dashboard doesn't cover.
+## Possible future upgrades
 
-## Notes and limits
-
-- **No login / open editing**: since anyone with the link can update data, this suits a small trusted team. If you later want to restrict who can change status, the natural upgrade is Supabase's built-in email/password auth plus tightening the SQL policies to require `auth.role() = 'authenticated'` — happy to help with that later if needed.
-- **Free tier limits**: Supabase's free tier pauses a project after 7 days of no API activity (it wakes back up automatically on the next request, with a short delay) and caps storage/bandwidth generously enough for this kind of internal form. GitHub Pages is free and unlimited for a repo this size.
-- **Editing after "Received"**: nothing locks a record after it reaches "Received" — the dropdown can still be moved back if someone submitted in error.
+- A "reopen" action for declined requisitions instead of resubmitting from scratch.
+- Self-service PIN reset.
+- Email/WhatsApp send button instead of copy-paste (you chose copy-paste for now, but this is a small addition later).
+- An admin view of the people directory for editing/removing signers without touching Supabase directly.
