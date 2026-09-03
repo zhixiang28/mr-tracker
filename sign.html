@@ -21,7 +21,7 @@
   }
   .card{
     background:var(--paper); border-radius:16px; box-shadow:0 12px 32px rgba(15,23,42,.1);
-    max-width:460px; width:100%; padding:30px 28px;
+    max-width:560px; width:100%; padding:30px 28px;
   }
   .brand{ font-weight:800; font-size:15px; letter-spacing:-.2px; margin-bottom:4px; color:var(--muted); }
   h1{ font-size:20px; margin:0 0 18px; }
@@ -60,6 +60,13 @@
   .link-copy-box button{ flex:none; padding:8px 14px; font-size:12px; background:var(--accent); color:#fff; }
   .center-note{ text-align:center; color:var(--muted); font-size:13px; padding:30px 0; }
   a{ color:var(--accent); }
+  .items-table{ width:100%; border-collapse:collapse; font-size:12px; margin:12px 0 4px; }
+  .items-table th{ text-align:left; font-size:9.5px; text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--ink); padding:5px 6px; }
+  .items-table td{ padding:6px; border-bottom:1px solid var(--line); }
+  .items-table td.num, .items-table th.num{ text-align:right; }
+  .items-table tfoot td{ font-weight:700; border-bottom:none; }
+  .meta-line{ display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-bottom:1px dotted var(--line); }
+  .meta-line span:first-child{ color:var(--muted); }
 </style>
 </head>
 <body>
@@ -88,16 +95,14 @@ async function init(){
     card.innerHTML = `<div class="brand">SPACElogic</div><div class="center-note">No signing link provided. Ask whoever sent this for the full link.</div>`;
     return;
   }
-  const {data: step, error: stepErr} = await supabaseClient
-    .from("approval_steps").select("*").eq("token", token).single();
-  if(stepErr || !step){
+  const {data: ctx, error: ctxErr} = await supabaseClient.rpc("get_signing_context", {p_token: token});
+  if(ctxErr || !ctx.success){
     card.innerHTML = `<div class="brand">SPACElogic</div><div class="center-note">This signing link isn't valid. Ask whoever sent it to resend from the dashboard.</div>`;
     return;
   }
-  const {data: req} = await supabaseClient
-    .from("requisitions").select("*").eq("id", step.requisition_id).single();
-  const {data: prevSteps} = await supabaseClient
-    .from("approval_steps").select("*").eq("requisition_id", step.requisition_id).order("step_order");
+  const step = ctx.step;
+  const req = ctx.requisition;
+  const prevSteps = ctx.all_steps;
   const {data: peopleData} = await supabaseClient.from("people_public").select("id,name").order("name");
   peopleCache = peopleData || [];
 
@@ -143,16 +148,34 @@ function renderCard(step, req, allSteps){
     <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••">
   `;
 
+  const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const itemRows = items.map(it=>`
+    <tr>
+      <td>${escHtml(it.name)}${it.link?` — <a href="${escHtml(it.link)}" target="_blank">link ↗</a>`:""}<div style="color:var(--muted);font-size:11px">${escHtml(it.description||"")}</div></td>
+      <td class="num">${it.qty}</td>
+      <td class="num">${money(it.unit_price)}</td>
+      <td class="num">${money(it.total)}</td>
+    </tr>`).join("");
+
+  const fullFormHtml = `
+    <div class="meta-line"><span>Tracking No.</span><b>${escHtml(req.tracking_no)}</b></div>
+    <div class="meta-line"><span>Project</span><b>${escHtml(req.project_name||"-")}</b></div>
+    <div class="meta-line"><span>Location</span><b>${escHtml(req.project_location||"-")}</b></div>
+    <div class="meta-line"><span>Requested by</span><b>${escHtml(req.request_by||"-")}</b></div>
+    <div class="meta-line"><span>Form date</span><b>${escHtml(req.form_date||"-")}</b></div>
+    <div class="meta-line"><span>Supply date needed</span><b>${escHtml(req.supply_date||"-")}</b></div>
+    <table class="items-table">
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th></tr></thead>
+      <tbody>${itemRows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="3">Grand Total</td><td class="num">${money(req.grand_total)}</td></tr></tfoot>
+    </table>
+  `;
+
   card.innerHTML = `
     <div class="brand">SPACElogic</div>
     <div class="stage-tag">${escHtml(step.stage_name)}</div>
     <h1>E-Sign Approval</h1>
-    <div class="summary">
-      <div class="row"><span>Tracking No.</span><b>${escHtml(req.tracking_no)}</b></div>
-      <div class="row"><span>Project</span><b>${escHtml(req.project_name||"-")}</b></div>
-      <div class="row"><span>Requested by</span><b>${escHtml(req.request_by||"-")}</b></div>
-      <div class="row"><span>Grand total</span><b>${money(req.grand_total)}</b></div>
-    </div>
+    ${fullFormHtml}
     ${identityHtml}
     <div class="actions">
       <button class="btn-approve" id="approveBtn" onclick="doApprove('${step.token}', ${isUnclaimed})">Approve &amp; Sign</button>
@@ -242,7 +265,7 @@ async function doApprove(tok, isUnclaimed){
     const nextUrl = new URL("sign.html", window.location.href);
     nextUrl.searchParams.set("token", data.next_token);
     nextLinkHtml = `
-      <p style="margin-top:14px;font-size:13px">Next up: send this link to the next signer.</p>
+      <p style="margin-top:14px;font-size:13px">Send this link to whoever handles <b>${escHtml(data.next_stage)}</b> next.</p>
       <div class="link-copy-box">
         <input type="text" readonly value="${nextUrl.toString()}" id="nextLinkInput">
         <button type="button" onclick="copyNextLink()">Copy</button>

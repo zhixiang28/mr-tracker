@@ -76,17 +76,57 @@ const STAGE_VARS = { "Submitted":"#94a3b8","Manager Approved":"#f59e0b","Procure
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function money(n){ return "$ "+Number(n||0).toFixed(2); }
 
+let myId=null, myPin=null;
+
 async function init(){
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
   const content = document.getElementById("content");
   if(!id){ content.innerHTML = '<div class="center-note">No requisition specified.</div>'; return; }
 
-  const {data: req, error} = await supabaseClient
-    .from("requisitions").select("*, requisition_items(*), approval_steps(*)").eq("id", id).single();
-  if(error || !req){ content.innerHTML = '<div class="center-note">Requisition not found.</div>'; return; }
+  myId = sessionStorage.getItem("sl_person_id");
+  myPin = sessionStorage.getItem("sl_pin");
+  if(!myId || !myPin){
+    content.innerHTML = `
+      <div style="max-width:340px;margin:20px auto;text-align:center">
+        <h3 style="margin-bottom:6px">Sign in to view this form</h3>
+        <div class="center-note" style="padding:0 0 14px">Only people involved in this requisition can view it.</div>
+        <input type="text" id="viewNameInput" placeholder="Your name" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        <input type="password" id="viewPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:10px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        <button class="btn" onclick="viewLogin('${id}')" style="width:100%;background:var(--accent);color:#fff;border-color:var(--accent)">Continue</button>
+        <div class="decline-box" id="viewLoginErr" style="display:none;margin-top:10px"></div>
+      </div>`;
+    return;
+  }
 
-  render(req);
+  await loadRequisition(id);
+}
+
+async function viewLogin(id){
+  const name = document.getElementById("viewNameInput").value.trim();
+  const pin = document.getElementById("viewPinInput").value.trim();
+  const errEl = document.getElementById("viewLoginErr");
+  if(!name || !/^\d{4}$/.test(pin)){ errEl.style.display="block"; errEl.textContent="Enter your name and 4-digit PIN."; return; }
+
+  const {data: people} = await supabaseClient.from("people_public").select("id,name");
+  const existing = (people||[]).find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(!existing){ errEl.style.display="block"; errEl.textContent="No account with that name — log in from the dashboard first."; return; }
+
+  const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
+  if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Login failed."; return; }
+
+  myId = data.id; myPin = pin;
+  sessionStorage.setItem("sl_person_id", myId);
+  sessionStorage.setItem("sl_person_name", data.name);
+  sessionStorage.setItem("sl_pin", myPin);
+  await loadRequisition(id);
+}
+
+async function loadRequisition(id){
+  const content = document.getElementById("content");
+  const {data, error} = await supabaseClient.rpc("get_requisition_for_viewer", {p_person_id: myId, p_pin: myPin, p_requisition_id: id});
+  if(error || !data.success){ content.innerHTML = `<div class="center-note">${escHtml((data&&data.error)||"Could not load this requisition.")}</div>`; return; }
+  render(data.requisition);
 }
 
 function signCard(step){

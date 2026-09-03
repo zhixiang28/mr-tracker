@@ -47,6 +47,15 @@
   .brand span{font-weight:400;color:var(--muted)}
   .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+  .login-bar{
+    max-width:960px; margin:0 auto 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:#fff; border:1px solid #d7dbe0; border-radius:10px; padding:8px 12px; font-size:12px;
+  }
+  .login-bar.active{ background:#f0f5ff; border-color:#2f6fed; }
+  .login-bar input{ border:1px solid #d7dbe0; border-radius:6px; padding:6px 8px; font:inherit; font-size:12px; }
+  .login-bar input#loginNameInput{ width:150px; }
+  .login-bar input#loginPinInput{ width:70px; }
+  .login-bar button{ font-size:11.5px; padding:6px 10px; border-radius:6px; border:1px solid #d7dbe0; background:#fff; cursor:pointer; font-weight:600; }
   .divider{width:1px;align-self:stretch;background:#d7dbe0;margin:2px 2px}
   button{
     border:1px solid #d7dbe0;
@@ -387,6 +396,15 @@
     </div>
   </div>
 
+  <div class="login-bar" id="loginBar">
+    <span id="loginBarText">Not logged in — drafts save only in this browser.</span>
+    <input type="text" id="loginNameInput" list="loginPeopleList" placeholder="Your name" autocomplete="off">
+    <datalist id="loginPeopleList"></datalist>
+    <input type="password" id="loginPinInput" placeholder="PIN" maxlength="4" inputmode="numeric">
+    <button onclick="requesterLogin()">Log in / Register</button>
+    <button id="logoutBtn" onclick="requesterLogout()" style="display:none">Log out</button>
+  </div>
+
   <div class="sheet">
     <div class="header">
       <div class="title">MATERIALS REQUISITION FORM</div>
@@ -449,10 +467,7 @@
     <div class="footer">
       <div class="section-title">Approval Chain</div>
       <div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
-        You don't need to know who the signers are. After you submit, you'll get one link for the first step (Team Manager approval).
-        Send that link to whoever should approve it — they'll register themselves (or sign in if already registered) and sign right there.
-        Each time someone signs, a new link appears for the next step, so it passes down the chain automatically:
-        Manager → Procurement Approval → Purchase → Received.
+        After you submit, copy the link you're given and send it to the Team Manager. From there it passes itself along — each person's signature reveals the next link, and you're told exactly who to send it to.
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
@@ -488,6 +503,87 @@ const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
 
 const STORAGE_KEY = "spacelogic_purchase_requisition_v1";
 let currentRequisitionId = null; // set once this draft has been submitted to Supabase
+
+// ---------------- Requester login (reuses the same people/PIN system as signers) ----------------
+let requesterId = sessionStorage.getItem("sl_person_id") || localStorage.getItem("requesterId") || null;
+let requesterName = sessionStorage.getItem("sl_person_name") || localStorage.getItem("requesterName") || null;
+let requesterPin = sessionStorage.getItem("sl_pin") || null; // only present if carried over from another page this session
+let requesterPeople = [];
+
+async function loadRequesterPeopleList(){
+  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
+  requesterPeople = data || [];
+  document.getElementById("loginPeopleList").innerHTML = requesterPeople.map(p=>`<option value="${escHtml(p.name)}">`).join("");
+  if(requesterName) document.getElementById("loginNameInput").value = requesterName;
+}
+
+function updateLoginBar(){
+  const bar = document.getElementById("loginBar");
+  const text = document.getElementById("loginBarText");
+  const nameInput = document.getElementById("loginNameInput");
+  const pinInput = document.getElementById("loginPinInput");
+  const loginBtn = document.querySelector("#loginBar button[onclick='requesterLogin()']");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const requestByField = document.getElementById("requestBy");
+
+  if(requesterId && requesterPin){
+    bar.classList.add("active");
+    text.textContent = `Logged in as ${requesterName} — drafts save to your account.`;
+    nameInput.style.display="none"; pinInput.style.display="none"; loginBtn.style.display="none";
+    logoutBtn.style.display="inline-block";
+    if(requestByField){ requestByField.value = requesterName; requestByField.readOnly = true; requestByField.style.background="#f4f6f8"; }
+  } else {
+    bar.classList.remove("active");
+    text.textContent = requesterName ? `Welcome back, ${requesterName} — enter your PIN to continue.` : "Not logged in — drafts save only in this browser.";
+    nameInput.style.display="inline-block"; pinInput.style.display="inline-block"; loginBtn.style.display="inline-block";
+    logoutBtn.style.display="none";
+    if(requestByField){ requestByField.readOnly = false; requestByField.style.background=""; }
+  }
+}
+
+async function requesterLogin(){
+  const name = document.getElementById("loginNameInput").value.trim();
+  const pin = document.getElementById("loginPinInput").value.trim();
+  if(!name){ setStatus("Enter your name to log in."); return; }
+  if(!/^\d{4}$/.test(pin)){ setStatus("Enter your 4-digit PIN."); return; }
+
+  const existing = requesterPeople.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(existing){
+    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
+    if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Login failed."); return; }
+    requesterId = data.id; requesterName = data.name;
+  } else {
+    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not register."); return; }
+    requesterId = data.id; requesterName = data.name;
+    setStatus(`Registered ${data.name}. Remember this PIN — it can't be shown again.`);
+  }
+  requesterPin = pin;
+  localStorage.setItem("requesterId", requesterId);
+  localStorage.setItem("requesterName", requesterName);
+  sessionStorage.setItem("sl_person_id", requesterId);
+  sessionStorage.setItem("sl_person_name", requesterName);
+  sessionStorage.setItem("sl_pin", requesterPin);
+  updateLoginBar();
+
+  // Offer to load their saved draft, if any
+  const {data: draftData} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin});
+  if(draftData && draftData.success && draftData.header){
+    if(confirm(`You have a saved draft (last updated ${new Date(draftData.updated_at).toLocaleString()}). Load it now?`)){
+      apply({meta: draftData.header, rows: draftData.items});
+    }
+  }
+}
+
+function requesterLogout(){
+  requesterId = null; requesterName = null; requesterPin = null;
+  localStorage.removeItem("requesterId"); localStorage.removeItem("requesterName");
+  sessionStorage.removeItem("sl_person_id"); sessionStorage.removeItem("sl_person_name"); sessionStorage.removeItem("sl_pin");
+  document.getElementById("loginNameInput").value = "";
+  document.getElementById("loginPinInput").value = "";
+  updateLoginBar();
+  setStatus("Logged out.");
+}
 
 function todayISO(){
   const d = new Date();
@@ -583,13 +679,29 @@ function apply(data){
   recalc();
 }
 
-function saveForm(){
+async function saveForm(){
   const data=collect();
+  if(requesterId && requesterPin){
+    const {data: res, error} = await supabaseClient.rpc("save_draft", {
+      p_person_id: requesterId, p_pin: requesterPin, p_header: data.meta, p_items: data.rows
+    });
+    if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not save draft."); return; }
+    setStatus(`Draft saved to your account (${requesterName}).`);
+    return;
+  }
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   setStatus("Draft saved locally in this browser.");
 }
 
-function loadForm(){
+async function loadForm(){
+  if(requesterId && requesterPin){
+    const {data: res, error} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin});
+    if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not load draft."); return; }
+    if(!res.header){ setStatus("No saved draft found on your account."); return; }
+    apply({meta: res.header, rows: res.items});
+    setStatus("Draft loaded from your account.");
+    return;
+  }
   const raw=localStorage.getItem(STORAGE_KEY);
   if(!raw){setStatus("No saved draft found.");return}
   try{
@@ -658,7 +770,7 @@ async function submitToDashboard(){
     }));
 
     const {data, error} = await supabaseClient.rpc("create_requisition", {
-      p_header: header, p_items: items
+      p_header: header, p_items: items, p_requester_person_id: (requesterId && requesterPin) ? requesterId : null
     });
     if(error) throw error;
     if(!data.success) throw new Error(data.error || "Unknown error");
@@ -666,6 +778,10 @@ async function submitToDashboard(){
     currentRequisitionId = data.requisition_id;
     showSubmitResult(data.tracking_no, data.first_token);
     resetFormForNext();
+    if(requesterId && requesterPin){
+      // Clear their saved draft now that it's been submitted
+      supabaseClient.rpc("save_draft", {p_person_id: requesterId, p_pin: requesterPin, p_header: {}, p_items: []});
+    }
     setStatus(`Submitted — tracking no. ${data.tracking_no}.`);
   }catch(e){
     console.error(e);
@@ -686,6 +802,7 @@ function resetFormForNext(){
   currentRequisitionId=null;
   updateSubmitBtnLabel();
   localStorage.removeItem(STORAGE_KEY);
+  updateLoginBar();
 }
 
 function showSubmitResult(trackingNo, firstToken){
@@ -1011,6 +1128,8 @@ async function shareFile(){
 document.getElementById("formDate").value=todayISO();
 addRow();
 recalc();
+loadRequesterPeopleList();
+updateLoginBar();
 
 // Clear out any stale submission-lock data from earlier versions of this tool
 (function clearStaleState(){

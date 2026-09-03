@@ -12,12 +12,12 @@
     --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0;
     --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#ffffff;
     --submitted:#94a3b8; --manager:#f59e0b; --procurement:#8b5cf6; --purchased:#2f6fed;
-    --received:#16a34a; --declined:#dc2626;
+    --received:#16a34a; --declined:#dc2626; --admin:#ea580c;
   }
   *{box-sizing:border-box}
   body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
   .app{ max-width:1300px; margin:28px auto; padding:0 18px 60px; }
-  .toolbar{ display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:20px; flex-wrap:wrap; }
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
   .brand{ font-weight:800; font-size:20px; letter-spacing:-.3px; }
   .brand span{ font-weight:400; color:var(--muted); }
   .actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -28,13 +28,18 @@
   button:disabled{ opacity:.5; cursor:not-allowed; }
   .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .primary:hover{ background:var(--accent-dark); }
-  .view-badge{ font-size:11px; font-weight:700; color:var(--muted); background:#eef1f6; border:1px solid var(--line); padding:5px 10px; border-radius:999px; }
-  .admin-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin-bottom:16px; font-size:12px; }
-  .admin-bar.active{ background:#f0f5ff; border-color:var(--accent); }
-  .admin-only{ display:none; }
-  .admin-mode .admin-only{ display:block; }
-  .override-row{ display:flex; gap:6px; margin-top:8px; align-items:center; }
-  .view-form-link{ font-size:11px; margin-top:6px; }
+  .danger{ background:#fff; color:var(--declined); border-color:#fecaca; }
+  .mode-badge{ font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; }
+  .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
+  .mode-badge.admin{ color:#fff; background:var(--admin); }
+
+  .login-gate{ max-width:420px; margin:80px auto; background:#fff; border-radius:16px; box-shadow:0 12px 32px rgba(15,23,42,.1); padding:28px; text-align:center; }
+  .login-gate h2{ margin:0 0 6px; font-size:18px; }
+  .login-gate .desc{ font-size:12.5px; color:var(--muted); margin-bottom:18px; }
+  .login-gate label{ display:block; text-align:left; font-size:11.5px; font-weight:700; color:var(--muted); margin:10px 0 4px; }
+  .login-gate input{ width:100%; }
+  .login-gate button{ width:100%; margin-top:16px; padding:11px; }
+  .login-err{ color:var(--declined); font-size:12px; margin-top:8px; min-height:16px; }
 
   .pipeline{ display:grid; grid-template-columns:repeat(6,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
   .stage-cell{ padding:16px 10px; position:relative; border-right:1px solid var(--line); cursor:pointer; transition:background .15s ease; }
@@ -66,7 +71,7 @@
 
   .items-panel{ background:#fafbfc; }
   .items-panel td{ padding:0; border-bottom:1px solid var(--line); }
-  .items-inner{ padding:16px 24px 24px 44px; display:grid; grid-template-columns:1fr 300px; gap:26px; }
+  .items-inner{ padding:16px 24px 24px 44px; display:grid; grid-template-columns:1fr 320px; gap:26px; }
   @media(max-width:900px){ .items-inner{ grid-template-columns:1fr; } .pipeline{ grid-template-columns:repeat(2,1fr);} }
 
   .item-row{ display:grid; grid-template-columns:1fr 60px 80px 80px 80px; gap:10px; align-items:center; padding:7px 0; border-bottom:1px dashed #e2e5ea; font-size:12.5px; }
@@ -92,25 +97,34 @@
   .sign-box .row button{ flex:1; }
   .sign-error{ color:var(--declined); font-size:11.5px; margin-top:4px; }
   .decline-reason-box{ font-size:11.5px; color:var(--declined); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:4px; }
-  .open-link-btn{ font-size:11px; margin-top:6px; }
+  .link-tools{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .link-tools button{ font-size:10.5px; padding:4px 8px; }
+  .link-copy-box{ display:flex; gap:6px; margin-top:6px; background:#f4f6f8; border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+  .link-copy-box input{ flex:1; border:0; background:transparent; font-size:11px; padding:0; }
+  .view-form-link{ font-size:11px; margin-top:6px; }
+
+  .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
+  .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
+  .edit-field{ margin-bottom:6px; }
+  .edit-field label{ display:block; font-size:10.5px; font-weight:700; color:var(--muted); margin-bottom:2px; }
+  .edit-field input{ width:100%; font-size:12px; padding:6px 8px; }
+  .edit-item-row{ display:grid; grid-template-columns:1fr 50px 70px 70px 24px; gap:4px; margin-bottom:4px; }
+  .edit-item-row input{ font-size:11px; padding:4px 6px; }
+  .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app" style="display:none">
   <div class="toolbar">
     <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
     <div class="actions">
-      <span class="view-badge">👁 View-only — sign with name + PIN to act</span>
+      <span class="mode-badge personal" id="modeBadge">Loading...</span>
+      <span class="muted" id="whoami"></span>
       <button onclick="loadData()">Refresh</button>
-      <a href="admin.html"><button type="button">⚙ Admin</button></a>
+      <a href="admin.html"><button type="button">⚙ Admin Settings</button></a>
       <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
+      <button onclick="logout()">Log out</button>
     </div>
-  </div>
-  <div class="admin-bar" id="adminBar">
-    <span id="adminBarText">Not logged in as admin.</span>
-    <select id="adminPersonSelect" style="max-width:180px"></select>
-    <input type="password" id="adminPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="max-width:80px">
-    <button onclick="adminLogin()">Admin Login</button>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -145,11 +159,24 @@
       <tbody id="tbody"></tbody>
     </table>
     <div class="empty-state" id="emptyState" style="display:none">
-      <h3>No requisitions yet</h3>
-      <div>Submit one from the form and it will show up here.</div>
+      <h3>Nothing here yet</h3>
+      <div id="emptyStateText">Requisitions you submit or are asked to sign will show up here.</div>
     </div>
   </div>
   <div class="status-msg" id="statusMsg"></div>
+</div>
+
+<div class="login-gate" id="loginGate">
+  <div class="brand" style="margin-bottom:10px">SPACE<span>logic</span></div>
+  <h2>Sign in to continue</h2>
+  <div class="desc">You'll only see requisitions you submitted or were asked to sign. Admins see everything.</div>
+  <label>Your name</label>
+  <input type="text" id="gateNameInput" list="gatePeopleList" placeholder="Full name" autocomplete="off">
+  <datalist id="gatePeopleList"></datalist>
+  <label>Your PIN</label>
+  <input type="password" id="gatePinInput" placeholder="••••" maxlength="4" inputmode="numeric">
+  <button class="primary" onclick="gateLogin()">Log in / Register</button>
+  <div class="login-err" id="gateErr"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -164,38 +191,91 @@ const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","P
 let allReqs = [];
 let openRows = new Set();
 let activeStageFilter = "";
+let myId = null, myPin = null, myName = null, iAmAdmin = false;
 let peopleForAdmin = [];
-let adminId = null, adminPin = null, adminName = null;
 
-async function loadPeopleForAdmin(){
-  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
-  peopleForAdmin = data || [];
-  const sel=document.getElementById("adminPersonSelect");
-  sel.innerHTML = '<option value="">Name</option>' + peopleForAdmin.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
-}
-
-async function adminLogin(){
-  const personId = document.getElementById("adminPersonSelect").value;
-  const pin = document.getElementById("adminPinInput").value.trim();
-  if(!personId || !/^\d{4}$/.test(pin)){ setStatus("Select your name and enter your 4-digit PIN."); return; }
-  const {data, error} = await supabaseClient.rpc("verify_admin", {p_person_id: personId, p_pin: pin});
-  if(error || !data){ setStatus("Not an admin, or wrong PIN."); return; }
-  adminId = personId; adminPin = pin;
-  adminName = peopleForAdmin.find(p=>p.id===personId)?.name || "";
-  document.getElementById("adminBar").classList.add("active");
-  document.getElementById("adminBarText").textContent = `Admin mode: ${adminName}`;
-  document.body.classList.add("admin-mode");
-  render();
-}
-
+function escapeHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function fmtMoney(n){ return "$ " + Number(n||0).toFixed(2); }
 function setStatus(t){
   const el=document.getElementById("statusMsg");
   el.textContent=t;
   clearTimeout(window._st);
-  window._st=setTimeout(()=>el.textContent="",5000);
+  window._st=setTimeout(()=>el.textContent="",6000);
 }
-function fmtMoney(n){ return "$ " + Number(n||0).toFixed(2); }
-function escapeHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+async function loadGatePeopleList(){
+  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
+  document.getElementById("gatePeopleList").innerHTML = (data||[]).map(p=>`<option value="${escapeHtml(p.name)}">`).join("");
+  return data || [];
+}
+
+async function gateLogin(){
+  const name = document.getElementById("gateNameInput").value.trim();
+  const pin = document.getElementById("gatePinInput").value.trim();
+  const err = document.getElementById("gateErr");
+  if(!name){ err.textContent="Enter your name."; return; }
+  if(!/^\d{4}$/.test(pin)){ err.textContent="Enter your 4-digit PIN."; return; }
+
+  const people = await loadGatePeopleList();
+  const existing = people.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  let id, resolvedName;
+  if(existing){
+    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
+    if(error || !data.success){ err.textContent = (data&&data.error)||(error&&error.message)||"Login failed."; return; }
+    id = data.id; resolvedName = data.name;
+  } else {
+    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    if(error || !data.success){ err.textContent = (data&&data.error)||(error&&error.message)||"Could not register."; return; }
+    id = data.id; resolvedName = data.name;
+  }
+  myId = id; myPin = pin; myName = resolvedName;
+  sessionStorage.setItem("sl_person_id", myId);
+  sessionStorage.setItem("sl_person_name", myName);
+  sessionStorage.setItem("sl_pin", myPin);
+  showApp();
+}
+
+function logout(){
+  sessionStorage.removeItem("sl_person_id");
+  sessionStorage.removeItem("sl_person_name");
+  sessionStorage.removeItem("sl_pin");
+  myId = myPin = myName = null;
+  document.getElementById("app").style.display="none";
+  document.getElementById("loginGate").style.display="block";
+  document.getElementById("gatePinInput").value="";
+}
+
+async function showApp(){
+  document.getElementById("loginGate").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("whoami").textContent = `Logged in as ${myName}`;
+  await loadPeopleForAdmin();
+  await loadData();
+}
+
+async function loadPeopleForAdmin(){
+  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
+  peopleForAdmin = data || [];
+}
+
+async function loadData(){
+  setStatus("Loading...");
+  const {data, error} = await supabaseClient.rpc("list_my_requisitions", {p_person_id: myId, p_pin: myPin});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not load data."); return; }
+  iAmAdmin = !!data.is_admin;
+  allReqs = data.requisitions || [];
+  const badge = document.getElementById("modeBadge");
+  if(iAmAdmin){
+    badge.className = "mode-badge admin"; badge.textContent = "🛠 Admin Mode — Editable";
+  } else {
+    badge.className = "mode-badge personal"; badge.textContent = "👤 Your requisitions only";
+  }
+  document.getElementById("emptyStateText").textContent = iAmAdmin
+    ? "No requisitions have been submitted yet."
+    : "Requisitions you submit, or are asked to sign, will show up here.";
+  setStatus("");
+  render();
+}
 
 function renderPipeline(){
   const el=document.getElementById("pipeline");
@@ -244,46 +324,9 @@ function render(){
         <td>${fmtMoney(r.grand_total)}</td>
         <td><span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span></td>
       </tr>`;
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${renderAdminControls(r)}</div></div></td></tr>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${iAmAdmin ? renderAdminPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
-}
-
-function renderAdminControls(r){
-  if(!adminId) return "";
-  const stages = ["Manager Approved","Procurement Approved","Purchased","Received"];
-  const options = stages.map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${s}</option>`).join("");
-  let reopenBtn = "";
-  if(r.status==="Declined"){
-    reopenBtn = `<button onclick="event.stopPropagation();adminReopen('${r.id}')">Reopen this requisition</button>`;
-  }
-  return `
-    <div class="admin-only" style="margin-top:12px;border-top:1px dashed var(--line);padding-top:10px">
-      <div style="font-weight:700;font-size:11.5px;margin-bottom:6px">Admin controls</div>
-      <div class="override-row">
-        <select id="override-${r.id}">${options}</select>
-        <button onclick="event.stopPropagation();adminOverride('${r.id}')">Force stage</button>
-        ${reopenBtn}
-      </div>
-    </div>`;
-}
-
-async function adminOverride(reqId){
-  const target = document.getElementById("override-"+reqId).value;
-  const {data, error} = await supabaseClient.rpc("admin_override_stage", {
-    p_admin_id: adminId, p_admin_pin: adminPin, p_requisition_id: reqId, p_target_status: target
-  });
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed."); return; }
-  setStatus(`Stage forced to ${data.new_status} by ${data.overridden_by}.`);
-  await loadData();
-}
-async function adminReopen(reqId){
-  const {data, error} = await supabaseClient.rpc("admin_reopen_declined", {
-    p_admin_id: adminId, p_admin_pin: adminPin, p_requisition_id: reqId
-  });
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed."); return; }
-  setStatus(`Reopened by ${data.reopened_by}.`);
-  await loadData();
 }
 
 function renderItemsBlock(r){
@@ -313,7 +356,7 @@ function renderTimelineBlock(r){
   const prevSignedUpTo = (() => {
     let i=0;
     while(i<steps.length && steps[i].status==="Signed") i++;
-    return i; // index of the current pending step (0-based)
+    return i;
   })();
 
   const rowsHtml = steps.map((s,idx)=>{
@@ -335,8 +378,13 @@ function renderTimelineBlock(r){
         <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off">
         <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>` : "";
 
-    const actionHtml = isActionable ? `
-      <button class="open-link-btn" onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign this step" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>
+    const actionHtml = (s.status==="Pending") ? `
+      <div class="link-tools">
+        ${isActionable ? `<button onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>` : ""}
+        <button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button>
+      </div>
+      <div id="regenbox-${s.id}"></div>
+      ${isActionable ? `
       <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
         ${identityHtml}
         <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
@@ -346,7 +394,7 @@ function renderTimelineBlock(r){
           <button onclick="dashDecline('${s.token}','${s.id}',${isUnclaimed})">Decline</button>
         </div>
         <div class="sign-error" id="signerr-${s.id}"></div>
-      </div>` : "";
+      </div>` : ""}` : "";
 
     return `
       <div class="tstep">
@@ -370,6 +418,20 @@ function toggleRow(id){
 function toggleSignBox(stepId){
   const box=document.getElementById("signbox-"+stepId);
   box.style.display = box.style.display==="block" ? "none" : "block";
+}
+
+async function regenLink(stepId, reqId){
+  const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
+  const box = document.getElementById("regenbox-"+stepId);
+  if(error || !data.success){ box.innerHTML = `<div class="sign-error">${(data&&data.error)||(error&&error.message)||"Failed."}</div>`; return; }
+  const url = new URL("sign.html", window.location.href);
+  url.searchParams.set("token", data.token);
+  box.innerHTML = `<div class="link-copy-box"><input type="text" readonly value="${url.toString()}" id="newlink-${stepId}"><button onclick="copyRegenLink('${stepId}')">Copy</button></div>`;
+}
+function copyRegenLink(stepId){
+  const inp = document.getElementById("newlink-"+stepId);
+  inp.select(); document.execCommand("copy");
+  setStatus("New link copied — the old one no longer works.");
 }
 
 async function dashEnsureClaimed(token, stepId, pin, errEl){
@@ -403,8 +465,10 @@ async function dashApprove(token, stepId, isUnclaimed){
   }
   const {data, error} = await supabaseClient.rpc("sign_step", {p_token: token, p_pin: pin});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
-  setStatus(`Signed off by ${data.signed_by} on ${data.stage}.`);
-  await loadData(true);
+  setStatus(data.next_stage
+    ? `Signed off by ${data.signed_by} on ${data.stage}. Next: someone from ${data.next_stage} needs to sign.`
+    : `Signed off by ${data.signed_by} on ${data.stage}. This requisition is now fully Received.`);
+  await loadData();
 }
 async function dashDecline(token, stepId, isUnclaimed){
   const pin=document.getElementById("pin-"+stepId).value.trim();
@@ -419,23 +483,119 @@ async function dashDecline(token, stepId, isUnclaimed){
   const {data, error} = await supabaseClient.rpc("decline_step", {p_token: token, p_pin: pin, p_reason: reason});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
   setStatus(`Declined by ${data.declined_by} at ${data.stage}.`);
-  await loadData(true);
+  await loadData();
 }
 
-async function loadData(keepOpen){
-  setStatus("Loading...");
-  const {data, error} = await supabaseClient
-    .from("requisitions")
-    .select("*, requisition_items(*), approval_steps(*)")
-    .order("created_at", {ascending:false});
-  if(error){ setStatus("Could not load data: "+error.message); return; }
-  allReqs = data || [];
-  setStatus("");
-  render();
+function renderAdminPanel(r){
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const itemRows = items.map((it,i)=>`
+    <div class="edit-item-row" data-idx="${i}">
+      <input placeholder="Name" class="ei-name" value="${escapeHtml(it.name)}">
+      <input placeholder="Qty" class="ei-qty" value="${it.qty}">
+      <input placeholder="Unit" class="ei-price" value="${it.unit_price}">
+      <input placeholder="Delv/Tax" class="ei-dtax" value="${it.delivery_tax}">
+      <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
+    </div>`).join("");
+
+  const stageOptionsForReassign = (steps)=>steps.map(s=>`
+    <div class="reassign-row">
+      <select id="reassign-person-${s.id}" style="flex:1">
+        <option value="">Reassign ${escapeHtml(s.stage_name)} to...</option>
+        ${peopleForAdmin.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
+      </select>
+      <button onclick="event.stopPropagation();adminReassign('${s.id}')">Set</button>
+    </div>`).join("");
+
+  return `
+    <div class="admin-panel" onclick="event.stopPropagation()">
+      <div class="admin-panel-title">🛠 Admin: Edit this requisition</div>
+      <div class="edit-field"><label>Project name</label><input id="edit-project-${r.id}" value="${escapeHtml(r.project_name||"")}"></div>
+      <div class="edit-field"><label>Location</label><input id="edit-location-${r.id}" value="${escapeHtml(r.project_location||"")}"></div>
+      <div class="edit-field"><label>Requested by</label><input id="edit-requestby-${r.id}" value="${escapeHtml(r.request_by||"")}"></div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Line items</div>
+      <div id="edit-items-${r.id}">${itemRows}</div>
+      <button onclick="event.stopPropagation();addEditItemRow('${r.id}')" style="font-size:11px;margin-bottom:8px">+ Add item</button>
+      <div class="row" style="display:flex;gap:6px">
+        <button class="primary" onclick="adminSave('${r.id}')">Save Changes</button>
+        <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
+      </div>
+      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:12px 0 4px">Reassign a step's signer</div>
+      ${stageOptionsForReassign((r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order))}
+      <div class="sign-error" id="admin-err-${r.id}"></div>
+    </div>`;
 }
 
-loadData();
-loadPeopleForAdmin();
+function addEditItemRow(reqId){
+  const container = document.getElementById("edit-items-"+reqId);
+  const div = document.createElement("div");
+  div.className = "edit-item-row";
+  div.innerHTML = `
+    <input placeholder="Name" class="ei-name">
+    <input placeholder="Qty" class="ei-qty">
+    <input placeholder="Unit" class="ei-price">
+    <input placeholder="Delv/Tax" class="ei-dtax">
+    <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
+  container.appendChild(div);
+}
+
+async function adminSave(reqId){
+  const errEl = document.getElementById("admin-err-"+reqId);
+  const header = {
+    project_name: document.getElementById("edit-project-"+reqId).value,
+    project_location: document.getElementById("edit-location-"+reqId).value,
+    request_by: document.getElementById("edit-requestby-"+reqId).value
+  };
+  const rows = [...document.querySelectorAll(`#edit-items-${reqId} .edit-item-row`)];
+  const items = rows.map((row,i)=>({
+    sn: i+1,
+    name: row.querySelector(".ei-name").value,
+    description: "",
+    qty: Number(row.querySelector(".ei-qty").value||0),
+    unit_price: Number(row.querySelector(".ei-price").value||0),
+    delivery_tax: Number(row.querySelector(".ei-dtax").value||0),
+    link: ""
+  }));
+
+  const {data: d1, error: e1} = await supabaseClient.rpc("admin_update_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_header: header});
+  if(e1 || !d1.success){ errEl.textContent = (d1&&d1.error)||(e1&&e1.message)||"Failed to save header."; return; }
+  const {data: d2, error: e2} = await supabaseClient.rpc("admin_replace_items", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_items: items});
+  if(e2 || !d2.success){ errEl.textContent = (d2&&d2.error)||(e2&&e2.message)||"Failed to save items."; return; }
+
+  setStatus("Requisition updated.");
+  await loadData();
+}
+
+async function adminDelete(reqId){
+  if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
+  const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
+  setStatus("Requisition deleted.");
+  openRows.delete(reqId);
+  await loadData();
+}
+
+async function adminReassign(stepId){
+  const sel = document.getElementById("reassign-person-"+stepId);
+  const newPersonId = sel.value;
+  if(!newPersonId) return;
+  const {data, error} = await supabaseClient.rpc("admin_reassign_step", {p_admin_id: myId, p_admin_pin: myPin, p_step_id: stepId, p_new_person_id: newPersonId});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reassign."); return; }
+  setStatus(`Reassigned to ${data.name}.`);
+  await loadData();
+}
+
+(async function init(){
+  await loadGatePeopleList();
+  const sid = sessionStorage.getItem("sl_person_id");
+  const sname = sessionStorage.getItem("sl_person_name");
+  const spin = sessionStorage.getItem("sl_pin");
+  if(sid && spin){
+    myId = sid; myName = sname; myPin = spin;
+    showApp();
+  } else {
+    document.getElementById("gateNameInput").value = localStorage.getItem("requesterName") || "";
+  }
+})();
 </script>
 </body>
 </html>
