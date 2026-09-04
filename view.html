@@ -107,6 +107,7 @@ async function init(){
         <datalist id="viewPeopleList">${viewPeopleCache.map(p=>`<option value="${escHtml(p.name)}">`).join("")}</datalist>
         <input type="password" id="viewPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
         <div id="viewConfirmPinWrap" style="display:none">
+          <input type="email" id="viewNewEmailInput" placeholder="Company email (you@spacelogic.com.sg)" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
           <input type="password" id="viewConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
         </div>
         <button class="btn" onclick="viewLogin('${id}')" style="width:100%;background:var(--accent);color:#fff;border-color:var(--accent)">Continue</button>
@@ -142,8 +143,10 @@ async function viewLogin(id){
     personId = data.id; resolvedName = data.name;
   } else {
     const confirmPin = document.getElementById("viewConfirmPinInput").value.trim();
+    const email = document.getElementById("viewNewEmailInput").value.trim();
+    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.style.display="block"; errEl.textContent="Enter your @spacelogic.com.sg company email."; return; }
     if(pin !== confirmPin){ errEl.style.display="block"; errEl.textContent="PINs don't match — re-enter both."; return; }
-    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
     if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Could not register."; return; }
     personId = data.id; resolvedName = data.name;
   }

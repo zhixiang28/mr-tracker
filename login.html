@@ -54,9 +54,11 @@
   </div>
 
   <div class="signup-panel" id="signupPanel">
-    <div class="signup-note" id="signupNote">Let's set up a new account. Enter your name, choose a 4-digit PIN, and enter it twice to confirm.</div>
+    <div class="signup-note" id="signupNote">Let's set up a new account. Enter your name, your @spacelogic.com.sg email, choose a 4-digit PIN, and enter it twice to confirm.</div>
     <label>Full name</label>
     <input type="text" id="signupNameInput" placeholder="Full name" autocomplete="off">
+    <label>Company email</label>
+    <input type="email" id="signupEmailInput" placeholder="you@spacelogic.com.sg" autocomplete="off">
     <label>Choose a 4-digit PIN</label>
     <input type="password" id="signupPin1" placeholder="••••" maxlength="4" inputmode="numeric">
     <label>Confirm PIN</label>
@@ -67,13 +69,11 @@
   </div>
 
   <div class="signup-panel" id="profilePanel">
-    <div class="signup-note">Account created! Optionally add a few details so others know who they're dealing with — or skip for now.</div>
+    <div class="signup-note">Account created! Optionally add your position and team — or skip for now.</div>
     <label>Position</label>
     <input type="text" id="profPosition" placeholder="e.g. Site Engineer">
     <label>Team / Department</label>
     <input type="text" id="profDepartment" placeholder="e.g. Operations">
-    <label>Company email</label>
-    <input type="email" id="profEmail" placeholder="you@company.com">
     <button onclick="saveProfileAndContinue()">Save &amp; Continue</button>
     <button class="secondary" onclick="skipProfile()">Skip for now</button>
     <div class="msg" id="profileMsg"></div>
@@ -107,7 +107,7 @@ async function handleContinue(){
   const msg = document.getElementById("msg");
   msg.style.display="none";
 
-  if(!name){ msg.className="msg error"; msg.textContent="Enter your name."; return; }
+  if(!name){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your name."; return; }
 
   const existing = findExisting(name);
   if(!existing){
@@ -118,10 +118,10 @@ async function handleContinue(){
     return;
   }
 
-  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.textContent="Enter your 4-digit PIN."; return; }
+  if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your 4-digit PIN."; return; }
 
   const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
-  if(error || !data.success){ msg.className="msg error"; msg.textContent=(data&&data.error)||"Login failed."; return; }
+  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Login failed."; return; }
 
   completeLogin(data.id, data.name, pin);
 }
@@ -146,15 +146,17 @@ function cancelSignup(){
 
 async function handleSignup(){
   const name = document.getElementById("signupNameInput").value.trim();
+  const email = document.getElementById("signupEmailInput").value.trim();
   const pin1 = document.getElementById("signupPin1").value.trim();
   const pin2 = document.getElementById("signupPin2").value.trim();
   const msg = document.getElementById("signupMsg");
 
   if(!name){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your full name."; return; }
+  if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your @spacelogic.com.sg company email."; return; }
   if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
   if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
 
-  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin1});
+  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin1, p_email: email});
   if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not create account."; return; }
 
   sessionStorage.setItem("sl_person_id", data.id);
@@ -177,7 +179,7 @@ async function saveProfileAndContinue(){
     p_person_id: panel.dataset.personId, p_pin: panel.dataset.pin,
     p_position: document.getElementById("profPosition").value.trim(),
     p_department: document.getElementById("profDepartment").value.trim(),
-    p_email: document.getElementById("profEmail").value.trim()
+    p_email: null
   });
   if(error || !data.success){
     const msg = document.getElementById("profileMsg");

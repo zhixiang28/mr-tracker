@@ -153,6 +153,10 @@ function renderCard(step, req, allSteps){
     <label>Your name</label>
     <input type="text" id="nameInput" list="peopleList" placeholder="Full name" autocomplete="off" oninput="toggleConfirmPin()">
     <datalist id="peopleList">${peopleCache.map(p=>`<option value="${escHtml(p.name)}">`).join("")}</datalist>
+    <div id="newEmailWrap" style="display:none">
+      <label>Company email</label>
+      <input type="email" id="newEmailInput" placeholder="you@spacelogic.com.sg">
+    </div>
     <label id="pinLabel">${peopleCache.length ? "Your PIN (existing) or choose a new 4-digit PIN" : "Choose a 4-digit PIN"}</label>
     <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••">
     <div id="confirmPinWrap" style="display:none">
@@ -229,10 +233,12 @@ function toggleDeclinePanel(){
 function toggleConfirmPin(){
   const nameInput = document.getElementById("nameInput");
   const wrap = document.getElementById("confirmPinWrap");
+  const emailWrap = document.getElementById("newEmailWrap");
   if(!nameInput || !wrap) return;
   const name = nameInput.value.trim().toLowerCase();
   const isNew = name && !peopleCache.some(p=>p.name.toLowerCase()===name);
   wrap.style.display = isNew ? "block" : "none";
+  if(emailWrap) emailWrap.style.display = isNew ? "block" : "none";
 }
 
 let justRegisteredNew = null; // {id, pin} — set only when this session created a brand-new account
@@ -248,9 +254,11 @@ async function ensureClaimed(tok, pin, msg){
 
   if(!personId){
     const confirmPin = (document.getElementById("confirmPinInput")||{}).value?.trim() || "";
+    const email = (document.getElementById("newEmailInput")||{}).value?.trim() || "";
+    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your @spacelogic.com.sg company email."; return false; }
     if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Choose a 4-digit PIN."; return false; }
     if(pin !== confirmPin){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — re-enter both."; return false; }
-    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
     if(regErr || !regData.success){
       msg.className="msg error"; msg.style.display="block";
       msg.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register.";
@@ -382,14 +390,12 @@ async function doDecline(tok, isUnclaimed){
 function profileCompletionHtml(){
   return `
     <div id="profileCompletionBlock" style="margin-top:16px;border-top:1px dashed var(--line);padding-top:14px">
-      <div style="font-size:12.5px;font-weight:700;margin-bottom:2px">You're all set up — want to add a few details?</div>
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:2px">You're all set up — want to add a bit more?</div>
       <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Optional. Helps others know who they're dealing with.</div>
       <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Position</label>
       <input type="text" id="sigProfPosition" placeholder="e.g. Site Engineer" style="margin-bottom:8px">
       <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Team / Department</label>
-      <input type="text" id="sigProfDepartment" placeholder="e.g. Operations" style="margin-bottom:8px">
-      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Company email</label>
-      <input type="email" id="sigProfEmail" placeholder="you@company.com" style="margin-bottom:10px">
+      <input type="text" id="sigProfDepartment" placeholder="e.g. Operations" style="margin-bottom:10px">
       <div class="actions">
         <button class="btn-approve" onclick="saveSignerProfile()">Save</button>
         <button class="btn-decline" onclick="document.getElementById('profileCompletionBlock').style.display='none'">Skip</button>
@@ -402,11 +408,10 @@ async function saveSignerProfile(){
   if(!justRegisteredNew) return;
   const position = document.getElementById("sigProfPosition").value.trim();
   const department = document.getElementById("sigProfDepartment").value.trim();
-  const email = document.getElementById("sigProfEmail").value.trim();
   const msgEl = document.getElementById("sigProfMsg");
   const {data, error} = await supabaseClient.rpc("update_my_profile", {
     p_person_id: justRegisteredNew.id, p_pin: justRegisteredNew.pin,
-    p_position: position, p_department: department, p_email: email
+    p_position: position, p_department: department, p_email: null
   });
   if(error || !data.success){ msgEl.className="msg error"; msgEl.style.display="block"; msgEl.textContent=(data&&data.error)||"Could not save."; return; }
   msgEl.className="msg success"; msgEl.style.display="block"; msgEl.textContent="Saved. Thanks!";

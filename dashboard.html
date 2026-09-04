@@ -126,7 +126,7 @@
   .edit-field{ margin-bottom:6px; }
   .edit-field label{ display:block; font-size:10.5px; font-weight:700; color:var(--muted); margin-bottom:2px; }
   .edit-field input{ width:100%; font-size:12px; padding:6px 8px; }
-  .edit-item-row{ display:grid; grid-template-columns:1fr 50px 70px 70px 24px; gap:4px; margin-bottom:4px; }
+  .edit-item-row{ display:grid; grid-template-columns:1fr 1fr 45px 60px 60px 1fr 24px; gap:4px; margin-bottom:4px; }
   .edit-item-row input{ font-size:11px; padding:4px 6px; }
   .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
@@ -495,7 +495,8 @@ function renderTimelineBlock(r){
 
     const identityHtml = isUnclaimed ? `
         <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off" oninput="toggleConfirmPin('${s.id}')">
-        <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>` : "";
+        <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>
+        <input type="email" placeholder="Company email (new signers only)" id="newemail-${s.id}" style="display:none">` : "";
 
     const actionHtml = (s.status==="Pending") ? `
       <div class="link-tools">
@@ -557,9 +558,11 @@ function copyRegenLink(stepId){
 function toggleConfirmPin(stepId){
   const nameInput = document.getElementById("name-"+stepId);
   const confirmInput = document.getElementById("confirmpin-"+stepId);
+  const emailInput = document.getElementById("newemail-"+stepId);
   const name = nameInput.value.trim().toLowerCase();
   const isNew = name && !peopleForAdmin.some(p=>p.name.toLowerCase()===name);
   confirmInput.style.display = isNew ? "block" : "none";
+  if(emailInput) emailInput.style.display = isNew ? "block" : "none";
 }
 
 async function dashEnsureClaimed(token, stepId, pin, errEl){
@@ -573,9 +576,11 @@ async function dashEnsureClaimed(token, stepId, pin, errEl){
 
   if(!personId){
     const confirmPin = document.getElementById("confirmpin-"+stepId).value.trim();
+    const email = document.getElementById("newemail-"+stepId).value.trim();
+    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.textContent="Enter your @spacelogic.com.sg company email."; return false; }
     if(!/^\d{4}$/.test(pin)){ errEl.textContent="Choose a 4-digit PIN."; return false; }
     if(pin !== confirmPin){ errEl.textContent="PINs don't match — re-enter both."; return false; }
-    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin});
+    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
     if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register."; return false; }
     personId = regData.id;
     await loadPeopleForAdmin();
@@ -638,9 +643,11 @@ function renderAdminPanel(r){
   const itemRows = items.map((it,i)=>`
     <div class="edit-item-row" data-idx="${i}">
       <input placeholder="Name" class="ei-name" value="${escapeHtml(it.name)}">
+      <input placeholder="Description" class="ei-desc" value="${escapeHtml(it.description||"")}">
       <input placeholder="Qty" class="ei-qty" value="${it.qty}">
       <input placeholder="Unit" class="ei-price" value="${it.unit_price}">
       <input placeholder="Delv/Tax" class="ei-dtax" value="${it.delivery_tax}">
+      <input placeholder="Link" class="ei-link" value="${escapeHtml(it.link||"")}">
       <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
     </div>`).join("");
 
@@ -678,9 +685,11 @@ function addEditItemRow(reqId){
   div.className = "edit-item-row";
   div.innerHTML = `
     <input placeholder="Name" class="ei-name">
+    <input placeholder="Description" class="ei-desc">
     <input placeholder="Qty" class="ei-qty">
     <input placeholder="Unit" class="ei-price">
     <input placeholder="Delv/Tax" class="ei-dtax">
+    <input placeholder="Link" class="ei-link">
     <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
   container.appendChild(div);
 }
@@ -696,11 +705,11 @@ async function adminSave(reqId){
   const items = rows.map((row,i)=>({
     sn: i+1,
     name: row.querySelector(".ei-name").value,
-    description: "",
+    description: row.querySelector(".ei-desc").value,
     qty: Number(row.querySelector(".ei-qty").value||0),
     unit_price: Number(row.querySelector(".ei-price").value||0),
     delivery_tax: Number(row.querySelector(".ei-dtax").value||0),
-    link: ""
+    link: row.querySelector(".ei-link").value
   }));
 
   const {data: d1, error: e1} = await supabaseClient.rpc("admin_update_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_header: header});
