@@ -402,15 +402,14 @@
       </div>
       <div class="divider"></div>
       <div class="btn-group">
-        <button class="primary" id="submitBtn" onclick="submitToDashboard()">Submit to Dashboard</button>
         <button type="button" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
       </div>
+      <div class="divider"></div>
+      <div class="btn-group">
+        <span class="muted" id="loginBarText" style="font-size:12px;align-self:center"></span>
+        <button id="logoutBtn" onclick="requesterLogout()">Log out</button>
+      </div>
     </div>
-  </div>
-
-  <div class="login-bar active" id="loginBar">
-    <span id="loginBarText"></span>
-    <button id="logoutBtn" onclick="requesterLogout()">Log out</button>
   </div>
 
   <div class="sheet">
@@ -479,6 +478,9 @@
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
+      <div style="text-align:center;margin-top:24px">
+        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px">Submit</button>
+      </div>
       <div class="status" id="status"></div>
     </div>
   </div>
@@ -538,7 +540,7 @@ async function loadRequesterPeopleList(){
 function updateLoginBar(){
   const text = document.getElementById("loginBarText");
   const requestByField = document.getElementById("requestBy");
-  text.textContent = `Logged in as ${requesterName} — drafts save to your account.`;
+  text.textContent = `Logged in as ${requesterName}`;
   if(requestByField){ requestByField.value = requesterName; requestByField.readOnly = true; requestByField.style.background="#f4f6f8"; }
 }
 
@@ -756,7 +758,7 @@ function newForm(){
 function updateSubmitBtnLabel(){
   const btn=document.getElementById("submitBtn");
   btn.disabled = false;
-  btn.textContent = "Submit to Dashboard";
+  btn.textContent = "Submit";
 }
 
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -831,7 +833,7 @@ async function submitToDashboard(){
   }catch(e){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
-    btn.disabled=false; btn.textContent = editRequisitionId ? "Revise & Resubmit" : "Submit to Dashboard";
+    btn.disabled=false; btn.textContent = editRequisitionId ? "Revise & Resubmit" : "Submit";
   }
 }
 

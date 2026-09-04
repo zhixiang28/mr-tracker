@@ -230,14 +230,31 @@
   <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
     <h3 style="margin:0 0 4px">Reminder Settings</h3>
     <div class="muted" style="font-size:12px;margin-bottom:14px">Get an overdue notice on your own submissions when a stage sits pending longer than these thresholds. Leave blank to turn off reminders for that stage.</div>
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Manager Approval — hours</label>
-    <input id="remindManager" type="number" min="1" placeholder="e.g. 24" style="width:100%;box-sizing:border-box">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Procurement Approval — hours</label>
-    <input id="remindProcurement" type="number" min="1" placeholder="e.g. 48" style="width:100%;box-sizing:border-box">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Purchase — hours</label>
-    <input id="remindPurchase" type="number" min="1" placeholder="e.g. 48" style="width:100%;box-sizing:border-box">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Received — hours</label>
-    <input id="remindReceived" type="number" min="1" placeholder="e.g. 72" style="width:100%;box-sizing:border-box">
+
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Manager Approval</label>
+    <div style="display:flex;gap:6px">
+      <input id="remindManager" type="number" min="1" placeholder="e.g. 1" style="flex:1;box-sizing:border-box">
+      <select id="remindManagerUnit" style="width:100px"><option value="hours">Hours</option><option value="days">Days</option></select>
+    </div>
+
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Procurement Approval</label>
+    <div style="display:flex;gap:6px">
+      <input id="remindProcurement" type="number" min="1" placeholder="e.g. 2" style="flex:1;box-sizing:border-box">
+      <select id="remindProcurementUnit" style="width:100px"><option value="hours">Hours</option><option value="days">Days</option></select>
+    </div>
+
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Purchase</label>
+    <div style="display:flex;gap:6px">
+      <input id="remindPurchase" type="number" min="1" placeholder="e.g. 2" style="flex:1;box-sizing:border-box">
+      <select id="remindPurchaseUnit" style="width:100px"><option value="hours">Hours</option><option value="days">Days</option></select>
+    </div>
+
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Received</label>
+    <div style="display:flex;gap:6px">
+      <input id="remindReceived" type="number" min="1" placeholder="e.g. 3" style="flex:1;box-sizing:border-box">
+      <select id="remindReceivedUnit" style="width:100px"><option value="hours">Hours</option><option value="days">Days</option></select>
+    </div>
+
     <div class="sign-error" id="reminderErr" style="margin-top:8px"></div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
       <button type="button" onclick="closeReminderModal()">Cancel</button>
@@ -852,23 +869,37 @@ async function changeMyPin(){
   setStatus("PIN updated. Remember your new PIN — it's needed for everything from now on.");
 }
 
+function hoursToFields(hours, inputId, unitId){
+  const input = document.getElementById(inputId);
+  const unit = document.getElementById(unitId);
+  if(hours == null){ input.value=""; unit.value="hours"; return; }
+  if(hours % 24 === 0 && hours >= 24){ input.value = hours/24; unit.value="days"; }
+  else { input.value = hours; unit.value="hours"; }
+}
+
 function openReminderModal(){
-  document.getElementById("remindManager").value = mySettings?.remind_manager_hours ?? "";
-  document.getElementById("remindProcurement").value = mySettings?.remind_procurement_hours ?? "";
-  document.getElementById("remindPurchase").value = mySettings?.remind_purchase_hours ?? "";
-  document.getElementById("remindReceived").value = mySettings?.remind_received_hours ?? "";
+  hoursToFields(mySettings?.remind_manager_hours, "remindManager", "remindManagerUnit");
+  hoursToFields(mySettings?.remind_procurement_hours, "remindProcurement", "remindProcurementUnit");
+  hoursToFields(mySettings?.remind_purchase_hours, "remindPurchase", "remindPurchaseUnit");
+  hoursToFields(mySettings?.remind_received_hours, "remindReceived", "remindReceivedUnit");
   document.getElementById("reminderErr").textContent = "";
   document.getElementById("reminderModal").style.display = "flex";
 }
 function closeReminderModal(){
   document.getElementById("reminderModal").style.display = "none";
 }
+function fieldsToHours(inputId, unitId){
+  const v = document.getElementById(inputId).value.trim();
+  if(v === "") return null;
+  const num = parseInt(v, 10);
+  const unit = document.getElementById(unitId).value;
+  return unit === "days" ? num * 24 : num;
+}
 async function saveReminderSettings(){
-  const toIntOrNull = v => v.trim()==="" ? null : parseInt(v.trim(),10);
-  const m = toIntOrNull(document.getElementById("remindManager").value);
-  const p = toIntOrNull(document.getElementById("remindProcurement").value);
-  const pu = toIntOrNull(document.getElementById("remindPurchase").value);
-  const r = toIntOrNull(document.getElementById("remindReceived").value);
+  const m = fieldsToHours("remindManager", "remindManagerUnit");
+  const p = fieldsToHours("remindProcurement", "remindProcurementUnit");
+  const pu = fieldsToHours("remindPurchase", "remindPurchaseUnit");
+  const r = fieldsToHours("remindReceived", "remindReceivedUnit");
   const errEl = document.getElementById("reminderErr");
 
   const {data, error} = await supabaseClient.rpc("update_my_settings", {
