@@ -80,6 +80,19 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
+
+async function sendEmail(to, subject, html){
+  try{
+    const resp = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to, subject, html})
+    });
+    const result = await resp.json();
+    return result.success === true;
+  }catch(e){ return false; }
+}
 
 const STAGE_VARS = { "Submitted":"#94a3b8","Manager Approved":"#f59e0b","Procurement Approved":"#8b5cf6","Purchased":"#2f6fed","Received":"#16a34a","Declined":"#dc2626" };
 
@@ -110,6 +123,9 @@ async function init(){
           <input type="email" id="viewNewEmailInput" placeholder="Company email (you@spacelogic.com.sg)" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
           <input type="password" id="viewConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
         </div>
+        <div id="viewCodeWrap" style="display:none">
+          <input type="text" id="viewRegCodeInput" placeholder="6-digit code from your email" maxlength="6" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
+        </div>
         <button class="btn" onclick="viewLogin('${id}')" style="width:100%;background:var(--accent);color:#fff;border-color:var(--accent)">Continue</button>
         <div class="decline-box" id="viewLoginErr" style="display:none;margin-top:10px"></div>
       </div>`;
@@ -120,6 +136,7 @@ async function init(){
 }
 
 let viewPeopleCache = [];
+let viewAwaitingCode = null; // email string once a code has been sent
 
 function toggleViewConfirmPin(){
   const name = document.getElementById("viewNameInput").value.trim().toLowerCase();
@@ -129,9 +146,25 @@ function toggleViewConfirmPin(){
 }
 
 async function viewLogin(id){
+  const errEl = document.getElementById("viewLoginErr");
+
+  if(viewAwaitingCode){
+    const code = document.getElementById("viewRegCodeInput").value.trim();
+    if(!/^\d{6}$/.test(code)){ errEl.style.display="block"; errEl.textContent="Enter the 6-digit code from your email."; return; }
+    const pin = document.getElementById("viewPinInput").value.trim();
+    const {data, error} = await supabaseClient.rpc("verify_registration", {p_email: viewAwaitingCode, p_code: code});
+    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Could not verify."; return; }
+    viewAwaitingCode = null;
+    myId = data.id; myPin = pin;
+    sessionStorage.setItem("sl_person_id", myId);
+    sessionStorage.setItem("sl_person_name", data.name);
+    sessionStorage.setItem("sl_pin", myPin);
+    await loadRequisition(id);
+    return;
+  }
+
   const name = document.getElementById("viewNameInput").value.trim();
   const pin = document.getElementById("viewPinInput").value.trim();
-  const errEl = document.getElementById("viewLoginErr");
   if(!name || !/^\d{4}$/.test(pin)){ errEl.style.display="block"; errEl.textContent="Enter your name and 4-digit PIN."; return; }
 
   const existing = viewPeopleCache.find(p=>p.name.toLowerCase()===name.toLowerCase());
@@ -146,9 +179,17 @@ async function viewLogin(id){
     const email = document.getElementById("viewNewEmailInput").value.trim();
     if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.style.display="block"; errEl.textContent="Enter your @spacelogic.com.sg company email."; return; }
     if(pin !== confirmPin){ errEl.style.display="block"; errEl.textContent="PINs don't match — re-enter both."; return; }
-    const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
-    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Could not register."; return; }
-    personId = data.id; resolvedName = data.name;
+
+    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
+    if(regErr || !regData.success){ errEl.style.display="block"; errEl.textContent=(regData&&regData.error)||"Could not start registration."; return; }
+    const sent = await sendEmail(regData.email, regData.subject, regData.html);
+    if(!sent){ errEl.style.display="block"; errEl.textContent="Could not send the verification email — try again."; return; }
+
+    viewAwaitingCode = regData.email;
+    document.getElementById("viewCodeWrap").style.display = "block";
+    errEl.style.display="block"; errEl.style.color = "var(--success)";
+    errEl.textContent = `Code sent to ${email}. Enter it above, then click Continue again.`;
+    return;
   }
 
   myId = personId; myPin = pin;

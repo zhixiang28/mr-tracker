@@ -82,6 +82,18 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
 
+async function sendEmail(to, subject, html){
+  try{
+    const resp = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to, subject, html})
+    });
+    const result = await resp.json();
+    return result.success === true;
+  }catch(e){ return false; }
+}
+
 async function sendNotification(callerId, callerPin, requisitionId, event){
   try{
     const {data: target} = await supabaseClient.rpc("get_notification_target", {
@@ -163,6 +175,10 @@ function renderCard(step, req, allSteps){
       <label>Confirm new PIN</label>
       <input type="password" id="confirmPinInput" inputmode="numeric" maxlength="4" placeholder="••••">
     </div>
+    <div id="codeWrap" style="display:none">
+      <label>Verification code (check your email)</label>
+      <input type="text" id="regCodeInput" maxlength="6" inputmode="numeric" placeholder="123456" autocomplete="off">
+    </div>
   ` : `
     <div style="font-size:13.5px;margin-bottom:6px">
       You're signing as <b>${escHtml(step.assigned_person_name)}</b>. Enter your 4-digit PIN to confirm.
@@ -242,10 +258,26 @@ function toggleConfirmPin(){
 }
 
 let justRegisteredNew = null; // {id, pin} — set only when this session created a brand-new account
+let awaitingCodeFor = null; // email string, set once a code has been sent and we're waiting for it
 
 async function ensureClaimed(tok, pin, msg){
   const nameInput = document.getElementById("nameInput");
   if(!nameInput) return true; // already claimed, nothing to do
+
+  // Phase 2: a code was already sent — verify it now, then claim
+  if(awaitingCodeFor){
+    const code = (document.getElementById("regCodeInput")||{}).value?.trim() || "";
+    if(!/^\d{6}$/.test(code)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter the 6-digit code from your email."; return false; }
+    const {data: vData, error: vErr} = await supabaseClient.rpc("verify_registration", {p_email: awaitingCodeFor, p_code: code});
+    if(vErr || !vData.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(vData&&vData.error)||"Could not verify."; return false; }
+    const personId = vData.id;
+    awaitingCodeFor = null;
+    justRegisteredNew = {id: personId, pin: pin};
+    const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: tok, p_person_id: personId, p_pin: pin});
+    if(claimErr || !claimData.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(claimData&&claimData.error)||"Could not claim this step."; return false; }
+    return true;
+  }
+
   const name = nameInput.value.trim();
   if(!name){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your name."; return false; }
 
@@ -253,19 +285,27 @@ async function ensureClaimed(tok, pin, msg){
   let personId = existing ? existing.id : null;
 
   if(!personId){
+    // Phase 1: brand-new name — validate, send a code, then pause here
     const confirmPin = (document.getElementById("confirmPinInput")||{}).value?.trim() || "";
     const email = (document.getElementById("newEmailInput")||{}).value?.trim() || "";
     if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your @spacelogic.com.sg company email."; return false; }
     if(!/^\d{4}$/.test(pin)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Choose a 4-digit PIN."; return false; }
     if(pin !== confirmPin){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — re-enter both."; return false; }
-    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
+
+    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
     if(regErr || !regData.success){
       msg.className="msg error"; msg.style.display="block";
-      msg.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register.";
+      msg.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not start registration.";
       return false;
     }
-    personId = regData.id;
-    justRegisteredNew = {id: personId, pin: pin};
+    const sent = await sendEmail(regData.email, regData.subject, regData.html);
+    if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the verification email — try again."; return false; }
+
+    awaitingCodeFor = regData.email;
+    document.getElementById("codeWrap").style.display = "block";
+    msg.className="msg success"; msg.style.display="block";
+    msg.textContent = `Code sent to ${email}. Enter it above, then click Approve or Decline again.`;
+    return false;
   }
 
   const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: tok, p_person_id: personId, p_pin: pin});

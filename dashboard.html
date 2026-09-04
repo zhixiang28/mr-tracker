@@ -270,6 +270,18 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
 
+async function sendEmail(to, subject, html){
+  try{
+    const resp = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to, subject, html})
+    });
+    const result = await resp.json();
+    return result.success === true;
+  }catch(e){ return false; }
+}
+
 async function sendNotification(callerId, callerPin, requisitionId, event){
   try{
     const {data: target} = await supabaseClient.rpc("get_notification_target", {
@@ -583,6 +595,7 @@ function renderTimelineBlock(r){
         ${identityHtml}
         <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
         <input type="password" inputmode="numeric" maxlength="4" placeholder="Confirm new PIN" id="confirmpin-${s.id}" style="display:none">
+        <input type="text" placeholder="Verification code (check email)" id="regcode-${s.id}" maxlength="6" inputmode="numeric" style="display:none">
         <input type="text" placeholder="Reason (only needed to decline)" id="reason-${s.id}">
         <div class="row">
           <button class="primary" onclick="dashApprove('${s.token}','${s.id}',${isUnclaimed})">Approve</button>
@@ -639,9 +652,25 @@ function toggleConfirmPin(stepId){
   if(emailInput) emailInput.style.display = isNew ? "block" : "none";
 }
 
+let awaitingCodeForStep = {}; // stepId -> email, set once a code has been sent for that step's box
+
 async function dashEnsureClaimed(token, stepId, pin, errEl){
   const nameInput = document.getElementById("name-"+stepId);
   if(!nameInput) return true;
+
+  if(awaitingCodeForStep[stepId]){
+    const code = document.getElementById("regcode-"+stepId).value.trim();
+    if(!/^\d{6}$/.test(code)){ errEl.textContent="Enter the 6-digit code from your email."; return false; }
+    const {data: vData, error: vErr} = await supabaseClient.rpc("verify_registration", {p_email: awaitingCodeForStep[stepId], p_code: code});
+    if(vErr || !vData.success){ errEl.textContent = (vData&&vData.error)||"Could not verify."; return false; }
+    const personId = vData.id;
+    delete awaitingCodeForStep[stepId];
+    await loadPeopleForAdmin();
+    const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
+    if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
+    return true;
+  }
+
   const name = nameInput.value.trim();
   if(!name){ errEl.textContent="Enter your name."; return false; }
 
@@ -654,10 +683,17 @@ async function dashEnsureClaimed(token, stepId, pin, errEl){
     if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.textContent="Enter your @spacelogic.com.sg company email."; return false; }
     if(!/^\d{4}$/.test(pin)){ errEl.textContent="Choose a 4-digit PIN."; return false; }
     if(pin !== confirmPin){ errEl.textContent="PINs don't match — re-enter both."; return false; }
-    const {data: regData, error: regErr} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin, p_email: email});
-    if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not register."; return false; }
-    personId = regData.id;
-    await loadPeopleForAdmin();
+
+    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
+    if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not start registration."; return false; }
+    const sent = await sendEmail(regData.email, regData.subject, regData.html);
+    if(!sent){ errEl.textContent = "Could not send the verification email — try again."; return false; }
+
+    awaitingCodeForStep[stepId] = regData.email;
+    document.getElementById("regcode-"+stepId).style.display = "block";
+    errEl.style.color = "var(--received)";
+    errEl.textContent = `Code sent to ${email}. Enter it above, then click Approve/Decline again.`;
+    return false;
   }
 
   const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});

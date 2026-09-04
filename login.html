@@ -68,6 +68,15 @@
     <div class="msg" id="signupMsg"></div>
   </div>
 
+  <div class="signup-panel" id="verifyPanel">
+    <div class="signup-note" id="verifyNote">We've sent a 6-digit code to your email. Enter it below to finish creating your account.</div>
+    <label>Verification code</label>
+    <input type="text" id="verifyCodeInput" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="off">
+    <button onclick="handleVerifyCode()">Verify &amp; Create Account</button>
+    <button class="secondary" onclick="handleResendCode()">Resend code</button>
+    <div class="msg" id="verifyMsg"></div>
+  </div>
+
   <div class="signup-panel" id="profilePanel">
     <div class="signup-note">Account created! Optionally add your position and team — or skip for now.</div>
     <label>Position</label>
@@ -85,6 +94,19 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
+
+async function sendEmail(to, subject, html){
+  try{
+    const resp = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to, subject, html})
+    });
+    const result = await resp.json();
+    return result.success === true;
+  }catch(e){ return false; }
+}
 
 let people = [];
 const params = new URLSearchParams(window.location.search);
@@ -139,10 +161,14 @@ function cancelSignup(){
   document.getElementById("signupPanel").style.display="none";
   document.getElementById("loginPanel").style.display="block";
   document.getElementById("signupNameInput").value="";
+  document.getElementById("signupEmailInput").value="";
   document.getElementById("signupPin1").value="";
   document.getElementById("signupPin2").value="";
   document.getElementById("signupMsg").style.display="none";
+  pendingSignup = null;
 }
+
+let pendingSignup = null; // {name, email, pin} — held only in memory while awaiting the code
 
 async function handleSignup(){
   const name = document.getElementById("signupNameInput").value.trim();
@@ -156,14 +182,44 @@ async function handleSignup(){
   if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
   if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
 
-  const {data, error} = await supabaseClient.rpc("register_person", {p_name: name, p_pin: pin1, p_email: email});
-  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not create account."; return; }
+  const {data, error} = await supabaseClient.rpc("start_registration", {p_name: name, p_email: email, p_pin: pin1});
+  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not start registration."; return; }
+
+  const sent = await sendEmail(data.email, data.subject, data.html);
+  if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the verification email — check your connection and try again."; return; }
+
+  pendingSignup = {name, email, pin: pin1};
+  document.getElementById("signupPanel").style.display="none";
+  document.getElementById("verifyPanel").style.display="block";
+  document.getElementById("verifyNote").textContent = `We've sent a 6-digit code to ${email}. Enter it below to finish creating your account.`;
+  document.getElementById("verifyCodeInput").value="";
+  document.getElementById("verifyMsg").style.display="none";
+}
+
+async function handleVerifyCode(){
+  const code = document.getElementById("verifyCodeInput").value.trim();
+  const msg = document.getElementById("verifyMsg");
+  if(!pendingSignup){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Session expired — please start over."; return; }
+  if(!/^\d{6}$/.test(code)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter the 6-digit code from your email."; return; }
+
+  const {data, error} = await supabaseClient.rpc("verify_registration", {p_email: pendingSignup.email, p_code: code});
+  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not verify."; return; }
 
   sessionStorage.setItem("sl_person_id", data.id);
   sessionStorage.setItem("sl_person_name", data.name);
-  sessionStorage.setItem("sl_pin", pin1);
-  localStorage.setItem("requesterName", data.name);
-  showProfileStep(data.id, pin1);
+  sessionStorage.setItem("sl_pin", pendingSignup.pin);
+  document.getElementById("verifyPanel").style.display="none";
+  showProfileStep(data.id, pendingSignup.pin);
+}
+
+async function handleResendCode(){
+  const msg = document.getElementById("verifyMsg");
+  if(!pendingSignup){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Session expired — please start over."; return; }
+  const {data, error} = await supabaseClient.rpc("start_registration", {p_name: pendingSignup.name, p_email: pendingSignup.email, p_pin: pendingSignup.pin});
+  if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not resend."; return; }
+  const sent = await sendEmail(data.email, data.subject, data.html);
+  if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the email — try again."; return; }
+  msg.className="msg success"; msg.style.display="block"; msg.textContent="New code sent — check your email.";
 }
 
 function showProfileStep(personId, pin){
@@ -196,12 +252,10 @@ function completeLogin(id, name, pin){
   sessionStorage.setItem("sl_person_id", id);
   sessionStorage.setItem("sl_person_name", name);
   sessionStorage.setItem("sl_pin", pin);
-  localStorage.setItem("requesterName", name);
   window.location.href = redirectTo;
 }
 
 loadPeople();
-document.getElementById("nameInput").value = localStorage.getItem("requesterName") || "";
 </script>
 </body>
 </html>
