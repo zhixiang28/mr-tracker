@@ -45,7 +45,6 @@
 <body>
 <div class="wrap">
   <div class="brand">SPACE<span>logic</span> — Admin Settings</div>
-  <div class="desc" style="margin-bottom:20px">Not registered yet? <a href="login.html?redirect=admin.html">Create your account here</a> first, then come back to claim or manage admin access.</div>
 
   <div class="card" id="claimCard" style="display:none">
     <h2>Claim the first admin slot</h2>
@@ -175,6 +174,7 @@ function renderPeopleList(){
     if(p.position) metaParts.push(p.position);
     if(p.department) metaParts.push(p.department);
     metaParts.push(`${p.submissions_count} submitted`, `${p.signed_count} signed`);
+    metaParts.push(`Joined ${new Date(p.created_at).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}`);
     return `
     <div class="person-card">
       <div class="person-top">

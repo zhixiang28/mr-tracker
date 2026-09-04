@@ -145,11 +145,13 @@
   </div>
 
   <div class="action-banner" id="actionBanner" onclick="toggleActionFilter()"></div>
+  <div class="action-banner has-items" id="overdueBanner" style="display:none;background:#fff7ed;border-color:#fdba74;cursor:default"></div>
 
   <div class="quick-actions">
     <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
     <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
     <button type="button" onclick="openProfileModal()">👤 My Profile</button>
+    <button type="button" onclick="openReminderModal()">⏰ Reminder Settings</button>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -224,6 +226,26 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="reminderModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:20px;z-index:999">
+  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
+    <h3 style="margin:0 0 4px">Reminder Settings</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:14px">Get an overdue notice on your own submissions when a stage sits pending longer than these thresholds. Leave blank to turn off reminders for that stage.</div>
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Manager Approval — hours</label>
+    <input id="remindManager" type="number" min="1" placeholder="e.g. 24" style="width:100%;box-sizing:border-box">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Procurement Approval — hours</label>
+    <input id="remindProcurement" type="number" min="1" placeholder="e.g. 48" style="width:100%;box-sizing:border-box">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Purchase — hours</label>
+    <input id="remindPurchase" type="number" min="1" placeholder="e.g. 48" style="width:100%;box-sizing:border-box">
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Received — hours</label>
+    <input id="remindReceived" type="number" min="1" placeholder="e.g. 72" style="width:100%;box-sizing:border-box">
+    <div class="sign-error" id="reminderErr" style="margin-top:8px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button type="button" onclick="closeReminderModal()">Cancel</button>
+      <button type="button" class="primary" onclick="saveReminderSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -253,6 +275,7 @@ let openRows = new Set();
 let activeStageFilter = "";
 let myId = null, myPin = null, myName = null, iAmAdmin = false;
 let peopleForAdmin = [];
+let mySettings = null;
 
 function escapeHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function fmtMoney(n){ return "$ " + Number(n||0).toFixed(2); }
@@ -274,7 +297,14 @@ async function showApp(){
   document.getElementById("app").style.display="block";
   document.getElementById("whoami").textContent = `Logged in as ${myName}`;
   await loadPeopleForAdmin();
+  await loadMySettings();
   await loadData();
+}
+
+async function loadMySettings(){
+  const {data, error} = await supabaseClient.rpc("get_my_settings", {p_person_id: myId, p_pin: myPin});
+  if(error || !data.success){ mySettings = {}; return; }
+  mySettings = data;
 }
 
 async function loadPeopleForAdmin(){
@@ -286,8 +316,16 @@ function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
   return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
 }
 
+const STAGE_HOURS_KEY = {
+  "Manager Approval": "remind_manager_hours",
+  "Procurement Approval": "remind_procurement_hours",
+  "Purchase": "remind_purchase_hours",
+  "Received": "remind_received_hours"
+};
+
 function computeStats(){
-  let mySubmissions=0, awaitingMySignature=0, needsLinkSent=0, completed=0, declinedNeedsFix=0;
+  let mySubmissions=0, awaitingMySignature=0, completed=0, declinedNeedsFix=0;
+  const overdueList = [];
   allReqs.forEach(r=>{
     if(r.requester_person_id===myId) mySubmissions++;
     if(r.status==="Received") completed++;
@@ -299,30 +337,50 @@ function computeStats(){
     const activeStep = steps[prevSignedUpTo];
     if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
       if(activeStep.assigned_person_id===myId) awaitingMySignature++;
-      else if(!activeStep.assigned_person_id && (r.requester_person_id===myId || steps.some(s=>s.assigned_person_id===myId))) needsLinkSent++;
+    }
+
+    // Overdue check — only for requisitions I submitted, using my own reminder thresholds
+    if(r.requester_person_id===myId && activeStep && mySettings){
+      const settingKey = STAGE_HOURS_KEY[activeStep.stage_name];
+      const thresholdHours = settingKey ? mySettings[settingKey] : null;
+      if(thresholdHours != null){
+        const referenceTime = prevSignedUpTo===0 ? r.created_at : steps[prevSignedUpTo-1].signed_at;
+        if(referenceTime){
+          const elapsedHours = (Date.now() - new Date(referenceTime).getTime()) / 3600000;
+          if(elapsedHours > thresholdHours){
+            overdueList.push({tracking_no: r.tracking_no, stage: activeStep.stage_name, hours: Math.floor(elapsedHours)});
+          }
+        }
+      }
     }
   });
-  return {mySubmissions, awaitingMySignature, needsLinkSent, completed, declinedNeedsFix, total: allReqs.length};
+  return {mySubmissions, awaitingMySignature, completed, declinedNeedsFix, overdueList, total: allReqs.length};
 }
 
 function renderStats(){
   const s = computeStats();
-  const totalNeeding = s.awaitingMySignature + s.needsLinkSent + s.declinedNeedsFix;
+  const totalNeeding = s.awaitingMySignature + s.declinedNeedsFix;
   const banner = document.getElementById("actionBanner");
 
   if(totalNeeding === 0){
     banner.className = "action-banner all-clear";
     banner.innerHTML = `<span class="icon">✓</span><span class="text">You're all caught up. ${s.mySubmissions} submitted, ${s.completed} completed.</span>`;
-    return;
+  } else {
+    const parts = [];
+    if(s.awaitingMySignature>0) parts.push(`<span class="count">${s.awaitingMySignature}</span> awaiting your signature`);
+    if(s.declinedNeedsFix>0) parts.push(`<span class="count">${s.declinedNeedsFix}</span> declined — need your fix`);
+    banner.className = "action-banner has-items";
+    banner.innerHTML = `<span class="icon">⚠</span><span class="text">${parts.join(" · ")} — click to filter</span>`;
   }
 
-  const parts = [];
-  if(s.awaitingMySignature>0) parts.push(`<span class="count">${s.awaitingMySignature}</span> awaiting your signature`);
-  if(s.needsLinkSent>0) parts.push(`<span class="count">${s.needsLinkSent}</span> need a link sent`);
-  if(s.declinedNeedsFix>0) parts.push(`<span class="count">${s.declinedNeedsFix}</span> declined — need your fix`);
-
-  banner.className = "action-banner has-items";
-  banner.innerHTML = `<span class="icon">⚠</span><span class="text">${parts.join(" · ")} — click to filter</span>`;
+  const overdueBanner = document.getElementById("overdueBanner");
+  if(s.overdueList.length === 0){
+    overdueBanner.style.display = "none";
+  } else {
+    overdueBanner.style.display = "flex";
+    const summary = s.overdueList.map(o=>`${o.tracking_no} (${o.stage}, ${o.hours}h)`).join(" · ");
+    overdueBanner.innerHTML = `<span class="icon">⏰</span><span class="text">Overdue based on your reminder settings: ${summary}</span>`;
+  }
 }
 
 let actionFilterOn = false;
@@ -431,7 +489,7 @@ function render(){
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
     const canWithdraw = r.requester_person_id===myId && !["Received","Withdrawn"].includes(r.status);
     const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
 }
@@ -444,7 +502,6 @@ function needsMyAttention(r){
   const activeStep = steps[prevSignedUpTo];
   if(!activeStep || !isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)) return false;
   if(activeStep.assigned_person_id===myId) return true;
-  if(!activeStep.assigned_person_id && (r.requester_person_id===myId || steps.some(s=>s.assigned_person_id===myId))) return true;
   return false;
 }
 
@@ -793,6 +850,37 @@ async function changeMyPin(){
   document.getElementById("pinNew2").value="";
   errEl.textContent="";
   setStatus("PIN updated. Remember your new PIN — it's needed for everything from now on.");
+}
+
+function openReminderModal(){
+  document.getElementById("remindManager").value = mySettings?.remind_manager_hours ?? "";
+  document.getElementById("remindProcurement").value = mySettings?.remind_procurement_hours ?? "";
+  document.getElementById("remindPurchase").value = mySettings?.remind_purchase_hours ?? "";
+  document.getElementById("remindReceived").value = mySettings?.remind_received_hours ?? "";
+  document.getElementById("reminderErr").textContent = "";
+  document.getElementById("reminderModal").style.display = "flex";
+}
+function closeReminderModal(){
+  document.getElementById("reminderModal").style.display = "none";
+}
+async function saveReminderSettings(){
+  const toIntOrNull = v => v.trim()==="" ? null : parseInt(v.trim(),10);
+  const m = toIntOrNull(document.getElementById("remindManager").value);
+  const p = toIntOrNull(document.getElementById("remindProcurement").value);
+  const pu = toIntOrNull(document.getElementById("remindPurchase").value);
+  const r = toIntOrNull(document.getElementById("remindReceived").value);
+  const errEl = document.getElementById("reminderErr");
+
+  const {data, error} = await supabaseClient.rpc("update_my_settings", {
+    p_person_id: myId, p_pin: myPin,
+    p_manager_hours: m, p_procurement_hours: p, p_purchase_hours: pu, p_received_hours: r
+  });
+  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not save."; return; }
+
+  await loadMySettings();
+  renderStats();
+  closeReminderModal();
+  setStatus("Reminder settings saved.");
 }
 
 (function init(){
