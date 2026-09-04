@@ -12,7 +12,7 @@
     --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0;
     --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#ffffff;
     --submitted:#94a3b8; --manager:#f59e0b; --procurement:#8b5cf6; --purchased:#2f6fed;
-    --received:#16a34a; --declined:#dc2626; --admin:#ea580c;
+    --received:#16a34a; --declined:#dc2626; --admin:#ea580c; --withdrawn:#78716c;
   }
   *{box-sizing:border-box}
   body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
@@ -33,12 +33,15 @@
   .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
   .mode-badge.admin{ color:#fff; background:var(--admin); }
 
-  .stats-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:16px; }
-  .stat-card{ background:#fff; border-radius:12px; box-shadow:0 6px 18px rgba(15,23,42,.06); padding:16px; }
-  .stat-card .stat-num{ font-size:26px; font-weight:800; line-height:1; }
-  .stat-card .stat-label{ font-size:11.5px; color:var(--muted); font-weight:600; margin-top:6px; }
-  .stat-card.alert .stat-num{ color:var(--admin); }
-  @media(max-width:800px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+  .action-banner{ display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:16px; cursor:pointer; transition:background .15s; }
+  .action-banner:hover{ background:#f8fafc; }
+  .action-banner.has-items{ border-color:#fbbf24; background:#fffbeb; }
+  .action-banner.all-clear{ cursor:default; }
+  .action-banner .icon{ font-size:20px; }
+  .action-banner .text{ flex:1; font-size:13px; font-weight:600; }
+  .action-banner .text .count{ font-weight:800; color:var(--accent-dark); }
+  .action-banner.has-items .text .count{ color:#b45309; }
+  @media(max-width:800px){ }
 
   .quick-actions{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
   .quick-actions button{ padding:10px 16px; }
@@ -56,7 +59,7 @@
   .login-gate button{ width:100%; margin-top:16px; padding:11px; }
   .login-err{ color:var(--declined); font-size:12px; margin-top:8px; min-height:16px; }
 
-  .pipeline{ display:grid; grid-template-columns:repeat(6,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
+  .pipeline{ display:grid; grid-template-columns:repeat(7,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
   .stage-cell{ padding:16px 10px; position:relative; border-right:1px solid var(--line); cursor:pointer; transition:background .15s ease; }
   .stage-cell:last-child{ border-right:0; }
   .stage-cell:hover{ background:#f8fafc; }
@@ -141,12 +144,11 @@
     </div>
   </div>
 
-  <div class="stats-grid" id="statsGrid"></div>
+  <div class="action-banner" id="actionBanner" onclick="toggleActionFilter()"></div>
 
   <div class="quick-actions">
     <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
     <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
-    <button type="button" id="actionFilterBtn" onclick="toggleActionFilter()">⚠ Needs Your Action</button>
     <button type="button" onclick="openProfileModal()">👤 My Profile</button>
   </div>
 
@@ -162,6 +164,7 @@
       <option>Purchased</option>
       <option>Received</option>
       <option>Declined</option>
+      <option>Withdrawn</option>
     </select>
     <span class="count-note" id="countNote"></span>
   </div>
@@ -206,6 +209,18 @@
       <button type="button" onclick="closeProfileModal()">Cancel</button>
       <button type="button" class="primary" onclick="saveProfile()">Save</button>
     </div>
+
+    <div style="border-top:1px dashed var(--line);margin-top:18px;padding-top:14px">
+      <div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Change PIN</div>
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">Current PIN</label>
+      <input id="pinOld" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">New PIN</label>
+      <input id="pinNew1" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">Confirm new PIN</label>
+      <input id="pinNew2" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
+      <div class="sign-error" id="pinChangeErr" style="margin-top:8px"></div>
+      <button type="button" onclick="changeMyPin()" style="margin-top:10px;width:100%">Update PIN</button>
+    </div>
   </div>
 </div>
 
@@ -214,9 +229,24 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
 
-const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined"];
-const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","Procurement Approved":"--procurement","Purchased":"--purchased","Received":"--received","Declined":"--declined" };
+async function sendNotification(callerId, callerPin, requisitionId, event){
+  try{
+    const {data: target} = await supabaseClient.rpc("get_notification_target", {
+      p_caller_person_id: callerId, p_caller_pin: callerPin, p_requisition_id: requisitionId, p_event: event
+    });
+    if(!target || !target.success) return;
+    await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to: target.to, subject: target.subject, html: target.html})
+    });
+  }catch(e){ console.error("Notification email failed:", e); }
+}
+
+const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
+const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","Procurement Approved":"--procurement","Purchased":"--purchased","Received":"--received","Declined":"--declined","Withdrawn":"--withdrawn" };
 
 let allReqs = [];
 let openRows = new Set();
@@ -277,19 +307,27 @@ function computeStats(){
 
 function renderStats(){
   const s = computeStats();
-  document.getElementById("statsGrid").innerHTML = `
-    <div class="stat-card"><div class="stat-num">${s.total}</div><div class="stat-label">${iAmAdmin?"Total in system":"Total involving you"}</div></div>
-    <div class="stat-card"><div class="stat-num">${s.mySubmissions}</div><div class="stat-label">Submitted by you</div></div>
-    <div class="stat-card ${s.awaitingMySignature>0?'alert':''}"><div class="stat-num">${s.awaitingMySignature}</div><div class="stat-label">Awaiting your signature</div></div>
-    <div class="stat-card ${s.needsLinkSent>0?'alert':''}"><div class="stat-num">${s.needsLinkSent}</div><div class="stat-label">Needs a link sent</div></div>
-    <div class="stat-card ${s.declinedNeedsFix>0?'alert':''}"><div class="stat-num">${s.declinedNeedsFix}</div><div class="stat-label">Declined — needs your fix</div></div>
-  `;
+  const totalNeeding = s.awaitingMySignature + s.needsLinkSent + s.declinedNeedsFix;
+  const banner = document.getElementById("actionBanner");
+
+  if(totalNeeding === 0){
+    banner.className = "action-banner all-clear";
+    banner.innerHTML = `<span class="icon">✓</span><span class="text">You're all caught up. ${s.mySubmissions} submitted, ${s.completed} completed.</span>`;
+    return;
+  }
+
+  const parts = [];
+  if(s.awaitingMySignature>0) parts.push(`<span class="count">${s.awaitingMySignature}</span> awaiting your signature`);
+  if(s.needsLinkSent>0) parts.push(`<span class="count">${s.needsLinkSent}</span> need a link sent`);
+  if(s.declinedNeedsFix>0) parts.push(`<span class="count">${s.declinedNeedsFix}</span> declined — need your fix`);
+
+  banner.className = "action-banner has-items";
+  banner.innerHTML = `<span class="icon">⚠</span><span class="text">${parts.join(" · ")} — click to filter</span>`;
 }
 
 let actionFilterOn = false;
 function toggleActionFilter(){
   actionFilterOn = !actionFilterOn;
-  document.getElementById("actionFilterBtn").classList.toggle("active", actionFilterOn);
   render();
 }
 
@@ -391,7 +429,9 @@ function render(){
         <td><span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span></td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
+    const canWithdraw = r.requester_person_id===myId && !["Received","Withdrawn"].includes(r.status);
+    const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}" target="_blank">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
 }
@@ -556,6 +596,11 @@ async function dashApprove(token, stepId, isUnclaimed){
   }
   const {data, error} = await supabaseClient.rpc("sign_step", {p_token: token, p_pin: pin});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
+  if(data.stage === "Purchase"){
+    sendNotification(data.signed_by_id, pin, data.requisition_id, "purchased");
+  } else if(!data.next_stage){
+    sendNotification(data.signed_by_id, pin, data.requisition_id, "received");
+  }
   setStatus(data.next_stage
     ? `Signed off by ${data.signed_by} on ${data.stage}. Next: someone from ${data.next_stage} needs to sign.`
     : `Signed off by ${data.signed_by} on ${data.stage}. This requisition is now fully Received.`);
@@ -573,73 +618,19 @@ async function dashDecline(token, stepId, isUnclaimed){
   }
   const {data, error} = await supabaseClient.rpc("decline_step", {p_token: token, p_pin: pin, p_reason: reason});
   if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
+  sendNotification(data.declined_by_id, pin, data.requisition_id, "declined");
   setStatus(`Declined by ${data.declined_by} at ${data.stage}.`);
   await loadData();
 }
 
 function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
-  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-  const itemRows = items.map((it)=>`
-    <div class="edit-item-row">
-      <input placeholder="Name" class="ri-name" value="${escapeHtml(it.name)}">
-      <input placeholder="Qty" class="ri-qty" value="${it.qty}">
-      <input placeholder="Unit" class="ri-price" value="${it.unit_price}">
-      <input placeholder="Delv/Tax" class="ri-dtax" value="${it.delivery_tax}">
-      <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
-    </div>`).join("");
-
   return `
     <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
       <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(declinedStep?.assigned_person_name||"")}</div>
       <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
-      <div class="muted" style="font-size:11.5px;margin-bottom:8px">Fix what was flagged, then resubmit — this restarts approval from the beginning.</div>
-      <div class="edit-field"><label>Project name</label><input id="resub-project-${r.id}" value="${escapeHtml(r.project_name||"")}"></div>
-      <div class="edit-field"><label>Location</label><input id="resub-location-${r.id}" value="${escapeHtml(r.project_location||"")}"></div>
-      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Line items</div>
-      <div id="resub-items-${r.id}">${itemRows}</div>
-      <button onclick="event.stopPropagation();addResubmitItemRow('${r.id}')" style="font-size:11px;margin-bottom:8px">+ Add item</button>
-      <button class="primary" onclick="resubmitRequisition('${r.id}')">Revise &amp; Resubmit</button>
-      <div class="sign-error" id="resub-err-${r.id}"></div>
+      <a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Edit &amp; Resubmit in Full Form →</button></a>
     </div>`;
-}
-
-function addResubmitItemRow(reqId){
-  const container = document.getElementById("resub-items-"+reqId);
-  const div = document.createElement("div");
-  div.className = "edit-item-row";
-  div.innerHTML = `
-    <input placeholder="Name" class="ri-name">
-    <input placeholder="Qty" class="ri-qty">
-    <input placeholder="Unit" class="ri-price">
-    <input placeholder="Delv/Tax" class="ri-dtax">
-    <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
-  container.appendChild(div);
-}
-
-async function resubmitRequisition(reqId){
-  const errEl = document.getElementById("resub-err-"+reqId);
-  const header = {
-    project_name: document.getElementById("resub-project-"+reqId).value,
-    project_location: document.getElementById("resub-location-"+reqId).value
-  };
-  const rows = [...document.querySelectorAll(`#resub-items-${reqId} .edit-item-row`)];
-  const items = rows.map((row,i)=>({
-    sn: i+1,
-    name: row.querySelector(".ri-name").value,
-    description: "",
-    qty: Number(row.querySelector(".ri-qty").value||0),
-    unit_price: Number(row.querySelector(".ri-price").value||0),
-    delivery_tax: Number(row.querySelector(".ri-dtax").value||0),
-    link: ""
-  }));
-
-  const {data, error} = await supabaseClient.rpc("requester_resubmit", {
-    p_person_id: myId, p_pin: myPin, p_requisition_id: reqId, p_header: header, p_items: items
-  });
-  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Failed to resubmit."; return; }
-  setStatus("Revised and resubmitted — approval restarts from the beginning.");
-  await loadData();
 }
 
 function renderAdminPanel(r){
@@ -721,6 +712,14 @@ async function adminSave(reqId){
   await loadData();
 }
 
+async function withdrawRequisition(reqId){
+  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
+  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
+  setStatus("Requisition withdrawn.");
+  await loadData();
+}
+
 async function adminDelete(reqId){
   if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId});
@@ -764,6 +763,27 @@ async function saveProfile(){
   if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not save."; return; }
   closeProfileModal();
   setStatus("Profile updated.");
+}
+
+async function changeMyPin(){
+  const oldPin = document.getElementById("pinOld").value.trim();
+  const newPin1 = document.getElementById("pinNew1").value.trim();
+  const newPin2 = document.getElementById("pinNew2").value.trim();
+  const errEl = document.getElementById("pinChangeErr");
+  if(!/^\d{4}$/.test(oldPin)){ errEl.textContent="Enter your current 4-digit PIN."; return; }
+  if(!/^\d{4}$/.test(newPin1)){ errEl.textContent="New PIN must be exactly 4 digits."; return; }
+  if(newPin1 !== newPin2){ errEl.textContent="New PINs don't match."; return; }
+
+  const {data, error} = await supabaseClient.rpc("change_pin", {p_person_id: myId, p_old_pin: oldPin, p_new_pin: newPin1});
+  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not change PIN."; return; }
+
+  myPin = newPin1;
+  sessionStorage.setItem("sl_pin", myPin);
+  document.getElementById("pinOld").value="";
+  document.getElementById("pinNew1").value="";
+  document.getElementById("pinNew2").value="";
+  errEl.textContent="";
+  setStatus("PIN updated. Remember your new PIN — it's needed for everything from now on.");
 }
 
 (function init(){

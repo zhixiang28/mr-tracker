@@ -80,6 +80,21 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
+
+async function sendNotification(callerId, callerPin, requisitionId, event){
+  try{
+    const {data: target} = await supabaseClient.rpc("get_notification_target", {
+      p_caller_person_id: callerId, p_caller_pin: callerPin, p_requisition_id: requisitionId, p_event: event
+    });
+    if(!target || !target.success) return; // no email on file, or not authorized — skip quietly
+    await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to: target.to, subject: target.subject, html: target.html})
+    });
+  }catch(e){ console.error("Notification email failed:", e); }
+}
 
 const params = new URLSearchParams(window.location.search);
 const token = params.get("token");
@@ -220,6 +235,8 @@ function toggleConfirmPin(){
   wrap.style.display = isNew ? "block" : "none";
 }
 
+let justRegisteredNew = null; // {id, pin} — set only when this session created a brand-new account
+
 async function ensureClaimed(tok, pin, msg){
   const nameInput = document.getElementById("nameInput");
   if(!nameInput) return true; // already claimed, nothing to do
@@ -240,6 +257,7 @@ async function ensureClaimed(tok, pin, msg){
       return false;
     }
     personId = regData.id;
+    justRegisteredNew = {id: personId, pin: pin};
   }
 
   const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: tok, p_person_id: personId, p_pin: pin});
@@ -276,6 +294,12 @@ async function doApprove(tok, isUnclaimed){
     return;
   }
 
+  if(data.stage === "Purchase"){
+    sendNotification(data.signed_by_id, pin, data.requisition_id, "purchased");
+  } else if(!data.next_token){
+    sendNotification(data.signed_by_id, pin, data.requisition_id, "received");
+  }
+
   let nextLinkHtml="";
   if(data.next_token){
     const nextUrl = new URL("sign.html", window.location.href);
@@ -285,7 +309,12 @@ async function doApprove(tok, isUnclaimed){
       <div class="link-copy-box">
         <input type="text" readonly value="${nextUrl.toString()}" id="nextLinkInput">
         <button type="button" onclick="copyNextLink()">Copy</button>
-      </div>`;
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input type="email" id="nextEmailInput" placeholder="Or type an email to send it instead" style="flex:1;font-size:12px;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+        <button type="button" onclick="emailNextLink('${nextUrl.toString().replace(/'/g,"\\'")}', '${escHtml(data.next_stage).replace(/'/g,"\\'")}')">Send</button>
+      </div>
+      <div class="muted" id="nextEmailStatus" style="font-size:11px;margin-top:4px"></div>`;
   } else {
     nextLinkHtml = `<p style="margin-top:14px;font-size:13px">This was the final step — the requisition is now fully <b>Received</b>.</p>`;
   }
@@ -294,12 +323,33 @@ async function doApprove(tok, isUnclaimed){
     <div class="brand">SPACElogic</div>
     <div class="msg success" style="display:block">You signed off on <b>${escHtml(data.stage)}</b> as ${escHtml(data.signed_by)}.</div>
     ${nextLinkHtml}
+    ${justRegisteredNew ? profileCompletionHtml() : ""}
     <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
   `;
 }
 function copyNextLink(){
   const inp=document.getElementById("nextLinkInput");
   inp.select(); document.execCommand("copy");
+}
+
+async function emailNextLink(link, roleName){
+  const email = document.getElementById("nextEmailInput").value.trim();
+  const statusEl = document.getElementById("nextEmailStatus");
+  if(!email){ statusEl.textContent="Enter an email address."; return; }
+  statusEl.textContent="Sending...";
+  try{
+    const resp = await fetch(SEND_EMAIL_URL, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({
+        to: email,
+        subject: `Action needed: please sign as ${roleName}`,
+        html: `<p>You've been asked to review a purchase requisition as <b>${roleName}</b>.</p><p>Open this link to sign or decline: <a href="${link}">${link}</a></p>`
+      })
+    });
+    const result = await resp.json();
+    statusEl.textContent = result.success ? "Sent!" : (result.error || "Could not send.");
+  }catch(e){ statusEl.textContent = "Could not send — check the address and try again."; }
 }
 
 async function doDecline(tok, isUnclaimed){
@@ -320,11 +370,46 @@ async function doDecline(tok, isUnclaimed){
     msg.textContent = (data && data.error) || (error && error.message) || "Something went wrong.";
     return;
   }
+  sendNotification(data.declined_by_id, pin, data.requisition_id, "declined");
   card.innerHTML = `
     <div class="brand">SPACElogic</div>
     <div class="msg error" style="display:block">You declined this requisition at <b>${escHtml(data.stage)}</b>. The requester has been flagged on the dashboard.</div>
+    ${justRegisteredNew ? profileCompletionHtml() : ""}
     <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
   `;
+}
+
+function profileCompletionHtml(){
+  return `
+    <div id="profileCompletionBlock" style="margin-top:16px;border-top:1px dashed var(--line);padding-top:14px">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:2px">You're all set up — want to add a few details?</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Optional. Helps others know who they're dealing with.</div>
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Position</label>
+      <input type="text" id="sigProfPosition" placeholder="e.g. Site Engineer" style="margin-bottom:8px">
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Team / Department</label>
+      <input type="text" id="sigProfDepartment" placeholder="e.g. Operations" style="margin-bottom:8px">
+      <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Company email</label>
+      <input type="email" id="sigProfEmail" placeholder="you@company.com" style="margin-bottom:10px">
+      <div class="actions">
+        <button class="btn-approve" onclick="saveSignerProfile()">Save</button>
+        <button class="btn-decline" onclick="document.getElementById('profileCompletionBlock').style.display='none'">Skip</button>
+      </div>
+      <div class="msg" id="sigProfMsg" style="margin-top:8px"></div>
+    </div>`;
+}
+
+async function saveSignerProfile(){
+  if(!justRegisteredNew) return;
+  const position = document.getElementById("sigProfPosition").value.trim();
+  const department = document.getElementById("sigProfDepartment").value.trim();
+  const email = document.getElementById("sigProfEmail").value.trim();
+  const msgEl = document.getElementById("sigProfMsg");
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {
+    p_person_id: justRegisteredNew.id, p_pin: justRegisteredNew.pin,
+    p_position: position, p_department: department, p_email: email
+  });
+  if(error || !data.success){ msgEl.className="msg error"; msgEl.style.display="block"; msgEl.textContent=(data&&data.error)||"Could not save."; return; }
+  msgEl.className="msg success"; msgEl.style.display="block"; msgEl.textContent="Saved. Thanks!";
 }
 
 init();

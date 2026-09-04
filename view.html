@@ -51,6 +51,12 @@
   .override-tag{ font-size:10.5px; color:#7c3aed; font-style:italic; margin-top:4px; }
   .center-note{ text-align:center; color:var(--muted); padding:60px 0; }
   @media(max-width:640px){ .meta-grid,.sign-grid{ grid-template-columns:1fr; } }
+  @media print{
+    body{ background:#fff; }
+    .toolbar{ display:none!important; }
+    .wrap{ max-width:none; margin:0; padding:0; }
+    .sheet{ box-shadow:none; border-radius:0; padding:0; }
+  }
 </style>
 </head>
 <body>
@@ -59,12 +65,16 @@
     <div class="brand">SPACE<span>logic</span></div>
     <div style="display:flex;gap:8px;align-items:center">
       <span class="view-tag">👁 View only — no editing here</span>
+      <button class="btn" onclick="window.print()">🖨 Print</button>
+      <button class="btn" onclick="exportPDF()">⬇ Export PDF</button>
       <a class="btn" href="dashboard.html">← Back to Dashboard</a>
     </div>
   </div>
   <div class="sheet" id="content"><div class="center-note">Loading...</div></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -177,7 +187,10 @@ function signCard(step){
     </div>`;
 }
 
+let currentReq = null;
+
 function render(req){
+  currentReq = req;
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
   const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);
@@ -230,6 +243,79 @@ function render(req){
       ${signCard(byOrder[4])}
     </div>
   `;
+}
+
+function exportPDF(){
+  if(!currentReq){ alert("Nothing loaded yet."); return; }
+  const req = currentReq;
+  const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  const margin = 40;
+  let y = margin;
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(16);
+  doc.text(req.project_name || "Untitled Project", margin, y); y += 18;
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(100);
+  doc.text(`Materials Requisition — ${req.tracking_no}  ·  Status: ${req.status}`, margin, y); y += 22;
+  doc.setTextColor(0);
+
+  const metaRows = [
+    ["Project Location", req.project_location||"-", "Requested By", req.request_by||"-"],
+    ["Form Date", req.form_date||"-", "Supply Date", req.supply_date||"-"],
+    ["PC No.", req.pc_no||"-", "PM In-Charge", req.pm_incharge||"-"]
+  ];
+  doc.autoTable({
+    startY: y, theme: "plain", styles:{fontSize:9, cellPadding:2},
+    body: metaRows.map(r=>[{content:r[0],styles:{fontStyle:"bold",textColor:100}},r[1],{content:r[2],styles:{fontStyle:"bold",textColor:100}},r[3]]),
+    margin: {left: margin, right: margin}
+  });
+  y = doc.lastAutoTable.finalY + 14;
+
+  if(req.status === "Declined"){
+    doc.setFillColor(254,242,242); doc.setDrawColor(252,165,165);
+    doc.rect(margin, y, 515, 32, "FD");
+    doc.setFontSize(9); doc.setTextColor(153,27,27);
+    doc.text(`Declined by ${req.declined_by||""} — Reason: ${req.decline_reason||""}`, margin+8, y+20, {maxWidth:500});
+    doc.setTextColor(0);
+    y += 44;
+  }
+
+  doc.autoTable({
+    startY: y,
+    head: [["S/N","Name","Description","Qty","Unit Price","Delv/Tax","Total"]],
+    body: items.map(it=>[it.sn, it.name, it.description||"", it.qty, `$${Number(it.unit_price).toFixed(2)}`, `$${Number(it.delivery_tax).toFixed(2)}`, `$${Number(it.total).toFixed(2)}`]),
+    foot: [
+      ["","","","","","Materials Subtotal", `$${Number(req.materials_subtotal).toFixed(2)}`],
+      ["","","","","","Delivery/Tax Subtotal", `$${Number(req.delivery_tax_subtotal).toFixed(2)}`],
+      ["","","","","","GRAND TOTAL", `$${Number(req.grand_total).toFixed(2)}`]
+    ],
+    styles:{fontSize:9}, headStyles:{fillColor:[31,41,51]}, margin:{left:margin,right:margin}
+  });
+  y = doc.lastAutoTable.finalY + 20;
+
+  doc.setFont("helvetica","bold"); doc.setFontSize(11);
+  doc.text("Approval Chain", margin, y); y += 14;
+  doc.setFont("helvetica","normal");
+
+  steps.forEach(s=>{
+    if(y > 760){ doc.addPage(); y = margin; }
+    let statusText = "Pending";
+    if(s.status==="Signed") statusText = `Signed by ${s.assigned_person_name} on ${new Date(s.signed_at).toLocaleDateString()}`;
+    else if(s.status==="Declined") statusText = `Declined by ${s.assigned_person_name} — ${s.decline_reason||""}`;
+    doc.setFontSize(9); doc.setFont("helvetica","bold");
+    doc.text(`${s.stage_name}:`, margin, y);
+    doc.setFont("helvetica","normal");
+    doc.text(statusText, margin+110, y, {maxWidth:400});
+    y += 16;
+  });
+
+  doc.setFontSize(7); doc.setTextColor(150);
+  doc.text(`Exported ${new Date().toLocaleString()} from SPACElogic MR Tracker`, margin, 820);
+
+  doc.save(`${req.tracking_no}_${(req.project_name||"requisition").replace(/[^a-z0-9]/gi,"_")}.pdf`);
 }
 
 init();

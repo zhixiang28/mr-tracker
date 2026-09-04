@@ -642,6 +642,7 @@ function apply(data){
 }
 
 let currentDraftId = null;
+let editRequisitionId = null;
 
 async function saveForm(){
   const data=collect();
@@ -695,6 +696,46 @@ async function deleteDraftFromList(draftId){
   if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not delete draft."); return; }
   if(currentDraftId===draftId) currentDraftId=null;
   openDraftsModal();
+}
+
+async function loadForEdit(requisitionId){
+  const {data, error} = await supabaseClient.rpc("get_requisition_for_viewer", {
+    p_person_id: requesterId, p_pin: requesterPin, p_requisition_id: requisitionId
+  });
+  if(error || !data.success){
+    setStatus((data&&data.error)||(error&&error.message)||"Could not load that requisition.");
+    return;
+  }
+  const req = data.requisition;
+  if(req.requester_person_id !== requesterId){
+    setStatus("You can only revise requisitions you submitted.");
+    return;
+  }
+  if(req.status !== "Declined"){
+    setStatus("This requisition isn't currently declined, so it can't be revised here.");
+    return;
+  }
+
+  editRequisitionId = requisitionId;
+  const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  apply({
+    meta: {
+      projectName: req.project_name || "", projectLocation: req.project_location || "",
+      requestBy: req.request_by || "", supplyDate: req.supply_date || "", formDate: req.form_date || "",
+      pcNo: req.pc_no || "", pmIncharge: req.pm_incharge || ""
+    },
+    rows: items.map(it=>[it.name||"", it.description||"", it.qty, it.unit_price, it.delivery_tax, it.link||""])
+  });
+
+  const declinedStep = (req.approval_steps||[]).find(s=>s.status==="Declined");
+  const banner = document.createElement("div");
+  banner.style.cssText = "max-width:960px;margin:0 auto 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;font-size:13px;color:#991b1b;line-height:1.5";
+  banner.innerHTML = `<strong>Revising ${escHtml(req.tracking_no)}</strong> — declined at <strong>${escHtml(declinedStep?.stage_name||"")}</strong> by ${escHtml(declinedStep?.assigned_person_name||"")}: "${escHtml(declinedStep?.decline_reason||"")}"<br>Fix what's needed below, then click Resubmit. Approval will restart from the Team Manager.`;
+  document.querySelector(".login-bar").insertAdjacentElement("afterend", banner);
+
+  const btn = document.getElementById("submitBtn");
+  btn.textContent = "Revise & Resubmit";
+  setStatus("Loaded for revision.");
 }
 
 function newForm(){
@@ -760,6 +801,19 @@ async function submitToDashboard(){
       qty:Number(r[2]||0), unit_price:Number(r[3]||0), delivery_tax:Number(r[4]||0), link:r[5]||""
     }));
 
+    if(editRequisitionId){
+      const {data, error} = await supabaseClient.rpc("requester_resubmit", {
+        p_person_id: requesterId, p_pin: requesterPin, p_requisition_id: editRequisitionId,
+        p_header: header, p_items: items
+      });
+      if(error) throw error;
+      if(!data.success) throw new Error(data.error || "Unknown error");
+
+      setStatus("Revised and resubmitted — approval restarts from the Team Manager.");
+      setTimeout(()=>{ window.location.href = "dashboard.html"; }, 1200);
+      return;
+    }
+
     const {data, error} = await supabaseClient.rpc("create_requisition", {
       p_header: header, p_items: items, p_requester_person_id: requesterId
     });
@@ -777,7 +831,7 @@ async function submitToDashboard(){
   }catch(e){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
-    btn.disabled=false; btn.textContent="Submit to Dashboard";
+    btn.disabled=false; btn.textContent = editRequisitionId ? "Revise & Resubmit" : "Submit to Dashboard";
   }
 }
 
@@ -808,9 +862,33 @@ function showSubmitResult(trackingNo, firstToken){
       <button type="button" onclick="copySignLink()">Copy</button>
     </div>
     <p class="muted" style="font-size:12px">Send this link to whoever should approve as Manager, along with: "Please open this link — you'll register or sign in, then approve or decline." Once they act, a new link for the next step (Procurement Approval) will appear for them to pass along — and so on down the chain.</p>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <input type="email" id="emailLinkInput" list="loginPeopleList" placeholder="Or type an email to send it instead" style="flex:1">
+      <button type="button" onclick="emailTheLink('${link.toString().replace(/'/g,"\\'")}', 'Team Manager', 'emailLinkInput', 'emailLinkStatus')">Send</button>
+    </div>
+    <div class="muted" id="emailLinkStatus" style="font-size:11.5px;margin-top:4px"></div>
     <p class="muted" style="font-size:12px">You can also just open the <a href="dashboard.html" target="_blank">dashboard</a> anytime and let the right person sign directly from there instead of chasing links.</p>
   `;
   document.getElementById("submitResultModal").style.display="flex";
+}
+async function emailTheLink(link, roleName, inputId, statusId){
+  const email = document.getElementById(inputId).value.trim();
+  const statusEl = document.getElementById(statusId);
+  if(!email){ statusEl.textContent="Enter an email address."; return; }
+  statusEl.textContent="Sending...";
+  try{
+    const resp = await fetch(SUPABASE_URL + "/functions/v1/send-email", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({
+        to: email,
+        subject: `Action needed: please sign as ${roleName}`,
+        html: `<p>You've been asked to review a purchase requisition as <b>${roleName}</b>.</p><p>Open this link to sign or decline: <a href="${link}">${link}</a></p>`
+      })
+    });
+    const result = await resp.json();
+    statusEl.textContent = result.success ? "Sent!" : (result.error || "Could not send.");
+  }catch(e){ statusEl.textContent = "Could not send — check the address and try again."; }
 }
 function copySignLink(){
   const inp=document.getElementById("firstSignLinkInput");
@@ -1130,6 +1208,8 @@ updateLoginBar();
     continueDraft(params.get("draftId"));
   } else if(params.get("drafts")==="1"){
     openDraftsModal();
+  } else if(params.get("editRequisition")){
+    loadForEdit(params.get("editRequisition"));
   }
 })();
 
