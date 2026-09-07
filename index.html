@@ -378,7 +378,7 @@
 <body>
 <script>
   if(!sessionStorage.getItem("sl_person_id") || !sessionStorage.getItem("sl_pin")){
-    window.location.href = "login.html?redirect=" + encodeURIComponent(window.location.pathname.split("/").pop() || "index.html");
+    window.location.href = "login.html?redirect=dashboard.html";
   }
 </script>
 <div class="app">
@@ -403,6 +403,8 @@
       <div class="divider"></div>
       <div class="btn-group">
         <button type="button" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
+        <button type="button" onclick="window.open('manual.html','_blank')">📘 Manual</button>
+        <button type="button" onclick="window.open('faq.html','_blank')">❓ FAQ</button>
       </div>
       <div class="divider"></div>
       <div class="btn-group">
@@ -421,9 +423,9 @@
     <div class="section-title">Project Details</div>
     <div class="meta">
       <div class="meta-col">
-        <div class="field"><label>PROJECT NAME :</label><input id="projectName" value="Team T Internal Usage"></div>
+        <div class="field"><label>PROJECT NAME :</label><input id="projectName"></div>
         <div class="field"><label>PROJECT LOCATION :</label><input id="projectLocation"></div>
-        <div class="field"><label>REQUEST BY :</label><input id="requestBy" value="Zhi Xiang, Team T"></div>
+        <div class="field"><label>REQUEST BY :</label><input id="requestBy"></div>
         <div class="field"><label>SUPPLY DATE :</label><input id="supplyDate" type="date"></div>
       </div>
       <div class="meta-col">
@@ -546,7 +548,7 @@ function updateLoginBar(){
 
 function requesterLogout(){
   sessionStorage.removeItem("sl_person_id"); sessionStorage.removeItem("sl_person_name"); sessionStorage.removeItem("sl_pin");
-  window.location.href = "login.html?redirect=index.html";
+  window.location.href = "login.html?redirect=dashboard.html";
 }
 
 function todayISO(){
@@ -771,7 +773,7 @@ async function submitToDashboard(){
   }
   if(!requesterId || !requesterPin){
     setStatus("Your session expired — please log in again.");
-    window.location.href = "login.html?redirect=index.html";
+    window.location.href = "login.html?redirect=dashboard.html";
     return;
   }
   const {meta, rows} = collect();

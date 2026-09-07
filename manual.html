@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Manual — MR Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0;
+    --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#ffffff;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--paper); }
+  h1,h2,h3{ font-family:'Fraunces',Georgia,serif; margin:0; font-weight:600; }
+  p{ margin:0; }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  code{ background:var(--bg); padding:2px 6px; border-radius:4px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+
+  nav.top{ display:flex; justify-content:space-between; align-items:center; padding:20px 32px; border-bottom:1px solid var(--line); }
+  .brand{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; }
+  .brand span{ color:var(--accent); }
+  .top-links{ display:flex; gap:22px; font-size:14px; color:var(--muted); }
+  .top-links a{ color:var(--muted); }
+  .top-links a:hover{ color:var(--ink); }
+
+  .layout{ display:flex; max-width:1180px; margin:0 auto; }
+  aside{ width:250px; flex-shrink:0; padding:40px 24px 60px 32px; position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto; }
+  aside h4{ font-size:11.5px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:12px; font-family:'Inter',sans-serif; font-weight:700; }
+  aside ul{ list-style:none; margin:0 0 28px; padding:0; }
+  aside li a{ display:block; padding:6px 0; font-size:14px; color:var(--ink); border-left:2px solid transparent; padding-left:12px; margin-left:-13px; }
+  aside li a:hover{ color:var(--accent); text-decoration:none; }
+
+  main{ flex:1; padding:48px 40px 100px; max-width:760px; }
+  .page-title{ font-size:38px; margin-bottom:12px; }
+  .page-sub{ font-size:16px; color:var(--muted); line-height:1.6; margin-bottom:48px; }
+
+  .sec{ margin-bottom:56px; scroll-margin-top:24px; }
+  .sec h2{ font-size:24px; padding-bottom:14px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+  .sec h3{ font-size:16.5px; margin:24px 0 8px; font-family:'Inter',sans-serif; font-weight:700; }
+  .sec p{ font-size:15px; line-height:1.7; color:#374151; margin-bottom:12px; }
+  .sec ul, .sec ol{ font-size:15px; line-height:1.7; color:#374151; padding-left:22px; margin:0 0 12px; }
+  .sec li{ margin-bottom:6px; }
+
+  .callout{ background:var(--bg); border-left:3px solid var(--accent); padding:14px 18px; border-radius:0 8px 8px 0; font-size:14px; color:#374151; margin:16px 0; line-height:1.6; }
+  .callout b{ color:var(--ink); }
+  .steps{ counter-reset:step; list-style:none; padding:0; margin:16px 0; }
+  .steps li{ counter-increment:step; position:relative; padding-left:36px; margin-bottom:16px; font-size:15px; line-height:1.6; color:#374151; }
+  .steps li::before{ content:counter(step); position:absolute; left:0; top:0; width:24px; height:24px; border-radius:50%; background:var(--ink); color:#fff; font-size:12.5px; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'Inter',sans-serif; }
+
+  @media(max-width:900px){
+    .layout{ flex-direction:column; }
+    aside{ position:relative; width:100%; height:auto; padding:24px 24px 0; }
+    main{ padding:32px 24px 80px; max-width:none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
+  <div class="top-links">
+    <a href="about.html">About</a>
+    <a href="faq.html">FAQ</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside>
+    <h4>Getting Started</h4>
+    <ul>
+      <li><a href="#signup">Creating an account</a></li>
+      <li><a href="#login">Signing in</a></li>
+    </ul>
+    <h4>Requesters</h4>
+    <ul>
+      <li><a href="#submit">Submitting a requisition</a></li>
+      <li><a href="#drafts">Saving drafts</a></li>
+      <li><a href="#declined">If it's declined</a></li>
+      <li><a href="#withdraw">Withdrawing a request</a></li>
+    </ul>
+    <h4>Approvers</h4>
+    <ul>
+      <li><a href="#signing">Approving or declining</a></li>
+    </ul>
+    <h4>Everyone</h4>
+    <ul>
+      <li><a href="#dashboard">Using the dashboard</a></li>
+      <li><a href="#reminders">Reminder settings</a></li>
+      <li><a href="#export">Exporting &amp; printing</a></li>
+      <li><a href="#profile">Your profile &amp; PIN</a></li>
+    </ul>
+    <h4>Admins</h4>
+    <ul>
+      <li><a href="#admin">Managing people</a></li>
+    </ul>
+  </aside>
+
+  <main>
+    <h1 class="page-title">User Manual</h1>
+    <p class="page-sub">Everything you need to know to submit, approve, and track purchase requisitions in MR Tracker.</p>
+
+    <div class="sec" id="signup">
+      <h2>Creating an account</h2>
+      <p>Anyone with a <code>@spacelogic.com.sg</code> company email can create an account — no admin approval needed.</p>
+      <ol class="steps">
+        <li>Go to the <a href="login.html">sign-in page</a> and type your full name. Since you're new, you'll be moved to the sign-up form automatically.</li>
+        <li>Enter your company email, then choose a 4-digit PIN and type it twice to confirm.</li>
+        <li>A 6-digit verification code is emailed to you. Enter it on the next screen to finish creating your account.</li>
+        <li>Optionally add your position and department — or skip this and add it later.</li>
+      </ol>
+      <div class="callout"><b>Why the email code?</b> It confirms you actually own that company email address, which is also how the system knows where to send you notifications later.</div>
+    </div>
+
+    <div class="sec" id="login">
+      <h2>Signing in</h2>
+      <p>Every time you visit MR Tracker, sign in with your full name and 4-digit PIN. Your name has autocomplete — start typing and pick yourself from the list.</p>
+      <p>Your session stays active until you close the tab or click <b>Log out</b>. If someone else needs to use the same computer, always log out first — PINs are personal and shouldn't be shared.</p>
+    </div>
+
+    <div class="sec" id="submit">
+      <h2>Submitting a requisition</h2>
+      <ol class="steps">
+        <li>From the dashboard, click <b>+ New Requisition</b>. This opens the full form.</li>
+        <li>Fill in the project details — name, location, supply date — and add each material line by line: name, description, quantity, unit price, and any delivery/tax cost.</li>
+        <li>If an item has a supplier or product page, paste the URL into the <b>Link</b> field — it becomes clickable in the exported PDF later.</li>
+        <li>Click <b>Submit</b> at the bottom of the form.</li>
+      </ol>
+      <p>Once submitted, you'll get a link for whoever needs to approve as Team Manager first. You can copy it, or use the built-in <b>send by email</b> box to email it directly — no login needed for them to open it.</p>
+      <div class="callout">The approval order is fixed: <b>Manager Approval → Procurement Approval → Purchase → Received</b>. Each person's signature reveals the next link automatically.</div>
+    </div>
+
+    <div class="sec" id="drafts">
+      <h2>Saving drafts</h2>
+      <p>Not ready to submit? Click <b>Save Draft</b> at any point. Your draft is saved to your account — access it later from <b>My Drafts</b> on the form page, from any device, as long as you're signed in.</p>
+    </div>
+
+    <div class="sec" id="declined">
+      <h2>If your requisition is declined</h2>
+      <p>You'll see it flagged on your dashboard with the reason it was declined. Click into it, then <b>Edit &amp; Resubmit in Full Form</b> — this reopens the complete form (not a cramped popup) with everything you already entered, ready to fix.</p>
+      <div class="callout"><b>Good to know:</b> resubmitting restarts the whole approval chain from the Team Manager, even if the decline happened later at Procurement or Purchase. This ensures everyone re-confirms the revised request.</div>
+    </div>
+
+    <div class="sec" id="withdraw">
+      <h2>Withdrawing a request</h2>
+      <p>Changed your mind, or the request is no longer needed? Open the requisition on your dashboard and click <b>Withdraw this requisition</b>. This is only available to you as the original requester, and only before it's fully received.</p>
+    </div>
+
+    <div class="sec" id="signing">
+      <h2>Approving or declining a requisition</h2>
+      <p>When it's your turn to review, you'll get a link — either sent to you directly, or claimed from the dashboard by whoever's next.</p>
+      <ol class="steps">
+        <li>Open the link. If this is your first time on this specific step, type your name and a 4-digit PIN (existing accounts just enter their usual PIN).</li>
+        <li>Review the project details and line items shown.</li>
+        <li>Click <b>Approve &amp; Sign</b> to move it forward, or <b>Decline</b> with a short reason if something's wrong.</li>
+      </ol>
+      <p>After you sign, a new link appears for the next stage — pass it along, or let the next person claim it directly from the dashboard.</p>
+    </div>
+
+    <div class="sec" id="dashboard">
+      <h2>Using the dashboard</h2>
+      <p>The dashboard is where everything lives: your own submissions, anything waiting on your signature, and — if you're an admin — every requisition in the system.</p>
+      <ul>
+        <li><b>Pipeline row</b> — shows counts by stage, and doubles as a filter. Click any stage to see just those requisitions.</li>
+        <li><b>Action banner</b> — appears only when something needs your attention (awaiting your signature, or declined and needs fixing).</li>
+        <li><b>Search</b> — find anything by tracking number, project name, or requester.</li>
+        <li><b>Click a row</b> to expand it — see line items, the full approval chain with signature timestamps, and available actions.</li>
+      </ul>
+    </div>
+
+    <div class="sec" id="reminders">
+      <h2>Reminder settings</h2>
+      <p>Click <b>Reminder Settings</b> to set your own overdue thresholds for each stage — in hours or days. If one of your own submissions sits past that threshold at any stage, an overdue banner appears at the top of your dashboard automatically. Leave a field blank to turn reminders off for that stage.</p>
+    </div>
+
+    <div class="sec" id="export">
+      <h2>Exporting &amp; printing</h2>
+      <p>Open the full form view of any requisition (<b>Open full form view →</b> from the dashboard) to <b>Print</b> or <b>Export PDF</b> — a complete, formatted record including every signature and timestamp, suitable for filing or sharing outside the system.</p>
+    </div>
+
+    <div class="sec" id="profile">
+      <h2>Your profile &amp; PIN</h2>
+      <p>Click <b>My Profile</b> to update your position, department, or company email. In the same window, use <b>Change PIN</b> to update your PIN — you'll need your current PIN to confirm the change.</p>
+    </div>
+
+    <div class="sec" id="admin">
+      <h2>Managing people (admins only)</h2>
+      <p>Admins can open <b>Admin Settings</b> to see every account — name, email, position, submission and signature counts — and:</p>
+      <ul>
+        <li><b>Add Person</b> — pre-create an account for someone directly, without waiting for them to sign up themselves.</li>
+        <li><b>Delete</b> — remove an account. Their name stays attached to any past requisitions; only the login itself is removed.</li>
+        <li><b>Make/Remove admin</b> — grant or revoke admin access. There must always be at least one admin.</li>
+      </ul>
+      <p>Admins can also expand any requisition on the dashboard to edit its details, override a stuck approval stage, or reassign a signer.</p>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>

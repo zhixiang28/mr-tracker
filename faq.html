@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — MR Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0;
+    --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#ffffff;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--paper); }
+  h1,h2{ font-family:'Fraunces',Georgia,serif; margin:0; font-weight:600; }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+
+  nav.top{ display:flex; justify-content:space-between; align-items:center; padding:20px 32px; border-bottom:1px solid var(--line); }
+  .brand{ font-family:'Fraunces',serif; font-weight:600; font-size:18px; }
+  .brand span{ color:var(--accent); }
+  .top-links{ display:flex; gap:22px; font-size:14px; color:var(--muted); }
+  .top-links a{ color:var(--muted); }
+  .top-links a:hover{ color:var(--ink); }
+
+  .wrap{ max-width:760px; margin:0 auto; padding:56px 28px 100px; }
+  .page-title{ font-size:38px; margin-bottom:12px; }
+  .page-sub{ font-size:16px; color:var(--muted); line-height:1.6; margin-bottom:20px; }
+
+  .cat{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin:44px 0 4px; }
+  .cat:first-of-type{ margin-top:36px; }
+
+  details{ border-bottom:1px solid var(--line); padding:18px 0; }
+  summary{ font-size:16px; font-weight:600; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:16px; }
+  summary::-webkit-details-marker{ display:none; }
+  summary::after{ content:"+"; font-family:'Fraunces',serif; font-size:22px; color:var(--muted); flex-shrink:0; transition:transform .15s; }
+  details[open] summary::after{ content:"–"; }
+  details p{ font-size:14.5px; line-height:1.7; color:#374151; margin:14px 0 0; }
+  details p + p{ margin-top:10px; }
+  details code{ background:var(--bg); padding:2px 6px; border-radius:4px; font-size:13px; font-family:ui-monospace,Menlo,Consolas,monospace; }
+
+  .bottom-cta{ margin-top:56px; padding:28px; background:var(--bg); border-radius:12px; text-align:center; }
+  .bottom-cta p{ font-size:14.5px; color:var(--muted); margin:0 0 4px; }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
+  <div class="top-links">
+    <a href="about.html">About</a>
+    <a href="manual.html">User Manual</a>
+    <a href="dashboard.html">Dashboard</a>
+  </div>
+</nav>
+
+<div class="wrap">
+  <h1 class="page-title">Frequently Asked Questions</h1>
+  <p class="page-sub">Quick answers to the things people ask most. For a full walkthrough, see the <a href="manual.html">User Manual</a>.</p>
+
+  <div class="cat">Account &amp; access</div>
+
+  <details open>
+    <summary>What email should I sign up with?</summary>
+    <p>Your real <code>@spacelogic.com.sg</code> company email. It's required — the system won't accept personal email addresses (Gmail, Yahoo, etc.) — and each email can only be linked to one account.</p>
+  </details>
+
+  <details>
+    <summary>I forgot my PIN. What do I do?</summary>
+    <p>PINs are stored securely and can't be looked up or reset by anyone, including admins. Ask an admin to open <b>Admin Settings</b>, delete your account, and re-add you (or let you sign up again) with a new PIN. You'll keep your name on any past requisitions either way.</p>
+  </details>
+
+  <details>
+    <summary>Can I use the same account on multiple devices?</summary>
+    <p>Yes — sign in with your name and PIN on any device, anytime. There's nothing to install and nothing tied to a specific computer or phone.</p>
+  </details>
+
+  <details>
+    <summary>Can two people share one login?</summary>
+    <p>No. Every signature is legally meaningful — it's how the system proves who approved what. Each person needs their own account so their name and PIN are the only thing that can sign on their behalf.</p>
+  </details>
+
+  <div class="cat">Submitting &amp; tracking</div>
+
+  <details>
+    <summary>Can I edit a requisition after submitting it?</summary>
+    <p>Not directly, unless it gets declined. If you need changes before anyone has approved it, ask that person to decline it with a reason, then use <b>Edit &amp; Resubmit</b> to fix and resend it.</p>
+  </details>
+
+  <details>
+    <summary>What happens when a requisition is declined?</summary>
+    <p>It's flagged on your dashboard with the reason. Open it, click <b>Edit &amp; Resubmit in Full Form</b>, fix what was flagged, and resubmit. This restarts the entire approval chain from the Team Manager — even if it was declined later at Procurement or Purchase — so everyone re-confirms the revised request.</p>
+  </details>
+
+  <details>
+    <summary>Can I withdraw a requisition after submitting it?</summary>
+    <p>Yes, any time before it's fully received. Open it on your dashboard and click <b>Withdraw this requisition</b>. Only the original requester can do this.</p>
+  </details>
+
+  <details>
+    <summary>What if the next person hasn't signed yet?</summary>
+    <p>Nothing moves forward until they do — that's intentional, so approvals happen in order. You can set your own <b>Reminder Settings</b> to get flagged if a stage sits pending longer than you'd expect.</p>
+  </details>
+
+  <details>
+    <summary>What if I lose the sign-off link that was sent to me?</summary>
+    <p>Ask the requester to open the requisition on their dashboard and click <b>Regenerate link</b> — this invalidates the old link and gives you a fresh one.</p>
+  </details>
+
+  <div class="cat">Notifications</div>
+
+  <details>
+    <summary>Why didn't I receive an email notification?</summary>
+    <p>A few possibilities: you don't have an email saved on your profile yet (add one under <b>My Profile</b>), the email landed in spam, or — for very new systems — a company mail filter is still learning to trust the sending address. Check your spam folder first, and let an admin know if it keeps happening.</p>
+  </details>
+
+  <details>
+    <summary>Who gets emailed, and when?</summary>
+    <p>The requester is emailed when their requisition is declined or purchased. The purchaser is emailed when it's marked received. You can also manually email any sign-off link to someone directly from the copy-link screen.</p>
+  </details>
+
+  <div class="cat">Security</div>
+
+  <details>
+    <summary>Is my data secure? Who can see my requisitions?</summary>
+    <p>You see your own submissions and anything assigned to you for signing. Admins see everything. This is enforced at the database level, not just hidden in the screen — so it can't be bypassed by guessing a link or URL.</p>
+  </details>
+
+  <details>
+    <summary>How do I become an admin?</summary>
+    <p>An existing admin needs to grant you admin access from <b>Admin Settings</b>. There must always be at least one admin in the system.</p>
+  </details>
+
+  <details>
+    <summary>Do I need to install anything?</summary>
+    <p>No — MR Tracker runs entirely in your web browser. No app, no plugin, works on desktop and mobile.</p>
+  </details>
+
+  <div class="bottom-cta">
+    <p>Still stuck?</p>
+    <a href="manual.html">Read the full User Manual →</a>
+  </div>
+</div>
+
+</body>
+</html>
