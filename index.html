@@ -45,6 +45,16 @@
     color:var(--ink);
   }
   .brand span{font-weight:400;color:var(--muted)}
+  .header-actions{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .header-divider{ width:1px; height:16px; background:#d7dbe0; }
+  .header-nav-link{ font-size:13px; color:var(--muted); text-decoration:none; background:none; border:none; cursor:pointer; font-weight:600; padding:0; font-family:inherit; }
+  .header-nav-link:hover{ color:var(--ink); }
+  .dashboard-btn{ font-size:13px; padding:7px 14px; border-radius:7px; border:1px solid var(--accent); color:var(--accent); background:#fff; font-weight:600; cursor:pointer; }
+  .dashboard-btn:hover{ background:#f0f5ff; }
+  .whoami-text{ font-size:12.5px; color:var(--muted); }
+  .logout-link{ font-size:12.5px; color:#dc2626; background:none; border:none; cursor:pointer; font-weight:600; padding:0; font-family:inherit; }
+  .logout-link:hover{ text-decoration:underline; }
+  .action-toolbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#fff; border:1px solid #d7dbe0; border-radius:10px; padding:10px 14px; margin-bottom:18px; }
   .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .btn-group{display:flex;gap:8px;flex-wrap:wrap}
   .login-bar{
@@ -384,33 +394,32 @@
 <div class="app">
   <div class="toolbar">
     <div class="brand">SPACE<span>logic</span> — Purchase Requisition</div>
-    <div class="actions">
-      <div class="btn-group">
-        <button onclick="newForm()">New</button>
-        <button onclick="saveForm()">Save Draft</button>
-        <button onclick="openDraftsModal()">My Drafts</button>
-      </div>
-      <div class="divider"></div>
-      <div class="btn-group">
-        <button onclick="exportCSV()">Export CSV</button>
-        <button class="primary" onclick="exportPDF()">Export PDF</button>
-      </div>
-      <div class="divider"></div>
-      <div class="btn-group">
-        <button onclick="window.print()">Print</button>
-        <button onclick="shareFile()">Share</button>
-      </div>
-      <div class="divider"></div>
-      <div class="btn-group">
-        <button type="button" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
-        <button type="button" onclick="window.open('manual.html','_blank')">📘 Manual</button>
-        <button type="button" onclick="window.open('manual.html#faq','_blank')">❓ FAQ</button>
-      </div>
-      <div class="divider"></div>
-      <div class="btn-group">
-        <span class="muted" id="loginBarText" style="font-size:12px;align-self:center"></span>
-        <button id="logoutBtn" onclick="requesterLogout()">Log out</button>
-      </div>
+    <div class="header-actions">
+      <button type="button" class="dashboard-btn" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
+      <div class="header-divider"></div>
+      <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">📘 Manual</button>
+      <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">❓ FAQ</button>
+      <div class="header-divider"></div>
+      <span class="whoami-text" id="loginBarText"></span>
+      <button id="logoutBtn" class="logout-link" onclick="requesterLogout()">Log out</button>
+    </div>
+  </div>
+
+  <div class="action-toolbar">
+    <div class="btn-group">
+      <button onclick="newForm()">New</button>
+      <button onclick="saveForm()">Save Draft</button>
+      <button onclick="openDraftsModal()">My Drafts</button>
+    </div>
+    <div class="divider"></div>
+    <div class="btn-group">
+      <button onclick="exportCSV()">Export CSV</button>
+      <button class="primary" onclick="exportPDF()">Export PDF</button>
+    </div>
+    <div class="divider"></div>
+    <div class="btn-group">
+      <button onclick="window.print()">Print</button>
+      <button onclick="shareFile()">Share</button>
     </div>
   </div>
 
