@@ -180,6 +180,9 @@
   thead th:last-child{border-right:0}
   th{font-weight:700;text-align:center;height:34px;background:var(--head);color:#fff;font-size:11px;letter-spacing:.3px}
   #itemsBody tr:nth-child(even){background:#fafbfc}
+  .drag-handle{ cursor:grab; text-align:center; color:#9aa4b2; font-size:14px; user-select:none; width:24px; }
+  .drag-handle:hover{ color:#5b6472; }
+  #itemsBody tr.dragging{ opacity:.35; }
   td input{
     border:0;
     padding:5px 3px;
@@ -439,8 +442,8 @@
       </div>
       <div class="meta-col">
         <div class="field"><label>DATE :</label><input id="formDate" type="date"></div>
-        <div class="field"><label>PC NO. :</label><input id="pcNo" value="-"></div>
-        <div class="field"><label>PM Incharge :</label><input id="pmIncharge" value="-"></div>
+        <div class="field"><label>PC NO. :</label><input id="pcNo"></div>
+        <div class="field"><label>PM Incharge :</label><input id="pmIncharge"></div>
       </div>
     </div>
 
@@ -449,6 +452,7 @@
       <table id="itemsTable">
         <thead>
           <tr>
+            <th style="width:24px"></th>
             <th class="sn">S/N</th>
             <th class="name">NAME</th>
             <th class="desc">DESCRIPTION</th>
@@ -586,22 +590,75 @@ function filenameBase(){
   return `${yymmdd()}_${slug(val("projectName"))}`;
 }
 
-function addRow(data=["","","",1,0,""]){
+function addRow(data=["","","","","",""]){
   const tr=document.createElement("tr");
   tr.innerHTML=`
+    <td class="drag-handle" title="Drag to reorder">⠿</td>
     <td class="sn center"></td>
     <td><input class="r-name" value="${esc(data[0]||"")}"></td>
     <td><input class="r-desc" value="${esc(data[1]||"")}"></td>
-    <td><input class="r-qty num" type="number" min="0" step="1" value="${data[2] ?? 1}"></td>
-    <td><input class="r-price num" type="number" min="0" step="0.01" value="${data[3] ?? 0}"></td>
-    <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? 0}"></td>
+    <td><input class="r-qty num" type="number" min="0" step="1" value="${data[2] ?? ""}"></td>
+    <td><input class="r-price num" type="number" min="0" step="0.01" value="${data[3] ?? ""}"></td>
+    <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? ""}"></td>
     <td><input class="r-link" type="url" placeholder="https://..." value="${esc(data[5]||"")}"></td>
     <td class="num">$ <span class="r-total">0.00</span></td>
     <td><button class="row-remove" title="Remove" onclick="this.closest('tr').remove();recalc()">×</button></td>
   `;
   document.getElementById("itemsBody").appendChild(tr);
   tr.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
+  enableRowDrag(tr);
   recalc();
+}
+
+let dragRow = null;
+function enableRowDrag(tr){
+  const handle = tr.querySelector(".drag-handle");
+  handle.addEventListener("mousedown", e=>{
+    e.preventDefault();
+    dragRow = tr;
+    tr.classList.add("dragging");
+    document.addEventListener("mousemove", onRowDragMove);
+    document.addEventListener("mouseup", onRowDragEnd);
+  });
+  handle.addEventListener("touchstart", e=>{
+    dragRow = tr;
+    tr.classList.add("dragging");
+    document.addEventListener("touchmove", onRowDragMoveTouch, {passive:false});
+    document.addEventListener("touchend", onRowDragEnd);
+  }, {passive:true});
+}
+function onRowDragMove(e){
+  if(!dragRow) return;
+  moveRowTo(e.clientY);
+}
+function onRowDragMoveTouch(e){
+  if(!dragRow) return;
+  e.preventDefault();
+  moveRowTo(e.touches[0].clientY);
+}
+function moveRowTo(clientY){
+  const body = document.getElementById("itemsBody");
+  const after = getDragAfterRow(body, clientY);
+  if(after==null) body.appendChild(dragRow);
+  else if(after!==dragRow) body.insertBefore(dragRow, after);
+}
+function onRowDragEnd(){
+  if(dragRow) dragRow.classList.remove("dragging");
+  dragRow = null;
+  document.removeEventListener("mousemove", onRowDragMove);
+  document.removeEventListener("mouseup", onRowDragEnd);
+  document.removeEventListener("touchmove", onRowDragMoveTouch);
+  document.removeEventListener("touchend", onRowDragEnd);
+  recalc();
+}
+function getDragAfterRow(container, y){
+  const rows = [...container.querySelectorAll("tr:not(.dragging)")];
+  return rows.reduce((closest, row)=>{
+    const box = row.getBoundingClientRect();
+    const offset = y - box.top - box.height/2;
+    if(offset < 0 && offset > closest.offset) return { offset, element: row };
+    return closest;
+  }, { offset: -Infinity, element: null }).element;
 }
 
 function esc(s){
@@ -756,8 +813,6 @@ function newForm(){
   document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
   document.getElementById("formDate").value=todayISO();
   document.getElementById("supplyDate").value="";
-  document.getElementById("pcNo").value="-";
-  document.getElementById("pmIncharge").value="-";
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   currentRequisitionId=null;
@@ -852,8 +907,6 @@ function resetFormForNext(){
   document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
   document.getElementById("formDate").value=todayISO();
   document.getElementById("supplyDate").value="";
-  document.getElementById("pcNo").value="-";
-  document.getElementById("pmIncharge").value="-";
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   recalc();
