@@ -556,14 +556,12 @@
       </div>
     </div>
 
+    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:0 0 4px">Exchange rate (1 <span id="curRateFromLabel">CNY</span> = ? <span id="curRateToLabel">SGD</span>)</label>
+    <input type="number" id="curRate" min="0" step="0.0001" style="width:100%;box-sizing:border-box;margin-bottom:10px">
+    <div class="muted" style="font-size:11px;margin:-6px 0 10px">Fixed rate you set — update it whenever you check the latest rate. Not fetched automatically.</div>
+
     <div id="curResultBox" style="background:#f4f6f8;border-radius:10px;padding:14px 16px;margin-bottom:6px">
       <div id="curResult" style="font-size:22px;font-weight:700;color:var(--ink)">—</div>
-      <div id="curRateNote" class="muted" style="font-size:11.5px;margin-top:4px">Fetching live exchange rate…</div>
-    </div>
-
-    <div id="curManualWrap" style="display:none;margin-bottom:6px">
-      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:8px 0 4px">Couldn't fetch a live rate — enter today's rate manually (1 <span id="curManualFromLabel">CNY</span> = ? <span id="curManualToLabel">SGD</span>)</label>
-      <input type="number" id="curManualRate" min="0" step="0.0001" style="width:100%;box-sizing:border-box">
     </div>
 
     <div class="modal-actions">
@@ -837,7 +835,13 @@ function closeDraftsModal(){
 // if the rate service can't be reached.
 // ============================================================
 const CURRENCIES = ["CNY","SGD","USD","MYR","HKD","THB","IDR","JPY","EUR","GBP","AUD","KRW","INR","PHP","NZD","ZAR"];
-let curDebounce = null;
+// Rough default rates, per 1 unit of the "from" currency, keyed "FROM_TO".
+// These are NOT live — just sensible starting points; always update
+// curRate to whatever the actual current rate is before relying on it.
+const DEFAULT_RATES = {
+  "CNY_SGD": 0.19, "SGD_CNY": 5.26,
+  "USD_SGD": 1.35, "SGD_USD": 0.74
+};
 
 function openCurrencyModal(){
   const fromSel = document.getElementById("curFrom");
@@ -849,10 +853,11 @@ function openCurrencyModal(){
     });
     fromSel.value = "CNY";
     toSel.value = "SGD";
-    fromSel.addEventListener("change", ()=>{ document.getElementById("curManualWrap").style.display="none"; runConversion(); });
-    toSel.addEventListener("change", ()=>{ document.getElementById("curManualWrap").style.display="none"; runConversion(); });
-    document.getElementById("curAmount").addEventListener("input", debouncedConvert);
-    document.getElementById("curManualRate").addEventListener("input", runConversion);
+    document.getElementById("curRate").value = DEFAULT_RATES["CNY_SGD"];
+    fromSel.addEventListener("change", onCurrencyPairChange);
+    toSel.addEventListener("change", onCurrencyPairChange);
+    document.getElementById("curAmount").addEventListener("input", runConversion);
+    document.getElementById("curRate").addEventListener("input", runConversion);
   }
   document.getElementById("currencyModal").style.display="flex";
   runConversion();
@@ -860,56 +865,27 @@ function openCurrencyModal(){
 function closeCurrencyModal(){
   document.getElementById("currencyModal").style.display="none";
 }
+function onCurrencyPairChange(){
+  const from = document.getElementById("curFrom").value;
+  const to = document.getElementById("curTo").value;
+  document.getElementById("curRateFromLabel").textContent = from;
+  document.getElementById("curRateToLabel").textContent = to;
+  const known = DEFAULT_RATES[`${from}_${to}`];
+  if(known != null) document.getElementById("curRate").value = known;
+  runConversion();
+}
 function swapCurrencies(){
   const fromSel = document.getElementById("curFrom"), toSel = document.getElementById("curTo");
   const tmp = fromSel.value; fromSel.value = toSel.value; toSel.value = tmp;
-  document.getElementById("curManualWrap").style.display="none";
-  runConversion();
-}
-function debouncedConvert(){
-  clearTimeout(curDebounce);
-  curDebounce = setTimeout(runConversion, 350);
+  onCurrencyPairChange();
 }
 
-async function runConversion(){
+function runConversion(){
   const amount = parseFloat(document.getElementById("curAmount").value) || 0;
-  const from = document.getElementById("curFrom").value;
+  const rate = parseFloat(document.getElementById("curRate").value) || 0;
   const to = document.getElementById("curTo").value;
   const resultEl = document.getElementById("curResult");
-  const noteEl = document.getElementById("curRateNote");
-  const manualWrap = document.getElementById("curManualWrap");
-
-  if(from === to){
-    resultEl.textContent = `${amount.toFixed(2)} ${to}`;
-    noteEl.textContent = "Same currency — no conversion needed.";
-    manualWrap.style.display = "none";
-    return;
-  }
-
-  noteEl.textContent = "Fetching live exchange rate…";
-  try{
-    const resp = await fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${from}&to=${to}`);
-    if(!resp.ok) throw new Error("Rate service unavailable");
-    const data = await resp.json();
-    const converted = data.rates[to];
-    if(converted == null) throw new Error("Currency not supported by rate service");
-    resultEl.textContent = `${converted.toFixed(2)} ${to}`;
-    const unitRate = amount > 0 ? converted/amount : converted;
-    noteEl.textContent = `Live rate as of ${data.date}: 1 ${from} = ${unitRate.toFixed(4)} ${to}`;
-    manualWrap.style.display = "none";
-  }catch(e){
-    document.getElementById("curManualFromLabel").textContent = from;
-    document.getElementById("curManualToLabel").textContent = to;
-    manualWrap.style.display = "block";
-    const manualRate = parseFloat(document.getElementById("curManualRate").value);
-    if(manualRate){
-      resultEl.textContent = `${(amount*manualRate).toFixed(2)} ${to}`;
-      noteEl.textContent = "Using your manually entered rate.";
-    } else {
-      resultEl.textContent = "—";
-      noteEl.textContent = "Couldn't reach the exchange rate service — enter today's rate manually below.";
-    }
-  }
+  resultEl.textContent = `${(amount*rate).toFixed(2)} ${to}`;
 }
 
 async function continueDraft(draftId){
