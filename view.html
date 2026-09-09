@@ -289,6 +289,46 @@ function render(req){
   `;
 }
 
+function isCJK(str){
+  return /[\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(String(str||""));
+}
+function cjkTextToImage(text, fontSizePt, fontWeight){
+  const scale = 4;
+  const px = fontSizePt * scale;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = `${fontWeight||"normal"} ${px}px "PingFang SC","Microsoft YaHei","Noto Sans SC","Heiti SC",Arial,sans-serif`;
+  ctx.font = font;
+  const width = Math.ceil(ctx.measureText(text).width) + scale*4;
+  const height = Math.ceil(px*1.4);
+  canvas.width = width; canvas.height = height;
+  ctx.font = font;
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000000";
+  ctx.fillText(text, scale*2, height/2);
+  return { dataUrl: canvas.toDataURL("image/png"), wPt: width/scale, hPt: height/scale };
+}
+function drawText(doc, text, x, y, fontSize, fontStyle, opts={}){
+  text = String(text ?? "");
+  const color = opts.color || [0,0,0];
+  if(isCJK(text)){
+    let { dataUrl, wPt, hPt } = cjkTextToImage(text, fontSize, fontStyle==="bold"?"bold":"normal");
+    if(opts.maxWidth && wPt > opts.maxWidth){
+      hPt = hPt * (opts.maxWidth/wPt);
+      wPt = opts.maxWidth;
+    }
+    let drawX = x;
+    if(opts.align==="right") drawX = x - wPt;
+    else if(opts.align==="center") drawX = x - wPt/2;
+    doc.addImage(dataUrl, "PNG", drawX, y - hPt*0.68, wPt, hPt);
+  } else {
+    doc.setFont("helvetica", fontStyle||"normal");
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    doc.text(text, x, y, opts.align ? {align:opts.align} : (opts.maxWidth ? {maxWidth:opts.maxWidth} : undefined));
+  }
+}
+
 function exportPDF(){
   if(!currentReq){ alert("Nothing loaded yet."); return; }
   const req = currentReq;
@@ -300,8 +340,7 @@ function exportPDF(){
   const margin = 40;
   let y = margin;
 
-  doc.setFont("helvetica","bold"); doc.setFontSize(16);
-  doc.text(req.project_name || "Untitled Project", margin, y); y += 18;
+  drawText(doc, req.project_name || "Untitled Project", margin, y, 16, "bold"); y += 18;
   doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(100);
   doc.text(`Materials Requisition — ${req.tracking_no}  ·  Status: ${req.status}`, margin, y); y += 22;
   doc.setTextColor(0);
@@ -314,15 +353,34 @@ function exportPDF(){
   doc.autoTable({
     startY: y, theme: "plain", styles:{fontSize:9, cellPadding:2},
     body: metaRows.map(r=>[{content:r[0],styles:{fontStyle:"bold",textColor:100}},r[1],{content:r[2],styles:{fontStyle:"bold",textColor:100}},r[3]]),
-    margin: {left: margin, right: margin}
+    margin: {left: margin, right: margin},
+    didParseCell: function(data){
+      if(data.column.index===1 || data.column.index===3){
+        const val = data.cell.raw;
+        if(isCJK(val)){ data.cell._cjkText = String(val); data.cell.text = []; }
+      }
+    },
+    didDrawCell: function(data){
+      if(data.cell._cjkText){
+        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
+        doc.addImage(dataUrl, "PNG", data.cell.x+2, data.cell.y + data.cell.height/2 - hPt/2, wPt, hPt);
+      }
+    }
   });
   y = doc.lastAutoTable.finalY + 14;
 
   if(req.status === "Declined"){
     doc.setFillColor(254,242,242); doc.setDrawColor(252,165,165);
     doc.rect(margin, y, 515, 32, "FD");
-    doc.setFontSize(9); doc.setTextColor(153,27,27);
-    doc.text(`Declined by ${req.declined_by||""} — Reason: ${req.decline_reason||""}`, margin+8, y+20, {maxWidth:500});
+    const declineLine = `Declined by ${req.declined_by||""} — Reason: ${req.decline_reason||""}`;
+    if(isCJK(declineLine)){
+      const { dataUrl, wPt, hPt } = cjkTextToImage(declineLine, 9, "normal");
+      const maxW = 500, drawW = Math.min(wPt, maxW), drawH = hPt*(drawW/wPt);
+      doc.addImage(dataUrl, "PNG", margin+8, y+20-drawH*0.68, drawW, drawH);
+    } else {
+      doc.setFontSize(9); doc.setTextColor(153,27,27);
+      doc.text(declineLine, margin+8, y+20, {maxWidth:500});
+    }
     doc.setTextColor(0);
     y += 44;
   }
@@ -336,7 +394,20 @@ function exportPDF(){
       ["","","","","","Delivery/Tax Subtotal", `$${Number(req.delivery_tax_subtotal).toFixed(2)}`],
       ["","","","","","GRAND TOTAL", `$${Number(req.grand_total).toFixed(2)}`]
     ],
-    styles:{fontSize:9}, headStyles:{fillColor:[31,41,51]}, margin:{left:margin,right:margin}
+    styles:{fontSize:9}, headStyles:{fillColor:[31,41,51]}, margin:{left:margin,right:margin},
+    didParseCell: function(data){
+      if(data.section==="body" && (data.column.index===1 || data.column.index===2)){
+        if(isCJK(data.cell.raw)){ data.cell._cjkText = String(data.cell.raw); data.cell.text = []; }
+      }
+    },
+    didDrawCell: function(data){
+      if(data.section==="body" && data.cell._cjkText){
+        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
+        const maxW = data.cell.width - 10;
+        const drawW = Math.min(wPt, maxW), drawH = hPt*(drawW/wPt);
+        doc.addImage(dataUrl, "PNG", data.cell.x+5, data.cell.y + data.cell.height/2 - drawH/2, drawW, drawH);
+      }
+    }
   });
   y = doc.lastAutoTable.finalY + 20;
 
@@ -352,7 +423,7 @@ function exportPDF(){
     doc.setFontSize(9); doc.setFont("helvetica","bold");
     doc.text(`${s.stage_name}:`, margin, y);
     doc.setFont("helvetica","normal");
-    doc.text(statusText, margin+110, y, {maxWidth:400});
+    drawText(doc, statusText, margin+110, y, 9, "normal", {maxWidth:400});
     y += 16;
   });
 

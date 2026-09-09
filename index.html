@@ -210,6 +210,12 @@
     border-radius:6px;
   }
   .row-remove:hover{color:#dc2626;background:#fee2e2}
+  .row-actions{display:flex;gap:2px}
+  .row-duplicate{
+    width:26px; height:26px; padding:0; border:0; background:transparent;
+    font-size:14px; color:#a5abb3; border-radius:6px;
+  }
+  .row-duplicate:hover{color:#2f6fed;background:#eaf1ff}
   .bottom-row td{height:32px; padding:7px}
   .bottom-row td:first-child{text-align:right; font-weight:600; padding-right:16px; color:#4b5563}
   .grand-row td{border-top:2px solid var(--ink); font-size:14.5px; background:#f8fafc}
@@ -413,6 +419,7 @@
       <button onclick="newForm()">New</button>
       <button onclick="saveForm()">Save Draft</button>
       <button onclick="openDraftsModal()">My Drafts</button>
+      <button onclick="duplicateForm()" title="Create a fresh, unsaved copy of this form">⧉ Duplicate Form</button>
     </div>
     <div class="divider"></div>
     <div class="btn-group">
@@ -590,7 +597,7 @@ function filenameBase(){
   return `${yymmdd()}_${slug(val("projectName"))}`;
 }
 
-function addRow(data=["","","","","",""]){
+function addRow(data=["","","","","",""], insertAfterEl=null){
   const tr=document.createElement("tr");
   tr.innerHTML=`
     <td class="drag-handle" title="Drag to reorder">⠿</td>
@@ -602,12 +609,42 @@ function addRow(data=["","","","","",""]){
     <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? ""}"></td>
     <td><input class="r-link" type="url" placeholder="https://..." value="${esc(data[5]||"")}"></td>
     <td class="num">$ <span class="r-total">0.00</span></td>
-    <td><button class="row-remove" title="Remove" onclick="this.closest('tr').remove();recalc()">×</button></td>
+    <td>
+      <div class="row-actions">
+        <button class="row-duplicate" title="Duplicate this row" onclick="duplicateRow(this)">⧉</button>
+        <button class="row-remove" title="Remove" onclick="this.closest('tr').remove();recalc()">×</button>
+      </div>
+    </td>
   `;
-  document.getElementById("itemsBody").appendChild(tr);
+  if(insertAfterEl){ insertAfterEl.after(tr); } else { document.getElementById("itemsBody").appendChild(tr); }
   tr.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
   enableRowDrag(tr);
   recalc();
+}
+
+function duplicateForm(){
+  if(!confirm("Duplicate this form? This creates a brand-new, unsaved copy with everything currently filled in — the original (if already submitted or saved) stays untouched.")) return;
+  currentRequisitionId = null;
+  currentDraftId = null;
+  editRequisitionId = null;
+  document.getElementById("declineReviseBanner")?.remove();
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = false;
+  btn.textContent = "Submit";
+  setStatus("Duplicated — this is now a new, unsubmitted copy. Review the details and submit when ready.");
+}
+
+function duplicateRow(btn){
+  const tr = btn.closest("tr");
+  const data = [
+    tr.querySelector(".r-name").value,
+    tr.querySelector(".r-desc").value,
+    tr.querySelector(".r-qty").value,
+    tr.querySelector(".r-price").value,
+    tr.querySelector(".r-deliverytax").value,
+    tr.querySelector(".r-link").value
+  ];
+  addRow(data, tr);
 }
 
 let dragRow = null;
@@ -799,9 +836,10 @@ async function loadForEdit(requisitionId){
 
   const declinedStep = (req.approval_steps||[]).find(s=>s.status==="Declined");
   const banner = document.createElement("div");
+  banner.id = "declineReviseBanner";
   banner.style.cssText = "max-width:960px;margin:0 auto 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;font-size:13px;color:#991b1b;line-height:1.5";
   banner.innerHTML = `<strong>Revising ${escHtml(req.tracking_no)}</strong> — declined at <strong>${escHtml(declinedStep?.stage_name||"")}</strong> by ${escHtml(declinedStep?.assigned_person_name||"")}: "${escHtml(declinedStep?.decline_reason||"")}"<br>Fix what's needed below, then click Resubmit. Approval will restart from the Team Manager.`;
-  document.querySelector(".login-bar").insertAdjacentElement("afterend", banner);
+  document.querySelector(".action-toolbar").insertAdjacentElement("afterend", banner);
 
   const btn = document.getElementById("submitBtn");
   btn.textContent = "Revise & Resubmit";
@@ -985,6 +1023,55 @@ function setStatus(t){
   window._st=setTimeout(()=>s.textContent="",3500);
 }
 
+function isCJK(str){
+  return /[\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(String(str||""));
+}
+
+// jsPDF's built-in fonts (Helvetica etc.) have no CJK glyphs at all, so any
+// Chinese/Japanese/Korean text drawn with doc.text() silently disappears.
+// For any string containing CJK characters, render it via Canvas 2D instead
+// (which uses the browser's real font rendering, including CJK fallback)
+// and place it as an image — everything else keeps using fast vector text.
+function cjkTextToImage(text, fontSizePt, fontWeight){
+  const scale = 4; // render at high-res so it stays crisp in the PDF
+  const px = fontSizePt * scale;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = `${fontWeight||"normal"} ${px}px "PingFang SC","Microsoft YaHei","Noto Sans SC","Heiti SC",Arial,sans-serif`;
+  ctx.font = font;
+  const width = Math.ceil(ctx.measureText(text).width) + scale*4;
+  const height = Math.ceil(px*1.4);
+  canvas.width = width; canvas.height = height;
+  ctx.font = font;
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#000000";
+  ctx.fillText(text, scale*2, height/2);
+  return { dataUrl: canvas.toDataURL("image/png"), wPt: width/scale, hPt: height/scale };
+}
+
+// Drop-in replacement for doc.text() that handles CJK text transparently.
+// opts: {align:"left"|"center"|"right", color:[r,g,b]}
+function drawText(doc, text, x, y, fontSize, fontStyle, opts={}){
+  text = String(text ?? "");
+  const color = opts.color || [0,0,0];
+  if(isCJK(text)){
+    let { dataUrl, wPt, hPt } = cjkTextToImage(text, fontSize, fontStyle==="bold"?"bold":"normal");
+    if(opts.maxWidth && wPt > opts.maxWidth){
+      hPt = hPt * (opts.maxWidth/wPt);
+      wPt = opts.maxWidth;
+    }
+    let drawX = x;
+    if(opts.align==="right") drawX = x - wPt;
+    else if(opts.align==="center") drawX = x - wPt/2;
+    doc.addImage(dataUrl, "PNG", drawX, y - hPt*0.68, wPt, hPt);
+  } else {
+    doc.setFont("helvetica", fontStyle||"normal");
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    doc.text(text, x, y, opts.align ? {align:opts.align} : (opts.maxWidth ? {maxWidth:opts.maxWidth} : undefined));
+  }
+}
+
 function buildPDF(){
   if(!window.jspdf || !window.jspdf.jsPDF){
     throw new Error("PDF library not loaded (check your internet connection)");
@@ -1052,10 +1139,7 @@ function buildPDF(){
     doc.setFontSize(9);
     doc.setTextColor(...muted);
     doc.text(label, cx, cyy);
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(10.5);
-    doc.setTextColor(...ink);
-    doc.text(String(value), cx+labelW, cyy);
+    drawText(doc, value, cx+labelW, cyy, 10.5, "normal", {color:ink});
     doc.setDrawColor(...line);
     doc.setLineWidth(0.5);
     doc.line(cx+labelW, cyy+4, cx+colW, cyy+4);
@@ -1104,6 +1188,13 @@ function buildPDF(){
         const url = rows[data.row.index][5];
         if(url){ data.cell.styles.textColor=accent; }
       }
+      // Suppress default vector text for any CJK cell — we'll draw it as an image instead
+      if(data.section==="body" && (data.column.index===1 || data.column.index===2)){
+        if(isCJK(data.cell.text.join(" "))){
+          data.cell._cjkText = data.cell.text.join(" ");
+          data.cell.text = [];
+        }
+      }
     },
     didDrawCell: function(data){
       if(data.section==="body" && data.column.index===6){
@@ -1112,6 +1203,13 @@ function buildPDF(){
           const target = /^https?:\/\//i.test(url) ? url : ("https://"+url);
           doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: target });
         }
+      }
+      if(data.section==="body" && data.cell._cjkText){
+        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
+        const maxW = data.cell.width - 12;
+        const drawW = Math.min(wPt, maxW);
+        const drawH = hPt * (drawW/wPt);
+        doc.addImage(dataUrl, "PNG", data.cell.x+6, data.cell.y + data.cell.height/2 - drawH/2, drawW, drawH);
       }
     }
   });
@@ -1184,9 +1282,7 @@ function buildPDF(){
     doc.setLineWidth(0.75);
     doc.roundedRect(sx, finalY, sigColW, sigBoxH, 5, 5);
     if(s.value){
-      doc.setFontSize(10);
-      doc.setTextColor(...ink);
-      doc.text(String(s.value), sx+sigColW/2, finalY+30, {align:"center"});
+      drawText(doc, s.value, sx+sigColW/2, finalY+30, 10, "normal", {align:"center", color:ink});
     }
     doc.setDrawColor(60,60,60);
     doc.line(sx+10, finalY+42, sx+sigColW-10, finalY+42);
