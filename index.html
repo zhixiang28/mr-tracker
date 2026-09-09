@@ -1080,6 +1080,7 @@ function buildPDF(){
   const doc = new jsPDF({orientation:"landscape", unit:"pt", format:"a4"});
   const margin = 40;
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const contentW = pageW - margin*2;
   const ink = [31,41,51], muted = [107,114,128], line=[215,219,224], accent=[47,111,237];
   let y = margin;
@@ -1190,8 +1191,9 @@ function buildPDF(){
       }
       // Suppress default vector text for any CJK cell — we'll draw it as an image instead
       if(data.section==="body" && (data.column.index===1 || data.column.index===2)){
-        if(isCJK(data.cell.text.join(" "))){
-          data.cell._cjkText = data.cell.text.join(" ");
+        const cellText = Array.isArray(data.cell.text) ? data.cell.text.join(" ") : String(data.cell.raw||"");
+        if(isCJK(cellText)){
+          data.cell._cjkText = cellText;
           data.cell.text = [];
         }
       }
@@ -1225,6 +1227,10 @@ function buildPDF(){
   const totalsPadTop = 10;
   const totalsRowH = 18;
   const totalsBoxH = totalsPadTop*2 + totalsRowH*3 + 4;
+  if(finalY + totalsBoxH > pageH - margin){
+    doc.addPage();
+    finalY = margin;
+  }
   doc.setDrawColor(...line);
   doc.setLineWidth(0.75);
   doc.roundedRect(totalsX, finalY, totalsW, totalsBoxH, 5, 5);
@@ -1254,6 +1260,11 @@ function buildPDF(){
   finalY += totalsBoxH + 34;
 
   // ---- Signatures ----
+  const sigSectionH = 34 + 66 + 30; // heading + boxes + footer note, roughly
+  if(finalY + sigSectionH > pageH - margin){
+    doc.addPage();
+    finalY = margin;
+  }
   doc.setFont("helvetica","bold");
   doc.setFontSize(10.5);
   doc.setTextColor(55,65,81);
