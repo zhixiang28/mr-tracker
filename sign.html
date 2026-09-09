@@ -193,6 +193,7 @@ function renderCard(step, req, allSteps){
       <td>${escHtml(it.name)}${it.link?` — <a href="${escHtml(it.link)}" target="_blank">link ↗</a>`:""}<div style="color:var(--muted);font-size:11px">${escHtml(it.description||"")}</div></td>
       <td class="num">${it.qty}</td>
       <td class="num">${money(it.unit_price)}</td>
+      <td class="num">${money(it.delivery_tax)}</td>
       <td class="num">${money(it.total)}</td>
     </tr>`).join("");
 
@@ -204,9 +205,13 @@ function renderCard(step, req, allSteps){
     <div class="meta-line"><span>Form date</span><b>${escHtml(req.form_date||"-")}</b></div>
     <div class="meta-line"><span>Supply date needed</span><b>${escHtml(req.supply_date||"-")}</b></div>
     <table class="items-table">
-      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th></tr></thead>
-      <tbody>${itemRows || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>
-      <tfoot><tr><td colspan="3">Grand Total</td><td class="num">${money(req.grand_total)}</td></tr></tfoot>
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Delv/Tax</th><th class="num">Total</th></tr></thead>
+      <tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>
+      <tfoot>
+        <tr><td colspan="4">Materials Subtotal</td><td class="num">${money(req.materials_subtotal)}</td></tr>
+        <tr><td colspan="4">Delivery / Tax Subtotal</td><td class="num">${money(req.delivery_tax_subtotal)}</td></tr>
+        <tr><td colspan="4"><b>Grand Total</b></td><td class="num"><b>${money(req.grand_total)}</b></td></tr>
+      </tfoot>
     </table>
   `;
 
