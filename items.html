@@ -89,7 +89,7 @@
   </div>
 
   <div class="filters">
-    <input type="text" id="q" placeholder="Search item, description, supplier, project or REQ no…" oninput="draw()">
+    <input type="text" id="q" placeholder="Search for an item, e.g. glue, M3 screw, ABS grey" oninput="draw()">
     <select id="supplierSel" onchange="draw()"></select>
     <select id="period" onchange="draw()">
       <option value="all">All time</option>
@@ -194,9 +194,10 @@ function filtered(){
   const per = document.getElementById("period").value;
   const incl = document.getElementById("incl").checked;
   const since = per==="all" ? 0 : Date.now() - Number(per)*86400000;
-  return LINES.filter(l=>
-    (incl || l.bought) && (!sup || l.supplier===sup) && l.ts >= since &&
-    (!q || [l.name,l.description,l.supplier,l.project_name,l.tracking_no,l.request_by].some(v=>String(v||"").toLowerCase().includes(q))));
+  // the search looks at the item only (its name and description), every word must match, in any order
+  const words = q.split(/\s+/).filter(Boolean);
+  const hit = l => { const hay = (String(l.name||"")+" "+String(l.description||"")).toLowerCase(); return words.every(w=>hay.includes(w)); };
+  return LINES.filter(l=>(incl || l.bought) && (!sup || l.supplier===sup) && l.ts >= since && (!words.length || hit(l)));
 }
 
 /* ---------- group lines into items ---------- */
