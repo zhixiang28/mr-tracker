@@ -47,6 +47,8 @@
   .action-bar .btn-primary:hover{ background:#2050bd; }
   .action-bar .btn-danger{ color:var(--danger); border-color:#fecaca; background:#fff; }
   .action-bar .btn-danger:hover{ background:#fef2f2; }
+  .action-bar .ab-del{ margin-left:6px; padding-left:14px; border-left:1px solid var(--line); }
+  .action-bar .btn-danger.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
   .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin:-12px 0 12px; }
   @media(max-width:640px){ .ab-sep{ display:none; } .ab-spacer{ display:none; } }
   .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
@@ -233,7 +235,7 @@ function renderActions(req, steps){
   const closed = ["Declined","Withdrawn","Received"].includes(req.status);
   const shareTok = steps.length ? steps[0].token : null;
   const nextStep = steps.find(x=>x.status!=="Signed");
-  const edit = [], share = [], danger = [];
+  const edit = [], share = [], danger = []; let del = "";
 
   if(viewIsAdmin) edit.push(`<a class="btn btn-primary" href="index.html?adminEdit=${req.id}">Edit in form</a>`);
   if(isRequester && req.status==="Declined") edit.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
@@ -246,9 +248,9 @@ function renderActions(req, steps){
 
   if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
   if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
-  if(viewIsAdmin) danger.push(`<button class="btn-danger" onclick="deleteReq('${req.id}')">Delete</button>`);
+  if(viewIsAdmin) del = `<div class="ab-group ab-del"><button class="btn-danger del" onclick="deleteReq('${req.id}')">Delete…</button></div>`;
 
-  if(!edit.length && !share.length && !danger.length) return "";
+  if(!edit.length && !share.length && !danger.length && !del) return "";
   const groups = [];
   if(edit.length) groups.push(`<div class="ab-group">${edit.join("")}</div>`);
   if(share.length) groups.push(`<div class="ab-group">${share.join("")}</div>`);
@@ -258,6 +260,7 @@ function renderActions(req, steps){
       ${left}
       <div class="ab-spacer"></div>
       ${danger.length ? `<div class="ab-group">${danger.join("")}</div>` : ""}
+      ${del}
     </div>
     <div class="actions-msg" id="actionsMsg"></div>`;
 }

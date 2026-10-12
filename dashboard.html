@@ -167,7 +167,26 @@
   .acct-msg.err{ color:var(--declined); } .acct-msg.ok{ color:#15803d; font-weight:600; }
   .manage-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .manage-bar button{ padding:7px 11px; font-size:12px; }
-  .manage-danger{ display:flex; gap:6px; }
+  .manage-danger{ display:flex; gap:6px; align-items:center; }
+  .manage-danger .mdz{ margin-left:14px; padding-left:14px; border-left:1px solid var(--line); }
+  .manage-danger button.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
+  .manage-danger button.del:hover{ background:#fee2e2; }
+  .view-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+  .view-toggle button{ border:0; border-radius:0; background:#fff; padding:6px 11px; font-size:12px; color:var(--muted); }
+  .view-toggle button+button{ border-left:1px solid var(--line); }
+  .view-toggle button.on{ background:#eaf0fb; color:var(--ink); font-weight:700; }
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; padding:12px; }
+  .cards-grp{ grid-column:1/-1; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); cursor:pointer; user-select:none; padding:6px 2px 0; }
+  .cards-grp.needs{ color:#92400e; }
+  .cards-grp .g-count{ margin-left:6px; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  .cards-empty{ grid-column:1/-1; text-align:center; color:var(--muted); padding:36px 16px; }
+  .rcard{ border:1px solid var(--line); border-radius:12px; padding:13px 14px; background:#fff; cursor:pointer; display:flex; flex-direction:column; gap:7px; }
+  .rcard:hover{ border-color:#b9c6dd; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .rcard.open{ grid-column:1/-1; cursor:default; }
+  .rcard .rc-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .rcard .rc-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
+  .rcard .rc-total{ font-weight:800; color:var(--ink); }
+  .rcard .rc-detail{ border-top:1px solid var(--line); margin-top:4px; padding-top:12px; }
   .manage-danger button{ color:var(--declined); border-color:#fecaca; background:#fff; }
   .manage-danger button:hover{ background:#fef2f2; }
 
@@ -214,6 +233,7 @@
       <option>Declined</option>
       <option>Withdrawn</option>
     </select>
+    <span class="view-toggle" title="Switch between a table and cards"><button type="button" id="vtList" onclick="setViewMode('list')">List</button><button type="button" id="vtCards" onclick="setViewMode('cards')">Cards</button></span>
     <span class="count-note" id="countNote"></span>
   </div>
 
@@ -232,6 +252,7 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
+    <div class="cards" id="cardWrap" style="display:none"></div>
     <div class="empty-state" id="emptyState" style="display:none">
       <h3>Nothing here yet</h3>
       <div id="emptyStateText">Requisitions you submit or are asked to sign will show up here.</div>
@@ -377,6 +398,7 @@ function logout(){
 async function showApp(){
   document.getElementById("app").style.display="block";
   AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
+  try{ const vm = localStorage.getItem("sl_view_mode"); if(vm==="cards"||vm==="list") viewMode = vm; }catch(_){}
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadPeopleForAdmin();
   await loadMySettings();
@@ -524,6 +546,12 @@ let groupMode = "status";      // status | stage | project | requester | month |
 let quickFilter = "";          // "" | needs | active | done | closed   (the summary cards)
 const collapsedGroups = new Set();
 
+let viewMode = "list";         // list | cards
+function setViewMode(m){
+  viewMode = m;
+  try{ localStorage.setItem("sl_view_mode", m); }catch(_){}
+  render();
+}
 function setGroupMode(m){
   groupMode = m;
   try{ localStorage.setItem("sl_group_mode", m); }catch(_){}
@@ -602,7 +630,12 @@ function render(){
   updateSortArrows();
 
   const tbody = document.getElementById("tbody");
-  document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
+  const cardsMode = viewMode==="cards";
+  document.getElementById("vtList").classList.toggle("on", !cardsMode);
+  document.getElementById("vtCards").classList.toggle("on", cardsMode);
+  const cardWrap = document.getElementById("cardWrap");
+  cardWrap.style.display = (cardsMode && allReqs.length) ? "grid" : "none";
+  document.getElementById("reqTable").style.display = (!cardsMode && allReqs.length) ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
   const renderRow = r=>{
@@ -623,7 +656,29 @@ function render(){
     return mainRow + detailRow;
   };
 
+  const renderCard = r=>{
+    const isOpen = openRows.has(r.id);
+    const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
+    const detail = isOpen ? `<div class="rc-detail" onclick="event.stopPropagation()"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin ? renderResubmitPanel(r) : ""}</div></div></div>` : "";
+    return `<div class="rcard ${isOpen?"open":""}" onclick="toggleRow('${r.id}')">
+      <div class="rc-top"><span class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></span><span class="rc-total">${fmtMoney(r.grand_total)}</span></div>
+      <div><b>${escapeHtml(r.project_name||"-")}</b><div class="muted">${escapeHtml(r.project_location||"")}</div></div>
+      <div class="rc-meta"><span>${escapeHtml(r.request_by||"-")}</span><span>${fmtDMY(r.form_date)||"-"}</span></div>
+      ${chips?`<div class="chips">${chips}</div>`:""}
+      <div>${renderProgressCell(r)}</div>
+      ${detail}</div>`;
+  };
+
   const groups = buildGroups(filtered, needIds);
+  if(cardsMode){
+    if(!groups.length && allReqs.length){ cardWrap.innerHTML = `<div class="cards-empty"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</div>`; return; }
+    cardWrap.innerHTML = groups.map(g=>{
+      if(g.flat) return g.rows.map(renderCard).join("");
+      const collapsed = collapsedGroups.has(g.key);
+      return `<div class="cards-grp ${g.needs&&g.rows.length?"needs":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">${collapsed?"▸":"▾"} ${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></div>` + (collapsed ? "" : g.rows.map(renderCard).join(""));
+    }).join("");
+    return;
+  }
   if(!groups.length && allReqs.length){
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
     return;
@@ -779,7 +834,7 @@ function renderManageBar(r){
   const right = [
     canReject ? `<button type="button" onclick="adminReject('${r.id}')">Reject</button>` : "",
     canWithdraw ? `<button type="button" onclick="withdrawRequisition('${r.id}')">Withdraw</button>` : "",
-    iAmAdmin ? `<button type="button" onclick="adminDelete('${r.id}')">Delete</button>` : ""
+    iAmAdmin ? `<span class="mdz"><button class="del" type="button" onclick="adminDelete('${r.id}')">Delete…</button></span>` : ""
   ].join("");
   if(!left && !right) return "";
   return `<div class="manage-bar" onclick="event.stopPropagation()"><div>${left}</div><div class="manage-danger">${right}</div></div>`;
