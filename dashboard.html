@@ -136,7 +136,6 @@
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
-  .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -515,7 +514,7 @@ function render(){
         <td>${renderProgressCell(r)}</td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const canWithdraw = r.requester_person_id===myId && !["Purchased","Received","Withdrawn"].includes(r.status);
+    const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !["Purchased","Received","Withdrawn"].includes(r.status);
     const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
@@ -667,15 +666,6 @@ function renderResubmitPanel(r){
 }
 
 function renderAdminPanel(r){
-  const stageOptionsForReassign = (steps)=>steps.map(s=>`
-    <div class="reassign-row">
-      <select id="reassign-person-${s.id}" style="flex:1">
-        <option value="">Reassign ${escapeHtml(s.stage_name)} to...</option>
-        ${peopleForAdmin.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
-      </select>
-      <button onclick="event.stopPropagation();adminReassign('${s.id}')">Set</button>
-    </div>`).join("");
-
   return `
     <div class="admin-panel" onclick="event.stopPropagation()">
       <div class="admin-panel-title">Admin</div>
@@ -683,8 +673,6 @@ function renderAdminPanel(r){
         <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">Edit in form</button></a>
         <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
       </div>
-      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:12px 0 4px">Reassign a step's signer</div>
-      ${stageOptionsForReassign((r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order))}
       <div class="sign-error" id="admin-err-${r.id}"></div>
     </div>`;
 }
@@ -692,7 +680,11 @@ function renderAdminPanel(r){
 
 async function withdrawRequisition(reqId){
   if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
-  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
+  const req = allReqs.find(x=>x.id===reqId);
+  const asAdmin = iAmAdmin && !(req && req.requester_person_id===myId);
+  const {data, error} = asAdmin
+    ? await supabaseClient.rpc("admin_withdraw_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId})
+    : await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadData();
   setStatus("Requisition withdrawn.");
@@ -707,15 +699,6 @@ async function adminDelete(reqId){
   await loadData();
 }
 
-async function adminReassign(stepId){
-  const sel = document.getElementById("reassign-person-"+stepId);
-  const newPersonId = sel.value;
-  if(!newPersonId) return;
-  const {data, error} = await supabaseClient.rpc("admin_reassign_step", {p_admin_id: myId, p_admin_pin: myPin, p_step_id: stepId, p_new_person_id: newPersonId});
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reassign."); return; }
-  setStatus(`Reassigned to ${data.name}.`);
-  await loadData();
-}
 
 async function openProfileModal(){
   document.getElementById("profileModal").style.display="flex";

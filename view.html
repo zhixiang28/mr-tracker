@@ -43,8 +43,6 @@
   .actions-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
   .actions-row .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .actions-row .btn-danger{ color:var(--danger); border-color:#fecaca; }
-  .reassign-line{ display:flex; gap:6px; align-items:center; margin-top:6px; font-size:12px; }
-  .reassign-line select{ flex:1; max-width:280px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font:inherit; }
   .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin-top:6px; }
   .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .sign-card{ border:1.5px solid var(--line); border-radius:10px; padding:14px; }
@@ -212,18 +210,14 @@ async function loadRequisition(id){
   const content = document.getElementById("content");
   const {data, error} = await supabaseClient.rpc("get_requisition_for_viewer", {p_person_id: myId, p_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ content.innerHTML = `<div class="center-note">${escHtml((data&&data.error)||"Could not load this requisition.")}</div>`; return; }
-  viewIsAdmin = false; viewPeople = [];
+  viewIsAdmin = false;
   try{
     const {data: adm} = await supabaseClient.rpc("verify_admin", {p_person_id: myId, p_pin: myPin});
     viewIsAdmin = adm === true;
-    if(viewIsAdmin){
-      const {data: ppl} = await supabaseClient.from("people_public").select("id,name").order("name");
-      viewPeople = ppl || [];
-    }
   }catch(_){}
   render(data.requisition);
 }
-let viewIsAdmin = false, viewPeople = [];
+let viewIsAdmin = false;
 
 function renderActions(req, steps){
   const isRequester = req.requester_person_id === myId;
@@ -237,25 +231,17 @@ function renderActions(req, steps){
   }
   if(viewIsAdmin) btns.push(`<a class="btn btn-primary" href="index.html?adminEdit=${req.id}">Edit in form</a>`);
   if(isRequester && req.status==="Declined") btns.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
-  if(isRequester && !["Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
+  if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
   if(viewIsAdmin) btns.push(`<button class="btn-danger" onclick="deleteReq('${req.id}')">Delete</button>`);
   if(!btns.length && !viewIsAdmin) return "";
 
   const regen = (viewIsAdmin || isRequester) && nextStep && !closed
     ? `<div class="actions-row"><button onclick="regenLink('${nextStep.id}')">Regenerate link (${escHtml(nextStep.stage_name)})</button></div>` : "";
-  const reassign = viewIsAdmin ? steps.map(x=>`
-    <div class="reassign-line">
-      <span style="width:150px">${escHtml(x.stage_name)}</span>
-      <select id="reassign-${x.id}"><option value="">Reassign to…</option>${viewPeople.map(p=>`<option value="${p.id}">${escHtml(p.name)}</option>`).join("")}</select>
-      <button onclick="reassignStep('${x.id}')">Set</button>
-    </div>`).join("") : "";
-
   return `
     <div class="actions-panel">
       <h4>Actions</h4>
       <div class="actions-row">${btns.join("")}</div>
       ${regen}
-      ${viewIsAdmin ? `<h4 style="margin-top:12px">Reassign a signer</h4>${reassign}` : ""}
       <div class="actions-msg" id="actionsMsg"></div>
     </div>`;
 }
@@ -268,7 +254,10 @@ async function copyLink(page, tok, label){
 }
 async function withdrawReq(id){
   if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
-  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: id});
+  const asAdmin = viewIsAdmin && !(currentReq && currentReq.requester_person_id===myId);
+  const {data, error} = asAdmin
+    ? await supabaseClient.rpc("admin_withdraw_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id})
+    : await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition withdrawn.");
@@ -278,14 +267,6 @@ async function deleteReq(id){
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
   window.location.href = "dashboard.html";
-}
-async function reassignStep(stepId){
-  const sel = document.getElementById("reassign-"+stepId);
-  if(!sel.value) return;
-  const {data, error} = await supabaseClient.rpc("admin_reassign_step", {p_admin_id: myId, p_admin_pin: myPin, p_step_id: stepId, p_new_person_id: sel.value});
-  if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to reassign."); return; }
-  await loadRequisition(currentReq.id);
-  actionsMsg(`Reassigned to ${data.name}.`);
 }
 async function regenLink(stepId){
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
