@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Sign MRF</title>
+<style>
+  :root{ --ink:#111; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --bg:#eef1f6; --danger:#dc2626; }
+  *{box-sizing:border-box}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .bar{ position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line); padding:10px 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .bar .title{ font-weight:800; font-size:14px; flex:1; min-width:140px; }
+  button{ font:inherit; font-weight:700; font-size:13px; border-radius:8px; padding:9px 14px; border:1.5px solid var(--line); background:#fff; cursor:pointer; }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  button:disabled{ opacity:.5; cursor:default; }
+  .banner{ margin:12px auto 0; max-width:794px; padding:10px 14px; font-size:13px; border-radius:8px; line-height:1.5; }
+  .banner.info{ background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+  .banner.ok{ background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
+  .banner.err{ background:#fef2f2; border:1px solid #fecaca; color:var(--danger); }
+  .stage{ padding:12px; overflow:hidden; }
+  .paper{ width:794px; background:#fff; padding:40px 44px 50px; margin:0 auto; transform-origin:top left; box-shadow:0 8px 30px rgba(15,23,42,.12); font-size:12px; }
+  .logo{ text-align:right; font-weight:800; font-size:30px; letter-spacing:-1px; line-height:1; }
+  .title-box{ border:2px solid #000; text-align:center; font-weight:800; font-size:17px; padding:4px 0; margin:8px 0 18px; }
+  .meta{ display:grid; grid-template-columns:1fr 1fr; column-gap:150px; row-gap:6px; }
+  .mrow{ display:flex; align-items:flex-end; gap:8px; }
+  .mrow b{ font-size:13px; white-space:nowrap; min-width:112px; }
+  .mrow.r b{ min-width:70px; }
+  .mrow span{ flex:1; border-bottom:2px solid #000; min-height:20px; padding:0 2px 1px; font-size:12px; }
+  table.items{ width:100%; border-collapse:collapse; margin-top:14px; border:2px solid #000; }
+  table.items th, table.items td{ border:1px solid #000; padding:3px 5px; font-size:11.5px; height:22px; }
+  table.items th{ text-align:center; font-weight:800; }
+  table.items td.c{ text-align:center; }
+  .cur{ display:flex; justify-content:space-between; gap:6px; }
+  .gt{ text-align:right; font-size:12px; padding:2px 6px 0 0; }
+  .sigs{ margin-top:18px; }
+  .srow{ display:flex; align-items:flex-end; margin-bottom:8px; min-height:62px; }
+  .srow .lbl{ width:190px; font-weight:800; font-size:11.5px; padding-bottom:4px; }
+  .slot{ width:290px; border-bottom:2px solid #000; height:50px; position:relative; display:flex; align-items:flex-end; justify-content:center; }
+  .slot img{ max-height:46px; max-width:270px; }
+  .slot .sign-btn{ position:absolute; inset:6px 20px 4px; background:#eff6ff; border:2px dashed var(--accent); color:var(--accent); border-radius:8px; }
+  .slot .locked{ color:#9ca3af; font-size:11px; padding-bottom:6px; }
+  .who{ margin-left:12px; font-size:10.5px; color:var(--muted); padding-bottom:3px; }
+  .ph-head{ font-weight:800; text-decoration:underline; font-size:11.5px; margin:12px 0 4px; }
+  .modal{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:20; padding:14px; }
+  .modal.open{ display:flex; }
+  .mbox{ background:#fff; border-radius:14px; padding:18px; width:100%; max-width:520px; }
+  .mbox h3{ margin:0 0 4px; font-size:16px; }
+  .mbox p{ margin:0 0 10px; font-size:12.5px; color:var(--muted); }
+  .mbox input{ width:100%; font:inherit; font-size:15px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:10px; }
+  #pad{ width:100%; height:180px; border:2px dashed #9ca3af; border-radius:10px; touch-action:none; background:#fff; display:block; }
+  .mact{ display:flex; gap:8px; margin-top:12px; }
+  .mact button{ flex:1; }
+  .merr{ color:var(--danger); font-size:12.5px; margin-top:8px; min-height:16px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="title" id="barTitle">Materials Requisition Form</div>
+  <button onclick="loadDoc()" title="Reload to see the latest signatures">↻ Refresh</button>
+  <button class="primary" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
+</div>
+<div id="banner"></div>
+<div class="stage" id="stage"><div class="paper" id="paper" style="display:none"></div></div>
+
+<div class="modal" id="signModal">
+  <div class="mbox">
+    <h3 id="mTitle">Sign</h3>
+    <p>Type your name, then draw your signature with your finger or mouse.</p>
+    <input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name">
+    <canvas id="pad" width="900" height="360"></canvas>
+    <div class="merr" id="mErr"></div>
+    <div class="mact">
+      <button onclick="clearPad()">Clear</button>
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" id="mSubmit" onclick="submitSignature()">Sign</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const token = new URLSearchParams(location.search).get("token");
+const SLOTS = [
+  {order:1, label:"TO BE VERIFY BY TEAM MANAGER :"},
+  {order:2, label:"APPROVE BY :"},
+  {order:3, label:"PURCHASE BY :"},
+  {order:4, label:"RECEIVED BY :"}
+];
+let doc = null;       // {requisition, steps}
+let activeOrder = 0;  // slot currently open for signing (0 = none)
+
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function num(n){ return Number(n||0); }
+function fmt(n){ return num(n).toFixed(2); }
+function fmtDate(d){ // reference shows M/D/YYYY
+  if(!d) return "";
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${+m[2]}/${+m[3]}/${m[1]}` : String(d);
+}
+function fmtStamp(ts){ try{ return new Date(ts).toLocaleString(); }catch(_){ return ""; } }
+function setBanner(kind, html){ document.getElementById("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
+
+// row total as shown on the reference form = qty x unit price + delivery/tax
+function lineTotal(it){ return num(it.qty)*num(it.unit_price) + num(it.delivery_tax); }
+
+async function loadDoc(){
+  if(!token){ setBanner("err","No signing link provided. Ask whoever sent this for the full link."); return; }
+  const {data, error} = await supabaseClient.rpc("get_esign_doc", {p_token: token});
+  if(error || !data || !data.success){
+    setBanner("err","This link isn't valid. Ask whoever sent it to copy the e-sign link again.");
+    return;
+  }
+  doc = data;
+  render();
+}
+
+function currentSlot(){
+  const r = doc.requisition;
+  if(r.status==="Declined" || r.status==="Withdrawn") return 0;
+  const steps = doc.steps.slice().sort((a,b)=>a.step_order-b.step_order);
+  const next = steps.find(s=>s.status!=="Signed");
+  return next && next.status==="Pending" ? next.step_order : 0;
+}
+
+function render(){
+  const r = doc.requisition;
+  const items = (r.requisition_items||[]);
+  const total = items.reduce((a,it)=>a+lineTotal(it),0);
+  document.getElementById("barTitle").textContent = `${r.tracking_no||""} — ${r.project_name||"MRF"}`;
+  document.getElementById("pdfBtn").disabled = false;
+
+  const rowCount = Math.max(10, items.length);
+  let rows = "";
+  for(let i=0;i<rowCount;i++){
+    const it = items[i];
+    rows += `<tr>
+      <td class="c">${i+1}</td>
+      <td>${it?esc(it.name):""}</td>
+      <td>${it?esc(it.description):""}</td>
+      <td class="c">${it?num(it.qty):""}</td>
+      <td>${it?`<div class="cur"><span>$</span><span>${fmt(it.unit_price)}</span></div>`:""}</td>
+      <td>${it?`<div class="cur"><span>$</span><span>${fmt(it.delivery_tax)}</span></div>`:""}</td>
+      <td class="c">${it&&it.link?`<a href="${esc(/^https?:\/\//i.test(it.link)?it.link:"https://"+it.link)}" target="_blank" rel="noopener">#</a>`:""}</td>
+      <td><div class="cur"><span>$</span><span>${it?fmt(lineTotal(it)):"-"}</span></div></td>
+    </tr>`;
+  }
+
+  activeOrder = currentSlot();
+  const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
+  const slotHtml = o => {
+    const s = stepBy(o);
+    if(s.status==="Signed"){
+      return `<div class="slot">${s.signature_data?`<img src="${esc(s.signature_data)}" alt="signature">`:""}</div>
+              <div class="who">${esc(s.assigned_person_name||"")}<br>${esc(fmtStamp(s.signed_at))}</div>`;
+    }
+    if(o===activeOrder){
+      return `<div class="slot"><button class="sign-btn" onclick="openModal(${o})">✍ Tap to sign</button></div>`;
+    }
+    return `<div class="slot"><span class="locked">${activeOrder? "Waiting for earlier signature":"—"}</span></div>`;
+  };
+
+  document.getElementById("paper").innerHTML = `
+    <div class="logo">SPACElogic</div>
+    <div class="title-box">MATERIALS REQUISITION FORM</div>
+    <div class="meta">
+      <div class="mrow"><b>PROJECT NAME :</b><span>${esc(r.project_name)}</span></div>
+      <div class="mrow r"><b>DATE :</b><span>${esc(fmtDate(r.form_date))}</span></div>
+      <div class="mrow"><b>PROJECT LOCATION :</b><span>${esc(r.project_location)}</span></div>
+      <div></div>
+      <div class="mrow"><b>REQUEST BY :</b><span>${esc(r.request_by)}</span></div>
+      <div class="mrow r"><b>PC NO.:</b><span>${esc(r.pc_no)}</span></div>
+      <div class="mrow"><b>SUPPLY DATE :</b><span>${esc(fmtDate(r.supply_date))}</span></div>
+      <div class="mrow r"><b>PM Incharge:</b><span>${esc(r.pm_incharge)}</span></div>
+    </div>
+    <table class="items">
+      <colgroup><col style="width:5%"><col style="width:14%"><col style="width:30%"><col style="width:9%"><col style="width:10%"><col style="width:12%"><col style="width:7%"><col style="width:13%"></colgroup>
+      <thead><tr><th>S/N</th><th>NAME</th><th>DESCRIPTION</th><th>QTY</th><th>UNIT PRICE</th><th>DELIVERY</th><th>LINK</th><th>TOTAL</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="gt">$ ${fmt(total)}</div>
+    <div class="sigs">
+      <div class="srow"><div class="lbl">${SLOTS[0].label}</div>${slotHtml(1)}</div>
+      <div class="ph-head">PROCUREMENT DEPT :</div>
+      <div class="srow"><div class="lbl">${SLOTS[1].label}</div>${slotHtml(2)}</div>
+      <div class="srow"><div class="lbl">${SLOTS[2].label}</div>${slotHtml(3)}</div>
+      <div class="srow"><div class="lbl">${SLOTS[3].label}</div>${slotHtml(4)}</div>
+    </div>`;
+  document.getElementById("paper").style.display = "block";
+  fitPaper();
+
+  if(r.status==="Declined" || r.status==="Withdrawn"){
+    setBanner("err", `This requisition is <b>${esc(r.status)}</b> and can't be signed.`);
+  } else if(!activeOrder){
+    setBanner("ok", "All signatures are in. Use <b>Export PDF</b> to save your own copy.");
+  } else {
+    const lbl = SLOTS[activeOrder-1].label.replace(/ :$/,"").replace("TO BE VERIFY BY ","");
+    setBanner("info", `Next to sign: <b>${esc(lbl)}</b>. Tap the highlighted box on the form to sign. You can export the PDF at any time.`);
+  }
+}
+
+function fitPaper(){
+  const paper = document.getElementById("paper");
+  const stage = document.getElementById("stage");
+  const s = Math.min(1, (window.innerWidth-24)/794);
+  paper.style.transform = s<1 ? `scale(${s})` : "none";
+  paper.style.margin = s<1 ? "0" : "0 auto";
+  stage.style.height = s<1 ? (paper.offsetHeight*s+24)+"px" : "auto";
+}
+window.addEventListener("resize", fitPaper);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && doc) loadDoc(); });
+
+// ---------------- Signature pad ----------------
+const pad = document.getElementById("pad");
+const pctx = pad.getContext("2d");
+let drawing = false, drewAnything = false, signingOrder = 0;
+
+function padPoint(e){
+  const rect = pad.getBoundingClientRect();
+  return { x:(e.clientX-rect.left)*pad.width/rect.width, y:(e.clientY-rect.top)*pad.height/rect.height };
+}
+pad.addEventListener("pointerdown", e=>{
+  drawing = true; drewAnything = true;
+  pad.setPointerCapture(e.pointerId);
+  const p = padPoint(e);
+  pctx.lineWidth = 5; pctx.lineCap = "round"; pctx.lineJoin = "round"; pctx.strokeStyle = "#0b1f4d";
+  pctx.beginPath(); pctx.moveTo(p.x,p.y); pctx.lineTo(p.x+0.1,p.y+0.1); pctx.stroke();
+  e.preventDefault();
+});
+pad.addEventListener("pointermove", e=>{
+  if(!drawing) return;
+  const p = padPoint(e);
+  pctx.lineTo(p.x,p.y); pctx.stroke(); pctx.beginPath(); pctx.moveTo(p.x,p.y);
+  e.preventDefault();
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>pad.addEventListener(ev, ()=>{ drawing=false; }));
+
+function clearPad(){ pctx.clearRect(0,0,pad.width,pad.height); drewAnything=false; }
+function openModal(order){
+  signingOrder = order;
+  document.getElementById("mTitle").textContent = "Sign — " + SLOTS[order-1].label.replace(/ :$/,"");
+  document.getElementById("mErr").textContent = "";
+  try{ document.getElementById("mName").value = localStorage.getItem("esignName") || ""; }catch(_){}
+  clearPad();
+  document.getElementById("signModal").classList.add("open");
+}
+function closeModal(){ document.getElementById("signModal").classList.remove("open"); }
+
+// crop transparent margins so the signature fills its box in the PDF
+function croppedSignature(){
+  const w = pad.width, h = pad.height;
+  const data = pctx.getImageData(0,0,w,h).data;
+  let minX=w, minY=h, maxX=0, maxY=0;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+    if(data[(y*w+x)*4+3] > 10){ if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; }
+  }
+  if(maxX<minX) return null;
+  const m = 6;
+  minX=Math.max(0,minX-m); minY=Math.max(0,minY-m); maxX=Math.min(w-1,maxX+m); maxY=Math.min(h-1,maxY+m);
+  const c = document.createElement("canvas");
+  c.width = maxX-minX+1; c.height = maxY-minY+1;
+  c.getContext("2d").drawImage(pad, minX, minY, c.width, c.height, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}
+
+async function submitSignature(){
+  const err = document.getElementById("mErr");
+  const name = document.getElementById("mName").value.trim();
+  if(!name){ err.textContent = "Please type your name."; return; }
+  if(!drewAnything){ err.textContent = "Please draw your signature."; return; }
+  const png = croppedSignature();
+  if(!png){ err.textContent = "Please draw your signature."; return; }
+  const btn = document.getElementById("mSubmit");
+  btn.disabled = true; btn.textContent = "Signing...";
+  const {data, error} = await supabaseClient.rpc("esign_sign_step", {
+    p_token: token, p_step_order: signingOrder, p_name: name, p_signature: png
+  });
+  btn.disabled = false; btn.textContent = "Sign";
+  if(error || !data || !data.success){
+    err.textContent = (data && data.error) || (error && error.message) || "Could not save the signature.";
+    if(data && data.error) loadDoc();
+    return;
+  }
+  try{ localStorage.setItem("esignName", name); }catch(_){}
+  closeModal();
+  await loadDoc();
+}
+
+// ---------------- PDF (follows the MRF reference layout) ----------------
+function isCJK(str){ return /[㐀-鿿豈-﫿＀-￯]/.test(String(str||"")); }
+// jsPDF's built-in fonts have no CJK glyphs, so CJK text is rendered via canvas and placed as an image.
+function cjkTextToImage(text, fontSizePt, fontWeight){
+  const scale = 4, px = fontSizePt*scale;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  const font = `${fontWeight||"normal"} ${px}px "PingFang SC","Microsoft YaHei","Noto Sans SC","Heiti SC",Arial,sans-serif`;
+  ctx.font = font;
+  const width = Math.ceil(ctx.measureText(text).width) + scale*4;
+  const height = Math.ceil(px*1.4);
+  canvas.width = width; canvas.height = height;
+  ctx.font = font; ctx.textBaseline = "middle"; ctx.fillStyle = "#000";
+  ctx.fillText(text, scale*2, height/2);
+  return { dataUrl: canvas.toDataURL("image/png"), wPt: width/scale, hPt: height/scale };
+}
+function drawText(pdf, text, x, y, size, style, opts={}){
+  text = String(text==null?"":text);
+  if(!text) return;
+  if(isCJK(text)){
+    let {dataUrl, wPt, hPt} = cjkTextToImage(text, size, style==="bold"?"bold":"normal");
+    if(opts.maxWidth && wPt>opts.maxWidth){ hPt*=opts.maxWidth/wPt; wPt=opts.maxWidth; }
+    pdf.addImage(dataUrl, "PNG", x, y-hPt*0.68, wPt, hPt);
+  } else {
+    pdf.setFont("helvetica", style||"normal"); pdf.setFontSize(size); pdf.setTextColor(0,0,0);
+    pdf.text(text, x, y, opts.align?{align:opts.align}:undefined);
+  }
+}
+function imgSize(dataUrl){
+  return new Promise(res=>{ const i=new Image(); i.onload=()=>res({w:i.naturalWidth,h:i.naturalHeight}); i.onerror=()=>res(null); i.src=dataUrl; });
+}
+
+async function buildPDF(){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({orientation:"portrait", unit:"pt", format:"a4"});
+  const r = doc.requisition;
+  const items = r.requisition_items||[];
+  const m = 28, W = 595, cw = W-m*2;
+
+  // logo + title
+  pdf.setFont("helvetica","bold"); pdf.setFontSize(24); pdf.setTextColor(0,0,0);
+  pdf.text("SPACElogic", W-m, 56, {align:"right"});
+  pdf.setLineWidth(1.4); pdf.rect(m, 68, cw, 20);
+  pdf.setFontSize(12.5); pdf.text("MATERIALS REQUISITION FORM", W/2, 82, {align:"center"});
+
+  // header fields
+  const lx = m, lvx = 140, lend = 296, rx = 405, rvx = 470, rend = W-m;
+  function field(label, value, x, vx, end, y){
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
+    pdf.text(label, x, y);
+    drawText(pdf, value, vx+2, y, 8.5, "normal", {maxWidth:end-vx-4});
+    pdf.setLineWidth(1.2); pdf.line(vx, y+4, end, y+4);
+  }
+  let y = 114;
+  field("PROJECT NAME :", r.project_name, lx, lvx, lend, y);
+  field("DATE :", fmtDate(r.form_date), rx, rvx, rend, y);
+  y += 17; field("PROJECT LOCATION :", r.project_location, lx, lvx, lend, y);
+  y += 17; field("REQUEST BY :", r.request_by, lx, lvx, lend, y);
+  field("PC NO.:", r.pc_no, rx, rvx, rend, y);
+  y += 25; field("SUPPLY DATE :", fmtDate(r.supply_date), lx, lvx, lend, y);
+  field("PM Incharge:", r.pm_incharge, rx, rvx, rend, y);
+
+  // items table
+  const rowCount = Math.max(10, items.length);
+  const body = [];
+  for(let i=0;i<rowCount;i++){
+    const it = items[i];
+    body.push([ i+1, it?it.name||"":"", it?it.description||"":"", it?String(num(it.qty)):"",
+      it?fmt(it.unit_price):"", it?fmt(it.delivery_tax):"", it&&it.link?"#":"", it?fmt(lineTotal(it)):"-" ]);
+  }
+  const money = new Set([4,5,7]);
+  pdf.autoTable({
+    startY: y+20, margin:{left:m,right:m}, theme:"grid",
+    head:[["S/N","NAME","DESCRIPTION","QTY","UNIT PRICE","DELIVERY","LINK","TOTAL"]], body,
+    styles:{ fontSize:8.5, cellPadding:{top:3,right:4,bottom:3,left:4}, lineColor:[0,0,0], lineWidth:0.6, textColor:0, minCellHeight:15, valign:"middle" },
+    headStyles:{ fillColor:255, textColor:0, fontStyle:"bold", halign:"center" },
+    columnStyles:{ 0:{cellWidth:29,halign:"center"}, 1:{cellWidth:78}, 2:{cellWidth:161}, 3:{cellWidth:52,halign:"center"},
+      4:{cellWidth:52,halign:"right"}, 5:{cellWidth:64,halign:"right"}, 6:{cellWidth:41,halign:"center",textColor:[0,0,238]}, 7:{cellWidth:60,halign:"right"} },
+    didParseCell(d){
+      if(d.section!=="body") return;
+      if(d.column.index===1 || d.column.index===2){
+        const t = Array.isArray(d.cell.text)?d.cell.text.join(" "):String(d.cell.raw||"");
+        if(isCJK(t)){ d.cell._cjk = t; d.cell.text = []; }
+      }
+    },
+    didDrawCell(d){
+      if(d.section!=="body") return;
+      if(d.cell._cjk){
+        const {dataUrl,wPt,hPt} = cjkTextToImage(d.cell._cjk, 8.5, "normal");
+        const dw = Math.min(wPt, d.cell.width-8), dh = hPt*(dw/wPt);
+        pdf.addImage(dataUrl,"PNG", d.cell.x+4, d.cell.y+d.cell.height/2-dh/2, dw, dh);
+      }
+      if(money.has(d.column.index) && d.cell.raw!==""){
+        pdf.setFont("helvetica","normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
+        pdf.text("$", d.cell.x+4, d.cell.y+d.cell.height/2+3);
+      }
+      if(d.column.index===6 && d.cell.raw==="#"){
+        const l = items[d.row.index].link;
+        pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, {url: /^https?:\/\//i.test(l)?l:"https://"+l});
+      }
+    }
+  });
+
+  let fy = pdf.lastAutoTable.finalY + 12;
+  const total = items.reduce((a,it)=>a+lineTotal(it),0);
+  pdf.setFont("helvetica","normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
+  pdf.text("$", rend-60, fy); pdf.text(fmt(total), rend-4, fy, {align:"right"});
+
+  // signature blocks
+  fy += 38;
+  if(fy + 4*44 + 40 > 842-m){ pdf.addPage(); fy = 60; }
+  const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
+  async function sigRow(order, label, underlined, yy){
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
+    const lines = pdf.splitTextToSize(label, 96);
+    pdf.text(lines, lx, yy);
+    pdf.setLineWidth(1.2); pdf.line(lvx, yy+10, lend, yy+10);
+    const s = stepBy(order);
+    if(s.status==="Signed"){
+      if(s.signature_data){
+        const sz = await imgSize(s.signature_data);
+        if(sz){
+          let h = 30, w = h*sz.w/sz.h;
+          if(w>lend-lvx-8){ w = lend-lvx-8; h = w*sz.h/sz.w; }
+          pdf.addImage(s.signature_data, "PNG", lvx+4, yy+9-h, w, h);
+        }
+      }
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(6.5); pdf.setTextColor(90,90,90);
+      drawText(pdf, `${s.assigned_person_name||""}  ·  ${fmtStamp(s.signed_at)}`, lvx, yy+19, 6.5, "normal", {maxWidth:lend-lvx});
+      pdf.setTextColor(0,0,0);
+    }
+  }
+  await sigRow(1, "TO BE VERIFY BY TEAM MANAGER :", false, fy);
+  fy += 44;
+  pdf.setFont("helvetica","bold"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
+  pdf.text("PROCUREMENT DEPT :", lx, fy);
+  pdf.setLineWidth(0.6); pdf.line(lx, fy+1.5, lx+pdf.getTextWidth("PROCUREMENT DEPT :"), fy+1.5);
+  fy += 28;
+  await sigRow(2, "APPROVE BY :", false, fy); fy += 40;
+  await sigRow(3, "PURCHASE BY :", false, fy); fy += 40;
+  await sigRow(4, "RECEIVED BY :", false, fy);
+
+  pdf.setFont("helvetica","normal"); pdf.setFontSize(7); pdf.setTextColor(120,120,120);
+  pdf.text(`Tracking no. ${r.tracking_no||""}`, m, 842-18);
+  return pdf;
+}
+
+function slug(s){ return String(s||"").trim().replace(/[\\/:*?"<>|]/g,"").replace(/\s+/g,"_").slice(0,40); }
+function yymmdd(d){ const m = String(d||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[1].slice(2)+m[2]+m[3] : ""; }
+
+async function exportPDF(){
+  const btn = document.getElementById("pdfBtn");
+  btn.disabled = true;
+  try{
+    const pdf = await buildPDF();
+    const r = doc.requisition;
+    pdf.save(`MRF_${slug(r.project_name)||"form"}_${yymmdd(r.form_date)}.pdf`);
+  }catch(e){
+    console.error(e);
+    setBanner("err", "Could not create the PDF: " + esc(e.message||e));
+  }
+  btn.disabled = false;
+}
+
+loadDoc();
+</script>
+</body>
+</html>
