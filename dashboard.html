@@ -110,6 +110,13 @@
   .num{ text-align:right; }
   a.item-link{ color:var(--accent); text-decoration:none; font-size:11.5px; }
 
+  .pdots{ display:flex; gap:4px; margin-top:6px; }
+  .pd{ width:14px; height:6px; border-radius:3px; background:#e2e5ea; display:inline-block; }
+  .pd.done{ background:var(--received); }
+  .pd.now{ background:var(--accent); }
+  .pd.bad{ background:var(--declined); }
+  .more-tools{ margin-top:6px; font-size:11px; }
+  .more-tools summary{ cursor:pointer; color:var(--muted); }
   .timeline{ display:flex; flex-direction:column; gap:0; }
   .tstep{ display:flex; gap:10px; padding:10px 0; border-bottom:1px dashed #e2e5ea; }
   .tstep:last-child{ border-bottom:0; }
@@ -527,7 +534,7 @@ function render(){
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${r.form_date||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
-        <td><span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span></td>
+        <td>${renderProgressCell(r)}</td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
     const canWithdraw = r.requester_person_id===myId && !["Received","Withdrawn"].includes(r.status);
@@ -535,6 +542,25 @@ function render(){
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
+}
+
+const STEP_SHORT = {1:"Manager", 2:"Approve", 3:"Purchase", 4:"Received"};
+// Stage pill + four progress dots (one per sign-off) + a one-line "what's next"
+function renderProgressCell(r){
+  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+  const next = steps.find(x=>x.status!=="Signed");
+  const dots = steps.map(x=>{
+    const cls = x.status==="Signed" ? "done" : x.status==="Declined" ? "bad" : (next && x.step_order===next.step_order && r.status!=="Declined" && r.status!=="Withdrawn") ? "now" : "";
+    const who = x.status==="Signed" ? `signed by ${x.assigned_person_name||"?"}` : x.status==="Declined" ? "declined" : "waiting";
+    return `<i class="pd ${cls}" title="${escapeHtml((STEP_SHORT[x.step_order]||x.stage_name)+": "+who)}"></i>`;
+  }).join("");
+  let note = "";
+  if(r.status==="Declined") note = "Declined" + (r.declined_by?` by ${r.declined_by}`:"");
+  else if(r.status==="Withdrawn") note = "Withdrawn";
+  else if(!next) note = "All signed";
+  else note = `Next: ${STEP_SHORT[next.step_order]||next.stage_name}` + (next.assigned_person_name?` (${next.assigned_person_name})`:"");
+  return `<span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span>
+    <div class="pdots">${dots}</div><div class="muted" style="margin-top:2px">${escapeHtml(note)}</div>`;
 }
 
 function needsMyAttention(r){
@@ -587,8 +613,8 @@ function renderTimelineBlock(r){
     if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.signed_at).toLocaleString()}` +
       (s.signed_via==="esign" ? ` · ✍ drawn signature${s.signature_data?` <img src="${escapeHtml(s.signature_data)}" alt="signature" style="height:22px;vertical-align:middle;margin-left:6px;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}` : "");
     else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.declined_at).toLocaleString()}`;
-    else if(s.assigned_person_name) metaLine = `Assigned to ${escapeHtml(s.assigned_person_name)} — pending`;
-    else metaLine = `Not yet claimed — waiting for someone to sign`;
+    else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
+    else metaLine = `Waiting`;
 
     const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
@@ -600,11 +626,13 @@ function renderTimelineBlock(r){
         <input type="email" placeholder="Company email (new signers only)" id="newemail-${s.id}" style="display:none">` : "";
 
     const actionHtml = (s.status==="Pending") ? `
-      <div class="link-tools">
-        ${isActionable ? `<button onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>` : ""}
-        <button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button>
+      ${isActionable ? `<div class="link-tools">
+        <button onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>
       </div>
-      <div id="regenbox-${s.id}"></div>
+      <details class="more-tools" onclick="event.stopPropagation()"><summary>Link problem?</summary>
+        <div class="link-tools"><button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button></div>
+        <div id="regenbox-${s.id}"></div>
+      </details>` : ""}
       ${isActionable ? `
       <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
         ${identityHtml}
@@ -631,9 +659,20 @@ function renderTimelineBlock(r){
       </div>`;
   }).join("");
 
-  const eSignTok = steps.length ? steps[0].token : null;
-  const eSignBtn = eSignTok ? `<div style="margin-top:10px"><button onclick="event.stopPropagation();copyESignLink('${eSignTok}')">✍ Copy e-sign PDF link</button></div>` : "";
-  return `<div><div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Approval Chain</div><div class="timeline">${rowsHtml}</div>${eSignBtn}</div>`;
+  const shareTok = steps.length ? steps[0].token : null;
+  const canShare = shareTok && !["Declined","Withdrawn","Received"].includes(r.status);
+  const shareBtns = canShare ? `<div class="link-tools" style="margin:0 0 6px">
+      <button onclick="event.stopPropagation();copySignLink('${shareTok}')">🔗 Copy PIN sign link</button>
+      <button onclick="event.stopPropagation();copyESignLink('${shareTok}')">✍ Copy PDF e-sign link</button>
+    </div>` : "";
+  return `<div><div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Sign-off</div>${shareBtns}<div class="timeline">${rowsHtml}</div></div>`;
+}
+
+async function copySignLink(tok){
+  const url = new URL("sign.html", window.location.href);
+  url.searchParams.set("token", tok);
+  try{ await navigator.clipboard.writeText(url.toString()); setStatus("Sign link copied — one link works for every step."); }
+  catch(_){ window.prompt("Copy this sign link:", url.toString()); }
 }
 
 async function copyESignLink(tok){
