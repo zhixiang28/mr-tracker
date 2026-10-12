@@ -275,6 +275,7 @@
   </div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -509,7 +510,7 @@ function render(){
         <td class="tracking">${r.tracking_no||"-"}</td>
         <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div></td>
         <td>${escapeHtml(r.request_by||"-")}</td>
-        <td class="muted">${r.form_date||"-"}</td>
+        <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
       </tr>`;
@@ -587,9 +588,9 @@ function renderTimelineBlock(r){
     if(s.status==="Declined"){ dotCls="declined"; dotChar="✕"; }
 
     let metaLine="";
-    if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.signed_at).toLocaleString()}` +
+    if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.signed_at)}` +
       (s.signed_via==="esign" ? ` · ✍ drawn signature${s.signature_data?` <img src="${escapeHtml(s.signature_data)}" alt="signature" style="height:22px;vertical-align:middle;margin-left:6px;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}` : "");
-    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.declined_at).toLocaleString()}`;
+    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.declined_at)}`;
     else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
     else metaLine = `Waiting`;
 

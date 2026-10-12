@@ -93,6 +93,7 @@
   <div style="text-align:center;margin-top:10px"><a href="dashboard.html">← Back to Dashboard</a></div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -174,7 +175,7 @@ function renderPeopleList(){
     if(p.position) metaParts.push(p.position);
     if(p.department) metaParts.push(p.department);
     metaParts.push(`${p.submissions_count} submitted`, `${p.signed_count} signed`);
-    metaParts.push(`Joined ${new Date(p.created_at).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}`);
+    metaParts.push(`Joined ${fmtDMY(p.created_at)}`);
     return `
     <div class="person-card">
       <div class="person-top">

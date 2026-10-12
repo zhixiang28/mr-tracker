@@ -73,6 +73,7 @@
   <div class="sheet" id="content"><div class="center-note">Loading...</div></div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -211,13 +212,13 @@ function signCard(step){
   let statusHtml, metaHtml="", declineHtml="", overrideHtml="";
   if(step.status==="Signed"){
     statusHtml = `<span class="sign-status signed">✓ Signed</span>`;
-    metaHtml = `<div class="sign-meta">${new Date(step.signed_at).toLocaleString()}</div>` +
+    metaHtml = `<div class="sign-meta">${fmtDateTime(step.signed_at)}</div>` +
       (step.signature_data && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(step.signature_data)
         ? `<img src="${step.signature_data}" alt="signature" style="display:block;max-height:46px;max-width:100%;margin-top:6px">` : "");
     if(step.is_override) overrideHtml = `<div class="override-tag">Fast-forwarded by admin (${escHtml(step.override_by)})</div>`;
   } else if(step.status==="Declined"){
     statusHtml = `<span class="sign-status declined">✕ Declined</span>`;
-    metaHtml = `<div class="sign-meta">${new Date(step.declined_at).toLocaleString()}</div>`;
+    metaHtml = `<div class="sign-meta">${fmtDateTime(step.declined_at)}</div>`;
     declineHtml = `<div class="decline-box">Reason: ${escHtml(step.decline_reason||"—")}</div>`;
   } else {
     statusHtml = `<span class="sign-status pending">Pending</span>`;
@@ -261,13 +262,13 @@ function render(req){
       <span class="status-pill" style="background:${STAGE_VARS[req.status]||'#94a3b8'}">${escHtml(req.status)}</span>
     </div>
 
-    ${req.status==="Declined" ? `<div class="decline-box" style="margin-bottom:16px">Declined by ${escHtml(req.declined_by)} on ${req.declined_at?new Date(req.declined_at).toLocaleString():""} — Reason: ${escHtml(req.decline_reason||"—")}</div>` : ""}
+    ${req.status==="Declined" ? `<div class="decline-box" style="margin-bottom:16px">Declined by ${escHtml(req.declined_by)} on ${req.declined_at?fmtDateTime(req.declined_at):""} — Reason: ${escHtml(req.decline_reason||"—")}</div>` : ""}
 
     <div class="meta-grid">
       <div class="meta-row"><span class="k">Project Location</span><span class="v">${escHtml(req.project_location||"-")}</span></div>
       <div class="meta-row"><span class="k">Requested By</span><span class="v">${escHtml(req.request_by||"-")}</span></div>
-      <div class="meta-row"><span class="k">Form Date</span><span class="v">${escHtml(req.form_date||"-")}</span></div>
-      <div class="meta-row"><span class="k">Supply Date</span><span class="v">${escHtml(req.supply_date||"-")}</span></div>
+      <div class="meta-row"><span class="k">Form Date</span><span class="v">${escHtml(fmtDMY(req.form_date)||"-")}</span></div>
+      <div class="meta-row"><span class="k">Supply Date</span><span class="v">${escHtml(fmtDMY(req.supply_date)||"-")}</span></div>
       <div class="meta-row"><span class="k">PC No.</span><span class="v">${escHtml(req.pc_no||"-")}</span></div>
       <div class="meta-row"><span class="k">PM In-Charge</span><span class="v">${escHtml(req.pm_incharge||"-")}</span></div>
     </div>
@@ -349,7 +350,7 @@ function exportPDF(){
 
   const metaRows = [
     ["Project Location", req.project_location||"-", "Requested By", req.request_by||"-"],
-    ["Form Date", req.form_date||"-", "Supply Date", req.supply_date||"-"],
+    ["Form Date", fmtDMY(req.form_date)||"-", "Supply Date", fmtDMY(req.supply_date)||"-"],
     ["PC No.", req.pc_no||"-", "PM In-Charge", req.pm_incharge||"-"]
   ];
   doc.autoTable({
@@ -420,7 +421,7 @@ function exportPDF(){
   steps.forEach(s=>{
     if(y > 760){ doc.addPage(); y = margin; }
     let statusText = "Pending";
-    if(s.status==="Signed") statusText = `Signed by ${s.assigned_person_name} on ${new Date(s.signed_at).toLocaleDateString()}`;
+    if(s.status==="Signed") statusText = `Signed by ${s.assigned_person_name} on ${fmtDMY(s.signed_at)}`;
     else if(s.status==="Declined") statusText = `Declined by ${s.assigned_person_name} — ${s.decline_reason||""}`;
     doc.setFontSize(9); doc.setFont("helvetica","bold");
     doc.text(`${s.stage_name}:`, margin, y);
@@ -430,7 +431,7 @@ function exportPDF(){
   });
 
   doc.setFontSize(7); doc.setTextColor(150);
-  doc.text(`Exported ${new Date().toLocaleString()} from SPACElogic MR Tracker`, margin, 820);
+  doc.text(`Exported ${fmtDateTime(new Date())} from SPACElogic MR Tracker`, margin, 820);
 
   doc.save(`${req.tracking_no}_${(req.project_name||"requisition").replace(/[^a-z0-9]/gi,"_")}.pdf`);
 }

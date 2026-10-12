@@ -78,6 +78,7 @@
   </div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -99,12 +100,8 @@ let activeOrder = 0;  // slot currently open for signing (0 = none)
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function num(n){ return Number(n||0); }
 function fmt(n){ return num(n).toFixed(2); }
-function fmtDate(d){ // reference shows M/D/YYYY
-  if(!d) return "";
-  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${+m[2]}/${+m[3]}/${m[1]}` : String(d);
-}
-function fmtStamp(ts){ try{ return new Date(ts).toLocaleString(); }catch(_){ return ""; } }
+function fmtDate(d){ return fmtDMY(d); } // dd/mm/yyyy
+function fmtStamp(ts){ return fmtDateTime(ts); }
 function setBanner(kind, html){ document.getElementById("banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : ""; }
 
 // row total as shown on the reference form = qty x unit price + delivery/tax
