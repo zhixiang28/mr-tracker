@@ -80,4 +80,4 @@ Search everything bought before (company-wide, excluding declined/withdrawn; "In
 
 ## Dashboard layout
 
-Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (My Profile, Reminder Settings, Manual, FAQ, Log out). Below: five summary cards that double as quick filters (All / Needs action / In progress / Completed / Declined-withdrawn), a search box, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).
+Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (My Profile, Reminder Settings, Manual, FAQ, Log out). Below: the seven stage boxes (click one to filter), a search box with a **Needs action** shortcut, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).

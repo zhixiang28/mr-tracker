@@ -82,16 +82,20 @@
   .pagehead .btns{ display:flex; gap:8px; }
   .pagehead .btns button{ padding:10px 16px; }
 
-  /* ---- summary cards (also quick filters) ---- */
-  .summary{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:16px; }
-  .scard{ text-align:left; background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 16px; cursor:pointer; }
-  .scard:hover{ border-color:#b9c4d6; background:#fff; }
-  .scard .n{ font-size:26px; font-weight:800; letter-spacing:-.5px; line-height:1.1; }
-  .scard .l{ font-size:12px; color:var(--muted); font-weight:600; margin-top:3px; }
-  .scard.on{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
-  .scard.needs.hot{ border-color:#fbbf24; background:#fffbeb; }
-  .scard.needs.hot .n{ color:#b45309; }
-  @media(max-width:900px){ .summary{ grid-template-columns:repeat(2,1fr); } }
+  .pipeline{ display:grid; grid-template-columns:repeat(7,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
+  .stage-cell{ padding:16px 10px; position:relative; border-right:1px solid var(--line); cursor:pointer; transition:background .15s ease; }
+  .stage-cell:last-child{ border-right:0; }
+  .stage-cell:hover{ background:#f8fafc; }
+  .stage-cell.active{ background:#f0f5ff; }
+  .stage-dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+  .stage-label{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); }
+  .stage-count{ font-size:24px; font-weight:800; margin-top:6px; line-height:1; }
+
+  .needs-chip{ display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  .needs-chip .nn{ background:#e5e7eb; border-radius:999px; padding:0 8px; font-size:11.5px; }
+  .needs-chip.hot{ border-color:#fbbf24; background:#fffbeb; color:#92400e; }
+  .needs-chip.hot .nn{ background:#fde68a; }
+  .needs-chip.on{ box-shadow:0 0 0 3px rgba(245,158,11,.25); }
 
   /* ---- list toolbar ---- */
   .toolbar2{ display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
@@ -206,10 +210,11 @@
     </div>
   </div>
 
-  <div class="summary" id="summary"></div>
+  <div class="pipeline" id="pipeline"></div>
 
   <div class="toolbar2">
     <input type="text" id="searchBox" placeholder="Search by REQ no., project or requester…" oninput="render()">
+    <button type="button" class="needs-chip" id="needsChip" onclick="setQuick('needs')" title="Show only the requisitions that need you">Needs action <span class="nn" id="needsN">0</span></button>
     <span class="lbl">Group by</span>
     <select id="groupMode" onchange="setGroupMode(this.value)" title="Choose how the list is organised">
       <option value="status">Status</option>
@@ -492,6 +497,23 @@ async function loadData(){
   render();
 }
 
+function renderPipeline(){
+  const el=document.getElementById("pipeline");
+  el.innerHTML = STAGES.map(stage=>{
+    const count = allReqs.filter(r=>r.status===stage).length;
+    const active = activeStageFilter===stage ? "active" : "";
+    return `
+      <div class="stage-cell ${active}" onclick="toggleStageFilter('${stage}')">
+        <div class="stage-label"><span class="stage-dot" style="background:var(${STAGE_VARS[stage]})"></span>${stage}</div>
+        <div class="stage-count">${count}</div>
+      </div>`;
+  }).join("");
+}
+function toggleStageFilter(stage){
+  activeStageFilter = (activeStageFilter===stage) ? "" : stage;
+  document.getElementById("stageFilter").value = activeStageFilter;
+  render();
+}
 function matchesSearch(r, q){
   if(!q) return true;
   q=q.toLowerCase();
@@ -560,24 +582,18 @@ function buildGroups(list, needIds){
 }
 
 function renderSummary(needIds){
-  const counts = {all:allReqs.length, needs:0, active:0, done:0, closed:0};
-  allReqs.forEach(r=>{ counts[statusGroupOf(r, needIds)]++; });
-  const cards = [
-    {k:"",       l:"All requisitions", n:counts.all},
-    {k:"needs",  l:"Needs action",     n:counts.needs},
-    {k:"active", l:"In progress",      n:counts.active},
-    {k:"done",   l:"Completed",        n:counts.done},
-    {k:"closed", l:"Declined / withdrawn", n:counts.closed}
-  ];
-  document.getElementById("summary").innerHTML = cards.map(c=>`
-    <button type="button" class="scard ${c.k==="needs"?"needs":""} ${c.k==="needs"&&c.n>0?"hot":""} ${quickFilter===c.k?"on":""}" onclick="setQuick('${c.k}')" aria-pressed="${quickFilter===c.k}">
-      <div class="n">${c.n}</div><div class="l">${c.l}</div>
-    </button>`).join("");
+  let n = 0; allReqs.forEach(r=>{ if(needIds.has(r.id)) n++; });
+  const chip = document.getElementById("needsChip");
+  document.getElementById("needsN").textContent = n;
+  chip.classList.toggle("hot", n>0);
+  chip.classList.toggle("on", quickFilter==="needs");
+  renderPipeline();
 }
 
 function render(){
   const q = document.getElementById("searchBox").value.trim();
   const stageSel = document.getElementById("stageFilter").value;
+  activeStageFilter = stageSel;
   const attention = computeStats().attention;
   const needIds = new Set(attention.map(x=>x.r.id));
   const chipsById = new Map(attention.map(x=>[x.r.id, x.chips]));
