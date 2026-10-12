@@ -174,7 +174,8 @@
     <div class="header-actions">
       <span class="mode-badge personal" id="modeBadge">Loading...</span>
       <button class="header-icon-btn" onclick="loadData()">↻ Refresh</button>
-      <a href="analytics.html"><button type="button" class="header-btn">Analytics</button></a>
+      <a href="items.html"><button type="button" class="header-btn">Purchase History</button></a>
+      <a href="analytics.html" id="analyticsLink" style="display:none"><button type="button" class="header-btn">Analytics</button></a>
       <a href="admin.html" id="adminSettingsLink" style="display:none"><button type="button" class="header-btn">Admin Settings</button></a>
       <div class="header-divider"></div>
       <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">Manual</button>
@@ -503,6 +504,7 @@ async function loadData(){
     badge.className = "mode-badge personal"; badge.textContent = "Your requisitions";
   }
   document.getElementById("adminSettingsLink").style.display = iAmAdmin ? "" : "none";
+  document.getElementById("analyticsLink").style.display = iAmAdmin ? "" : "none";
   document.getElementById("emptyStateText").textContent = iAmAdmin
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";

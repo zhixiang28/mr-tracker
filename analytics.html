@@ -9,7 +9,8 @@
     color-scheme: light;
     --page:#eef1f6; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
     --grid:#e1e0d9; --axis:#c3c2b7; --line:#d7dbe0;
-    --series-1:#2a78d6;      /* the one data hue */
+    --series-1:#2a78d6;      /* the main data hue */
+    --series-2:#eb6834;      /* second series (moving average) */
     --mark-dim:#c3c2b7;      /* de-emphasis gray for "everything else" */
     --good:#006300; --bad:#d03b3b; --accent:#2f6fed;
   }
@@ -18,7 +19,7 @@
       color-scheme: dark;
       --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --line:#2c2c2a;
-      --series-1:#3987e5; --mark-dim:#4a4a47; --good:#0ca30c; --bad:#e66767; --accent:#6da7ec;
+      --series-1:#3987e5; --series-2:#d95926; --mark-dim:#4a4a47; --good:#0ca30c; --bad:#e66767; --accent:#6da7ec;
     }
   }
   *{ box-sizing:border-box; }
@@ -68,6 +69,19 @@
   .colhit{ fill:transparent; outline:none; }
   .vlabel{ fill:var(--ink); font-size:11.5px; font-weight:600; }
 
+  .legend{ display:flex; gap:16px; font-size:12px; color:var(--ink2); margin:-6px 0 8px; }
+  .legend i{ display:inline-block; vertical-align:middle; margin-right:6px; }
+  .legend .k-bar{ width:10px; height:10px; border-radius:2px; background:var(--series-1); }
+  .legend .k-line{ width:16px; height:0; border-top:2px solid var(--series-2); }
+  .maline{ fill:none; stroke:var(--series-2); stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .madot{ fill:var(--series-2); stroke:var(--surface); stroke-width:2; }
+  .delta{ font-weight:600; color:var(--ink2); }
+  table.plain{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.plain th{ text-align:left; color:var(--muted); font-weight:600; font-size:11.5px; padding:6px 8px; border-bottom:1px solid var(--line); }
+  table.plain td{ padding:7px 8px; border-bottom:1px solid var(--grid); }
+  table.plain td.n, table.plain th.n{ text-align:right; font-variant-numeric:tabular-nums; }
+  a.lnk{ color:var(--accent); text-decoration:none; } a.lnk:hover{ text-decoration:underline; }
+  .tagup{ color:var(--bad); font-weight:700; } .tagdn{ color:var(--good); font-weight:700; }
   .empty{ color:var(--muted); font-size:13px; padding:26px 0; text-align:center; }
   details{ margin-top:12px; font-size:12px; }
   summary{ cursor:pointer; color:var(--ink2); font-weight:600; }
@@ -106,17 +120,28 @@
   <div id="content" style="display:none">
     <div class="kpis" id="kpis"></div>
     <div class="grid">
-      <div class="card wide"><h2 id="t-spend">Value over time</h2><div class="sub" id="s-spend"></div><div id="c-spend"></div><details><summary>View as table</summary><div id="d-spend"></div></details></div>
-      <div class="card"><h2>Requisitions by stage</h2><div class="sub">How many sit at each stage right now</div><div id="c-stage"></div><details><summary>View as table</summary><div id="d-stage"></div></details></div>
-      <div class="card"><h2>Average time per approval step</h2><div class="sub" id="s-time">Time from the previous step to this one — the slowest is highlighted</div><div id="c-time"></div><details><summary>View as table</summary><div id="d-time"></div></details></div>
-      <div class="card"><h2>Value by project</h2><div class="sub">Top projects (excludes declined and withdrawn)</div><div id="c-proj"></div><details><summary>View as table</summary><div id="d-proj"></div></details></div>
-      <div class="card"><h2>Top materials by value</h2><div class="sub">Quantity × price plus delivery, summed across requisitions</div><div id="c-item"></div><details><summary>View as table</summary><div id="d-item"></div></details></div>
-      <div class="card wide" id="card-req" style="display:none"><h2>Requisitions by requester</h2><div class="sub">Number of requisitions each person submitted</div><div id="c-req"></div><details><summary>View as table</summary><div id="d-req"></div></details></div>
+      <div class="card wide"><h2 id="t-spend">Value over time</h2><div class="sub" id="s-spend"></div><div class="legend" id="lg-spend"></div><div id="c-spend"></div><details><summary>View as table</summary><div id="d-spend"></div></details></div>
+
+      <div class="card"><h2>Approval funnel</h2><div class="sub">How many requisitions reached each stage, and what share of those submitted that is</div><div id="c-funnel"></div><details><summary>View as table</summary><div id="d-funnel"></div></details></div>
+      <div class="card"><h2>Time per approval step</h2><div class="sub" id="s-time">Average hours or days from the previous step — the slowest step is highlighted</div><div id="c-time"></div><details><summary>View as table (average, median, 90th percentile)</summary><div id="d-time"></div></details></div>
+
+      <div class="card"><h2>Value by project</h2><div class="sub" id="s-proj"></div><div id="c-proj"></div><details><summary>View as table</summary><div id="d-proj"></div></details></div>
+      <div class="card"><h2>Value by supplier</h2><div class="sub" id="s-sup"></div><div id="c-sup"></div><details><summary>View as table</summary><div id="d-sup"></div></details></div>
+
+      <div class="card"><h2>Savings opportunity by item</h2><div class="sub">What the extra paid over the lowest price ever paid for the same item adds up to</div><div id="c-save"></div><details><summary>View as table</summary><div id="d-save"></div></details></div>
+      <div class="card"><h2>Price movers</h2><div class="sub">Items bought more than once: first price paid versus latest</div><div id="c-move"></div></div>
+
+      <div class="card"><h2>Open requisitions by waiting time</h2><div class="sub">Days since the last sign-off (or since submission)</div><div id="c-age"></div><details><summary>View as table</summary><div id="d-age"></div></details></div>
+      <div class="card"><h2>Waiting the longest</h2><div class="sub">Open requisitions that have been sitting at their current step longest</div><div id="c-wait"></div></div>
+
+      <div class="card wide"><h2>Requisitions by requester</h2><div class="sub">Number of requisitions and their total value</div><div id="c-req"></div><details><summary>View as table</summary><div id="d-req"></div></details></div>
     </div>
   </div>
 </div>
 <div id="tip" role="tooltip"></div>
 
+<script src="dates.js"></script>
+<script src="supplier.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -190,12 +215,12 @@ function hbars(el, rows, opts={}){
 }
 
 // Column chart (svg). rows: [{label, value}]
-function columns(el, rows, fmtTick){
+function columns(el, rows, fmtTick, ma){
   clear(el);
   if(!rows.length || rows.every(r=>!r.value)){ emptyNote(el); return; }
   const W=720, H=250, m={l:46,r:8,t:14,b:30};
   const iw=W-m.l-m.r, ih=H-m.t-m.b;
-  const max = Math.max(...rows.map(r=>r.value));
+  const max = Math.max(...rows.map(r=>r.value), ...(ma||[]).filter(v=>v!=null));
   const step = niceStep(max/4), top = Math.ceil(max/step)*step || step;
   const NS="http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS,"svg"); svg.setAttribute("viewBox",`0 0 ${W} ${H}`); svg.setAttribute("width","100%"); svg.setAttribute("role","img");
@@ -223,6 +248,15 @@ function columns(el, rows, fmtTick){
       const t = document.createElementNS(NS,"text"); t.setAttribute("x",cx); t.setAttribute("y",H-10); t.setAttribute("text-anchor","middle"); t.setAttribute("class","tick"); t.textContent=r.label; svg.appendChild(t);
     }
   });
+  // moving-average line (same $ axis as the bars)
+  if(ma && ma.some(v=>v!=null)){
+    const pts = ma.map((v,i)=> v==null ? null : [m.l+slot*i+slot/2, m.t+ih-(v/top)*ih]).filter(Boolean);
+    if(pts.length>1){
+      const ln = document.createElementNS(NS,"path"); ln.setAttribute("class","maline"); ln.setAttribute("d", pts.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+","+q[1].toFixed(1)).join(" ")); ln.setAttribute("pointer-events","none"); svg.appendChild(ln);
+    }
+    const lastPt = pts[pts.length-1];
+    if(lastPt){ const dot = document.createElementNS(NS,"circle"); dot.setAttribute("class","madot"); dot.setAttribute("cx",lastPt[0]); dot.setAttribute("cy",lastPt[1]); dot.setAttribute("r",4); dot.setAttribute("pointer-events","none"); svg.appendChild(dot); }
+  }
   // one direct label: the peak
   const pk = rows[maxIdx], pcx = m.l+slot*maxIdx+slot/2, pyy = m.t+ih-(pk.value/top)*ih;
   const lab = document.createElementNS(NS,"text"); lab.setAttribute("x",Math.min(Math.max(pcx,m.l+30),W-m.r-30)); lab.setAttribute("y",pyy-6); lab.setAttribute("text-anchor","middle"); lab.setAttribute("class","vlabel"); lab.textContent = "$ "+compact(pk.value);
@@ -244,119 +278,223 @@ function dataTable(el, headers, rows){
 }
 
 /* ---------- data ---------- */
+const DAY = 86400000;
+const OPEN = ["Submitted","Manager Approved","Procurement Approved","Purchased"];
+const FUNNEL = ["Submitted","Manager approved","Procurement approved","Purchased","Received"];
+
 async function load(){
-  const {data, error} = await supabaseClient.rpc("list_my_requisitions", {p_person_id: myId, p_pin: myPin});
   const msg = document.getElementById("msg");
+  const {data, error} = await supabaseClient.rpc("list_my_requisitions", {p_person_id: myId, p_pin: myPin});
   if(error || !data || !data.success){
     msg.style.display="block"; msg.textContent = (data&&data.error) || (error&&error.message) || "Could not load data.";
     return;
   }
-  IS_ADMIN = !!data.is_admin; ALL = data.requisitions || [];
+  IS_ADMIN = !!data.is_admin;
+  if(!IS_ADMIN){
+    document.querySelector(".filters").style.display = "none";
+    msg.style.display="block";
+    msg.innerHTML = 'Analytics is for admin accounts only. <a class="lnk" href="items.html">Open Purchase History</a> to look up items, prices and suppliers.';
+    return;
+  }
+  ALL = data.requisitions || [];
   document.getElementById("content").style.display="block";
   draw();
 }
 
-function inRange(){
+const stepTime = (r, order) => { const s=(r.approval_steps||[]).find(x=>x.step_order===order && x.status==="Signed" && x.signed_at); return s ? new Date(s.signed_at) : null; };
+const median = a => { if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y), m=Math.floor(b.length/2); return b.length%2 ? b[m] : (b[m-1]+b[m])/2; };
+const pct = (a,q) => { if(!a.length) return null; const b=a.slice().sort((x,y)=>x-y), i=(b.length-1)*q, lo=Math.floor(i), hi=Math.ceil(i); return b[lo]+(b[hi]-b[lo])*(i-lo); };   // linear interpolation
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
+const daysWord = n => n===1 ? "1 day" : n+" days";
+const reqTotal = r => Number(r.grand_total||0);
+
+function rangeInfo(){
   const v = document.getElementById("range").value;
-  if(v==="all") return ALL.slice();
-  const since = Date.now() - Number(v)*86400000;
-  return ALL.filter(r=>when(r).getTime() >= since);
+  if(v==="all") return {days:null, cur:ALL.slice(), prev:null};
+  const n = Number(v), t = Date.now();
+  return {days:n,
+    cur: ALL.filter(r=>when(r).getTime() >= t-n*DAY),
+    prev: ALL.filter(r=>{ const x=when(r).getTime(); return x >= t-2*n*DAY && x < t-n*DAY; })};
 }
 
 function draw(){
-  const R = inRange();
+  const {days, cur:R, prev} = rangeInfo();
   const live = R.filter(r=>!LIVE_EXCLUDED.includes(r.status));
   const rangeVal = document.getElementById("range").value;
-  document.getElementById("scopeNote").textContent = `${R.length} requisition${R.length===1?"":"s"} · ${IS_ADMIN ? "all requisitions" : "your requisitions"}`;
+  document.getElementById("scopeNote").textContent = `${R.length} requisition${R.length===1?"":"s"} · all requisitions`;
 
-  /* KPIs */
-  const totalValue = live.reduce((a,r)=>a+Number(r.grand_total||0),0);
-  const awaiting = R.filter(r=>["Submitted","Manager Approved","Procurement Approved","Purchased"].includes(r.status)).length;
+  /* ---- price baselines (all time, live requisitions): lowest price ever paid per item ---- */
+  const liveAll = ALL.filter(r=>!LIVE_EXCLUDED.includes(r.status));
+  const itemHist = new Map();     // key -> [{unit, qty, ts, supplier, tracking}]
+  liveAll.forEach(r=>(r.requisition_items||[]).forEach(it=>{
+    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "); const unit = Number(it.unit_price||0);
+    if(!key || unit<=0) return;
+    if(!itemHist.has(key)) itemHist.set(key, {name:String(it.name).trim(), lines:[]});
+    itemHist.get(key).lines.push({unit, qty:Number(it.qty||0), ts:when(r).getTime(), supplier:supplierOf(it.link).name, rid:r.id});
+  }));
+  const bestOf = key => { const h=itemHist.get(key); return h ? h.lines.reduce((a,l)=>l.unit<a.unit?l:a) : null; };
+
+  /* ---- KPIs ---- */
+  const totalValue = live.reduce((a,r)=>a+reqTotal(r),0);
+  const deliveryShare = (()=>{ const d=live.reduce((a,r)=>a+Number(r.delivery_tax_subtotal||0),0); return totalValue ? d/totalValue*100 : 0; })();
+  const prevValue = prev ? prev.filter(r=>!LIVE_EXCLUDED.includes(r.status)).reduce((a,r)=>a+reqTotal(r),0) : null;
+  const vals = live.map(reqTotal);
   const done = R.filter(r=>r.status==="Received" && stepTime(r,4) && r.created_at);
-  const cycleH = done.length ? done.reduce((a,r)=>a+(stepTime(r,4)-new Date(r.created_at))/3600000,0)/done.length : null;
+  const cycles = done.map(r=>(stepTime(r,4)-new Date(r.created_at))/3600000);     // hours
+  const SLA_DAYS = 7;
+  const onTime = cycles.length ? cycles.filter(h=>h<=SLA_DAYS*24).length/cycles.length*100 : null;
+  let saving = 0, paidOnPriced = 0;
+  live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
+    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
+    if(!best || unit<=0) return;
+    paidOnPriced += unit*qty;
+    if(unit>best.unit) saving += (unit-best.unit)*qty;
+  }));
   const declined = R.filter(r=>r.status==="Declined").length;
-  const declineRate = R.length ? declined/R.length*100 : null;
+  const decidedBase = R.filter(r=>r.status!=="Withdrawn").length;
+  const declineRate = decidedBase ? declined/decidedBase*100 : null;
+
   const kp = document.getElementById("kpis"); kp.textContent="";
-  const tile=(cls,lbl,val,note)=>{ const d=document.createElement("div"); d.className="tile "+cls; const a=document.createElement("div"); a.className="lbl"; a.textContent=lbl; const b=document.createElement("div"); b.className="val"; b.textContent=val; const c=document.createElement("div"); c.className="note"; c.textContent=note; d.append(a,b,c); kp.appendChild(d); };
-  tile("hero","Total value", money(totalValue), "Active and completed requisitions");
-  tile("","Requisitions", String(R.length), `${live.length} not declined or withdrawn`);
-  tile("","Awaiting approval", String(awaiting), "Not yet received");
-  tile("","Average cycle time", fmtHours(cycleH), done.length ? `Submit to received · ${done.length} completed` : "No completed requisitions yet");
+  const tile=(cls,lbl,val,note,noteCls)=>{ const d=document.createElement("div"); d.className="tile "+cls; const a=document.createElement("div"); a.className="lbl"; a.textContent=lbl; const b=document.createElement("div"); b.className="val"; b.textContent=val; const c=document.createElement("div"); c.className="note"+(noteCls?" "+noteCls:""); c.textContent=note; d.append(a,b,c); kp.appendChild(d); };
+  let heroNote = `Delivery & tax are ${deliveryShare.toFixed(0)}% of the value`;
+  if(prevValue!=null && prevValue>0){ const ch=(totalValue-prevValue)/prevValue*100; heroNote = `${ch>=0?"▲":"▼"} ${Math.abs(ch).toFixed(0)}% vs the previous ${days} days · delivery & tax ${deliveryShare.toFixed(0)}%`; }
+  tile("hero","Total value", money(totalValue), heroNote, "delta");
+  tile("","Average requisition", vals.length ? money(mean(vals)) : "—", vals.length ? `Median ${money(median(vals))} · ${vals.length} requisitions` : "No requisitions in this period");
+  tile("",`Done within ${SLA_DAYS} days`, onTime==null ? "—" : onTime.toFixed(0)+"%", cycles.length ? `Submit to received · median ${fmtHours(median(cycles))} · ${cycles.length} completed` : "No completed requisitions yet");
+  tile("","Savings opportunity", money(saving), paidOnPriced ? `${(saving/paidOnPriced*100).toFixed(1)}% of priced spend vs lowest price paid before` : "Needs items bought more than once");
   tile("","Decline rate", declineRate==null ? "—" : declineRate.toFixed(0)+"%", `${declined} declined`);
 
-  /* value over time: weeks for short ranges, months otherwise */
+  /* ---- value over time (+ 3-period moving average) ---- */
   const weekly = rangeVal==="30" || rangeVal==="90";
   const buckets = new Map();
   live.forEach(r=>{
     const d = when(r); let key, label, sort;
     if(weekly){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); sort=x.getTime(); key="w"+sort; label=`${p2(x.getDate())}/${p2(x.getMonth()+1)}`; }
     else { sort=new Date(d.getFullYear(),d.getMonth(),1).getTime(); key="m"+sort; label=MONTHS[d.getMonth()]+" "+String(d.getFullYear()).slice(2); }
-    const b = buckets.get(key) || {label, sort, value:0, n:0}; b.value += Number(r.grand_total||0); b.n++; buckets.set(key,b);
+    const b = buckets.get(key) || {label, sort, value:0, n:0}; b.value += reqTotal(r); b.n++; buckets.set(key,b);
   });
-  const timeRows = [...buckets.values()].sort((a,b)=>a.sort-b.sort).map(b=>({label:b.label, value:b.value, sub:`${b.n} requisition${b.n===1?"":"s"}`}));
+  const bl = [...buckets.values()].sort((a,b)=>a.sort-b.sort);
+  const timeRows = bl.map(b=>({label:b.label, value:b.value, sub:`${b.n} requisition${b.n===1?"":"s"}`}));
+  const ma = bl.map((_,i)=> i<2 ? null : (bl[i].value+bl[i-1].value+bl[i-2].value)/3);
   document.getElementById("t-spend").textContent = weekly ? "Value by week" : "Value by month";
-  document.getElementById("s-spend").textContent = weekly ? "Total value submitted each week (week starting Monday)" : "Total value submitted each month";
-  columns(document.getElementById("c-spend"), timeRows, v=>"$"+compact(v));
-  dataTable(document.getElementById("d-spend"), [weekly?"Week of":"Month","Requisitions","Value"], timeRows.map(r=>[r.label, r.sub.split(" ")[0], money(r.value)]));
+  document.getElementById("s-spend").textContent = (weekly ? "Total value submitted each week (week starting Monday)" : "Total value submitted each month") + " — the line smooths it with a 3-period moving average";
+  const lg = document.getElementById("lg-spend"); lg.textContent=""; 
+  [["k-bar","Value"],["k-line","3-period moving average"]].forEach(([c,t])=>{ const sp=document.createElement("span"); const i=document.createElement("i"); i.className=c; sp.append(i, document.createTextNode(t)); lg.appendChild(sp); });
+  columns(document.getElementById("c-spend"), timeRows, v=>"$"+compact(v), ma);
+  dataTable(document.getElementById("d-spend"), [weekly?"Week of":"Month","Requisitions","Value","3-period avg"], bl.map((b,i)=>[b.label, String(b.n), money(b.value), ma[i]==null?"—":money(ma[i])]));
 
-  /* by stage */
-  const stageRows = STAGES.map(s=>({label:s, value:R.filter(r=>r.status===s).length}));
-  stageRows.forEach(r=>{ r.text=String(r.value); r.tip=`${r.label} · ${r.value} requisition${r.value===1?"":"s"}`; });
-  hbars(document.getElementById("c-stage"), stageRows);
-  dataTable(document.getElementById("d-stage"), ["Stage","Requisitions"], stageRows.map(r=>[r.label, r.text]));
+  /* ---- approval funnel ---- */
+  const base = R.filter(r=>r.status!=="Withdrawn");
+  const signed = r => (r.approval_steps||[]).filter(s=>s.status==="Signed").length;
+  const reached = FUNNEL.map((_,k)=> k===0 ? base.length : base.filter(r=>signed(r)>=k).length);
+  const funnelRows = FUNNEL.map((n,k)=>({label:n, value:reached[k], text:`${reached[k]} · ${base.length?Math.round(reached[k]/base.length*100):0}%`, tip:k===0?"All submitted (withdrawn excluded)":`${n} — ${reached[k-1]?Math.round(reached[k]/reached[k-1]*100):0}% of those that reached the previous stage`}));
+  hbars(document.getElementById("c-funnel"), funnelRows);
+  dataTable(document.getElementById("d-funnel"), ["Stage","Requisitions","% of submitted","% of previous stage"], FUNNEL.map((n,k)=>[n, String(reached[k]), (base.length?Math.round(reached[k]/base.length*100):0)+"%", k===0?"—":(reached[k-1]?Math.round(reached[k]/reached[k-1]*100):0)+"%"]));
 
-  /* time per step */
-  const sums=[0,0,0,0], cnt=[0,0,0,0];
+  /* ---- time per step: mean / median / P90 ---- */
+  const per = [[],[],[],[]];
   R.forEach(r=>{
-    const created = r.created_at ? new Date(r.created_at) : null;
-    let prev = created;
-    for(let i=1;i<=4;i++){
-      const t = stepTime(r,i);
-      if(t && prev){ const h=(t-prev)/3600000; if(h>=0){ sums[i-1]+=h; cnt[i-1]++; } }
-      if(t) prev = t; else break;
-    }
+    let prevT = r.created_at ? new Date(r.created_at) : null;
+    for(let i=1;i<=4;i++){ const t=stepTime(r,i); if(t && prevT){ const h=(t-prevT)/3600000; if(h>=0) per[i-1].push(h); } if(t) prevT=t; else break; }
   });
-  const timeStepRows = STEP_NAMES.map((n,i)=>{ const h = cnt[i] ? sums[i]/cnt[i] : null; return {label:n, value:h||0, text:fmtHours(h), tip:`${n} · average over ${cnt[i]} requisition${cnt[i]===1?"":"s"}`}; });
-  hbars(document.getElementById("c-time"), timeStepRows, {dimExceptMax:true});
-  dataTable(document.getElementById("d-time"), ["Step","Average","Based on"], timeStepRows.map((r,i)=>[r.label, r.text, cnt[i]+" requisitions"]));
+  const timeRowsStep = STEP_NAMES.map((n,i)=>({label:n, value:mean(per[i])||0, text:fmtHours(mean(per[i])), tip:`${n} · median ${fmtHours(median(per[i]))} · 90th percentile ${fmtHours(pct(per[i],.9))} · ${per[i].length} requisitions`}));
+  hbars(document.getElementById("c-time"), timeRowsStep, {dimExceptMax:true});
+  dataTable(document.getElementById("d-time"), ["Step","Average","Median","90th percentile","Based on"], STEP_NAMES.map((n,i)=>[n, fmtHours(mean(per[i])), fmtHours(median(per[i])), fmtHours(pct(per[i],.9)), per[i].length+" requisitions"]));
 
-  /* by project */
-  const byProj = groupSum(live, r=>r.project_name||"(no project)", r=>Number(r.grand_total||0));
-  const projRows = topN(byProj, 8).map(([k,v])=>({label:k, value:v.value, text:money(v.value), tip:`${k} · ${v.n} requisition${v.n===1?"":"s"}`}));
+  /* ---- value by project (+ concentration) ---- */
+  const byProj = groupSum(live, r=>r.project_name||"(no project)", reqTotal);
+  const projAll = [...byProj.entries()].sort((a,b)=>b[1].value-a[1].value);
+  const top3 = projAll.slice(0,3).reduce((a,[,v])=>a+v.value,0);
+  document.getElementById("s-proj").textContent = totalValue && projAll.length>3 ? `The top 3 projects account for ${(top3/totalValue*100).toFixed(0)}% of the value` : "Top projects (declined and withdrawn excluded)";
+  const projRows = projAll.slice(0,8).map(([k,v])=>({label:k, value:v.value, text:`${money(v.value)} · ${totalValue?Math.round(v.value/totalValue*100):0}%`, tip:`${k} · ${v.n} requisition${v.n===1?"":"s"}`}));
   hbars(document.getElementById("c-proj"), projRows);
-  dataTable(document.getElementById("d-proj"), ["Project","Requisitions","Value"], projRows.map(r=>[r.label, r.tip.split("·")[1].trim().split(" ")[0], r.text]));
+  dataTable(document.getElementById("d-proj"), ["Project","Requisitions","Value","Share"], projAll.map(([k,v])=>[k, String(v.n), money(v.value), (totalValue?(v.value/totalValue*100).toFixed(1):"0")+"%"]));
 
-  /* top materials */
-  const items = new Map();
+  /* ---- value by supplier (from the item link) ---- */
+  const supM = new Map(); let lineTotal = 0, noLink = 0;
   live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
-    const raw = (it.name||"").trim(); if(!raw) return; const key = raw.toLowerCase();
-    const e = items.get(key) || {name:raw, value:0, qty:0}; e.value += lineValue(it); e.qty += Number(it.qty||0); items.set(key,e);
+    const v = Number(it.total||0)+Number(it.delivery_tax||0), sp = supplierOf(it.link).name; lineTotal += v; if(sp==="(no link)") noLink += v;
+    const e = supM.get(sp) || {value:0, n:0}; e.value += v; e.n++; supM.set(sp,e);
   }));
-  const itemRows = [...items.values()].sort((a,b)=>b.value-a.value).slice(0,8).map(e=>({label:e.name, value:e.value, text:money(e.value), tip:`${e.name} · qty ${e.qty}`}));
-  hbars(document.getElementById("c-item"), itemRows);
-  dataTable(document.getElementById("d-item"), ["Material","Quantity","Value"], itemRows.map(r=>[r.label, r.tip.split("qty ")[1], r.text]));
+  const supAll = [...supM.entries()].sort((a,b)=>b[1].value-a[1].value);
+  document.getElementById("s-sup").textContent = lineTotal ? `Worked out from each item's product link · ${(noLink/lineTotal*100).toFixed(0)}% of line value has no link` : "Worked out from each item's product link";
+  const supRows = supAll.slice(0,8).map(([k,v])=>({label:k, value:v.value, text:`${money(v.value)} · ${lineTotal?Math.round(v.value/lineTotal*100):0}%`, tip:`${k} · ${v.n} item line${v.n===1?"":"s"}`}));
+  hbars(document.getElementById("c-sup"), supRows);
+  dataTable(document.getElementById("d-sup"), ["Supplier","Item lines","Value","Share"], supAll.map(([k,v])=>[k, String(v.n), money(v.value), (lineTotal?(v.value/lineTotal*100).toFixed(1):"0")+"%"]));
 
-  /* by requester — only meaningful when you can see other people's requisitions */
-  const reqCard = document.getElementById("card-req");
-  reqCard.style.display = IS_ADMIN ? "block" : "none";
-  if(IS_ADMIN){
-    const byReq = groupSum(R, r=>r.request_by||"(unknown)", ()=>1);
-    const reqRows = topN(byReq, 8).map(([k,v])=>({label:k, value:v.n, text:String(v.n), tip:`${k} · ${v.n} requisition${v.n===1?"":"s"}`}));
-    hbars(document.getElementById("c-req"), reqRows);
-    dataTable(document.getElementById("d-req"), ["Requester","Requisitions"], reqRows.map(r=>[r.label, r.text]));
+  /* ---- savings opportunity per item ---- */
+  const saveM = new Map();
+  live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
+    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
+    if(!best || unit<=best.unit || unit<=0) return;
+    const e = saveM.get(key) || {name:String(it.name).trim(), value:0, qty:0, paid:0, best}; e.value += (unit-best.unit)*qty; e.qty += qty; e.paid += unit*qty; saveM.set(key,e);
+  }));
+  const saveList = [...saveM.values()].sort((a,b)=>b.value-a.value);
+  const saveRows = saveList.slice(0,8).map(e=>({label:e.name, value:e.value, text:money(e.value), tip:`Paid ${money(e.paid/e.qty)} on average · lowest was ${money(e.best.unit)} at ${e.best.supplier}`}));
+  hbars(document.getElementById("c-save"), saveRows);
+  if(!saveRows.length) emptyNote(document.getElementById("c-save"), "No item was bought at different prices in this period.");
+  dataTable(document.getElementById("d-save"), ["Item","Quantity","Avg price paid","Lowest price (supplier)","Extra paid"], saveList.map(e=>[e.name, String(e.qty), money(e.paid/e.qty), `${money(e.best.unit)} (${e.best.supplier})`, money(e.value)]));
+
+  /* ---- price movers: first vs latest unit price ---- */
+  const movers = [...itemHist.values()].filter(h=>h.lines.length>=2).map(h=>{
+    const ls = h.lines.slice().sort((a,b)=>a.ts-b.ts), first=ls[0], last=ls[ls.length-1];
+    return {name:h.name, first:first.unit, last:last.unit, chg:(last.unit-first.unit)/first.unit*100, n:ls.length};
+  }).filter(m=>Math.abs(m.chg)>=3).sort((a,b)=>b.chg-a.chg);
+  const mv = document.getElementById("c-move"); clear(mv);
+  if(!movers.length) emptyNote(mv,"No item has moved more than 3% between purchases.");
+  else {
+    const picks = [...movers.slice(0,5), ...movers.slice(-3).filter(m=>m.chg<0 && !movers.slice(0,5).includes(m))];
+    const t=document.createElement("table"); t.className="plain";
+    t.innerHTML = "<thead><tr><th>Item</th><th class='n'>First</th><th class='n'>Latest</th><th class='n'>Change</th></tr></thead>";
+    const tb=document.createElement("tbody");
+    picks.forEach(m=>{ const tr=document.createElement("tr");
+      [m.name, money(m.first), money(m.last)].forEach((x,i)=>{ const td=document.createElement("td"); td.textContent=x; if(i) td.className="n"; tr.appendChild(td); });
+      const td=document.createElement("td"); td.className="n"; const sp=document.createElement("span"); sp.className = m.chg>0?"tagup":"tagdn"; sp.textContent=`${m.chg>0?"▲ +":"▼ "}${m.chg.toFixed(0)}%`; td.appendChild(sp); tr.appendChild(td); tb.appendChild(tr); });
+    t.appendChild(tb); mv.appendChild(t);
   }
+
+  /* ---- open requisitions: waiting time ---- */
+  const nowT = Date.now();
+  const open = R.filter(r=>OPEN.includes(r.status)).map(r=>{
+    const steps=(r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+    const pending = steps.find(s=>s.status!=="Signed");
+    const lastSigned = steps.filter(s=>s.status==="Signed" && s.signed_at).map(s=>new Date(s.signed_at).getTime()).sort((a,b)=>b-a)[0];
+    const since = lastSigned || (r.created_at ? new Date(r.created_at).getTime() : nowT);
+    return {r, days:Math.max(0,Math.floor((nowT-since)/DAY)), stage: pending ? (pending.stage_name || ("step "+pending.step_order)) : "—", who: pending && pending.assigned_person_name ? pending.assigned_person_name : "not yet claimed"};
+  });
+  const bands = [["0–2 days",0,2],["3–7 days",3,7],["8–14 days",8,14],["15+ days",15,1e9]];
+  const ageRows = bands.map(([l,lo,hi])=>({label:l, value:open.filter(o=>o.days>=lo&&o.days<=hi).length}));
+  ageRows.forEach(a=>{ a.text=String(a.value); a.tip=`${a.label} · ${a.value} open requisition${a.value===1?"":"s"}`; });
+  hbars(document.getElementById("c-age"), ageRows);
+  if(!open.length) emptyNote(document.getElementById("c-age"), "Nothing is waiting — all caught up.");
+  dataTable(document.getElementById("d-age"), ["Waiting","Open requisitions"], ageRows.map(a=>[a.label, a.text]));
+  const wt = document.getElementById("c-wait"); clear(wt);
+  const longest = open.sort((a,b)=>b.days-a.days).slice(0,6);
+  if(!longest.length) emptyNote(wt,"Nothing is waiting.");
+  else {
+    const t=document.createElement("table"); t.className="plain";
+    t.innerHTML = "<thead><tr><th>Requisition</th><th>Waiting at</th><th class='n'>Days</th></tr></thead>";
+    const tb=document.createElement("tbody");
+    longest.forEach(o=>{ const tr=document.createElement("tr");
+      const td1=document.createElement("td"); const a=document.createElement("a"); a.className="lnk"; a.href="view.html?id="+encodeURIComponent(o.r.id); a.textContent=o.r.tracking_no||"-"; td1.append(a, document.createTextNode(" · "+(o.r.project_name||""))); tr.appendChild(td1);
+      const td2=document.createElement("td"); td2.textContent=`${o.stage} (${o.who})`; tr.appendChild(td2);
+      const td3=document.createElement("td"); td3.className="n"; td3.textContent=String(o.days); tr.appendChild(td3); tb.appendChild(tr); });
+    t.appendChild(tb); wt.appendChild(t);
+  }
+
+  /* ---- by requester ---- */
+  const byReq = groupSum(live, r=>r.request_by||"(unknown)", reqTotal);
+  const reqAll = [...byReq.entries()].sort((a,b)=>b[1].value-a[1].value);
+  const reqRows = reqAll.slice(0,8).map(([k,v])=>({label:k, value:v.value, text:`${money(v.value)} · ${v.n} req.`, tip:`${k} · ${v.n} requisition${v.n===1?"":"s"} · average ${money(v.value/v.n)}`}));
+  hbars(document.getElementById("c-req"), reqRows);
+  dataTable(document.getElementById("d-req"), ["Requester","Requisitions","Value","Average"], reqAll.map(([k,v])=>[k, String(v.n), money(v.value), money(v.value/v.n)]));
 }
 
-function stepTime(r, order){
-  const s = (r.approval_steps||[]).find(x=>x.step_order===order && x.status==="Signed" && x.signed_at);
-  return s ? new Date(s.signed_at) : null;
-}
 function groupSum(list, keyFn, valFn){
   const m = new Map();
   list.forEach(r=>{ const k = keyFn(r); const e = m.get(k) || {value:0, n:0}; e.value += valFn(r); e.n++; m.set(k,e); });
   return m;
 }
-function topN(map, n){ return [...map.entries()].sort((a,b)=>b[1].value-a[1].value).slice(0,n); }
 
 if(myId && myPin) load();
 </script>

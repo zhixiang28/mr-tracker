@@ -66,6 +66,10 @@ Notes: there is no PIN on this page, so anyone holding the link can sign the nex
 
 `esign-hardening.sql` (run after `esign-pdf-upgrade.sql`) tightens `sign_step`, `decline_step` and `requester_resubmit`: a withdrawn/declined requisition can't be signed through an already-claimed link, and resubmitting clears drawn signatures and typed-only names.
 
-## Analytics page (`analytics.html`)
+## Analytics page (`analytics.html`) — admins only
 
-Charts for the requisitions you can see (all of them for admins): total value, counts by stage, value by week/month, average time per approval step (slowest highlighted), value by project, top materials, and (admins) requisitions by requester. A period filter at the top scopes everything; every chart has a "View as table" and hover/keyboard tooltips. Open it from the **Analytics** button in the dashboard header. It supports the browser's dark mode.
+Procurement analytics over all requisitions, scoped by a period filter. Total value (with change vs the previous period), average/median requisition, "done within 7 days" rate, **savings opportunity** (extra paid over the lowest price ever paid for the same item × quantity), decline rate; value over time with a 3-period moving average; approval funnel with stage-to-stage conversion; time per approval step (average, median, 90th percentile); value by project (top-3 concentration) and by supplier; savings opportunity by item; price movers (first vs latest price); open requisitions by waiting time and the longest-waiting list; requisitions by requester. Every chart has a "View as table" and tooltips; dark mode supported. Non-admins who open it see a short notice.
+
+## Purchase History (`items.html`) — everyone
+
+Search everything bought before (company-wide, excluding declined/withdrawn; "Include not yet purchased" widens it): per item the times bought, last bought, last price, best price (and who), quantity-weighted average price and a "price vs best" check. Expand an item to see every purchase (date, REQ, product link, qty, price, project, requester), price by supplier and a price trend. A **Suppliers** tab shows spend per supplier and what was bought from each. Tick items and **Add to a new requisition** to prefill the form (qty and price from the last purchase), or export the filtered list to CSV. Suppliers are derived from each item's product link (the form has no separate supplier field). Backed by `list_purchase_history` (`purchase-history.sql`).

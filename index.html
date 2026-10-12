@@ -413,6 +413,7 @@
     <div class="brand">SPACE<span>logic</span> — Purchase Requisition</div>
     <div class="header-actions">
       <button type="button" class="dashboard-btn" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
+      <button type="button" class="dashboard-btn" onclick="window.open('items.html','_blank')" title="Look up items, prices and suppliers you bought before">Purchase History</button>
       <div class="header-divider"></div>
       <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">📘 Manual</button>
       <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">❓ FAQ</button>
@@ -1057,6 +1058,19 @@ function newForm(){
   currentDraftId=null;
   updateSubmitBtnLabel();
   setStatus("New blank requisition created.");
+}
+
+// ?reorder=1 — items picked on the Purchase History page arrive via localStorage
+function loadReorder(){
+  let list = [];
+  try{ list = JSON.parse(localStorage.getItem("sl_reorder") || "[]"); localStorage.removeItem("sl_reorder"); }catch(_){ list = []; }
+  if(!Array.isArray(list) || !list.length) return;
+  const body = document.getElementById("itemsBody");
+  const starter = [...body.querySelectorAll("tr")];
+  if(starter.length===1 && !starter[0].querySelector(".r-name").value) starter[0].remove();
+  list.forEach(it=>addRow([String(it.name||""), String(it.description||""), it.qty||1, it.unit_price||"", it.delivery_tax||"", String(it.link||"")]));
+  recalc();
+  setStatus(`Added ${list.length} item${list.length===1?"":"s"} from your purchase history — check quantity and price before you submit.`);
 }
 
 // Admin edit mode: ?adminEdit=<id>. Admins change a submitted requisition here, in the form (not on the dashboard).
@@ -1728,6 +1742,8 @@ updateLoginBar();
     loadForEdit(params.get("editRequisition"));
   } else if(params.get("adminEdit")){
     loadForAdminEdit(params.get("adminEdit"));
+  } else if(params.get("reorder")){
+    setTimeout(loadReorder, 0);   // after the form has added its starter row
   }
 })();
 
