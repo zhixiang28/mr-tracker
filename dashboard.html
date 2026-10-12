@@ -167,6 +167,8 @@
   .acct-msg.err{ color:var(--declined); } .acct-msg.ok{ color:#15803d; font-weight:600; }
   .manage-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .manage-bar button{ padding:7px 11px; font-size:12px; }
+  .mdz-l{ margin-left:10px; }
+  .manage-bar button.rej{ color:var(--declined); border-color:#fecaca; background:#fff; }
   .manage-danger{ display:flex; gap:6px; align-items:center; }
   .manage-danger .mdz{ margin-left:14px; padding-left:14px; border-left:1px solid var(--line); }
   .manage-danger button.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
@@ -843,9 +845,9 @@ function renderManageBar(r){
   const closed = ["Purchased","Received","Withdrawn"].includes(r.status);
   const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !closed;
   const canReject = iAmAdmin && r.status!=="Declined" && !closed;
-  const left = iAmAdmin ? `<a href="index.html?adminEdit=${r.id}"><button class="primary" type="button">Edit in form</button></a>` : "";
+  const left = (iAmAdmin ? `<a href="index.html?adminEdit=${r.id}"><button class="primary" type="button">Edit in form</button></a>` : "")
+    + (canReject ? ` <span class="mdz-l"><button class="rej" type="button" onclick="adminReject('${r.id}')">Reject</button></span>` : "");
   const right = [
-    canReject ? `<button type="button" onclick="adminReject('${r.id}')">Reject</button>` : "",
     canWithdraw ? `<button type="button" onclick="withdrawRequisition('${r.id}')">Withdraw</button>` : "",
     iAmAdmin ? `<span class="mdz"><button class="del" type="button" onclick="adminDelete('${r.id}')">Delete…</button></span>` : ""
   ].join("");

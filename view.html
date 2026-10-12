@@ -246,7 +246,7 @@ function renderActions(req, steps){
     if((viewIsAdmin || isRequester) && nextStep) share.push(`<button onclick="regenLink('${nextStep.id}')" title="Make the current link stop working and copy a new one (${escHtml(nextStep.stage_name)})">Regenerate link</button>`);
   }
 
-  if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
+  if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) edit.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
   if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
   if(viewIsAdmin) del = `<div class="ab-group ab-del"><button class="btn-danger del" onclick="deleteReq('${req.id}')">Delete…</button></div>`;
 
