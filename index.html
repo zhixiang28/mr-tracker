@@ -81,6 +81,24 @@
   button:active{transform:translateY(1px)}
   .primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .primary:hover{background:var(--accent-dark)}
+  /* purchase-history suggestions under the item name box */
+  .hs-menu{ position:fixed; z-index:300; background:#fff; border:1px solid #d7dbe0; border-radius:12px; box-shadow:0 14px 36px rgba(15,23,42,.18); max-height:340px; overflow:auto; font-size:13px; }
+  .hs-head{ padding:8px 12px; font-size:11px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:#6b7280; border-bottom:1px solid #eef0f2; }
+  .hs-row{ display:flex; justify-content:space-between; gap:14px; padding:9px 12px; cursor:pointer; border-bottom:1px solid #f4f5f7; }
+  .hs-row:last-child{ border-bottom:0; }
+  .hs-row.on, .hs-row:hover{ background:#eef4ff; }
+  .hs-main{ min-width:0; } .hs-main b{ display:block; color:#1f2933; }
+  .hs-sub{ display:block; color:#6b7280; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hs-price{ text-align:right; white-space:nowrap; } .hs-price b{ color:#1f2933; }
+  .hs-best{ color:#15803d; }
+  .hs-none{ padding:12px; color:#6b7280; }
+  .hs-foot{ padding:8px 12px; font-size:12px; color:#6b7280; border-top:1px solid #eef0f2; background:#fafbfc; }
+  .hs-foot a{ color:#2f6fed; text-decoration:none; font-weight:600; }
+  .btn-soft{background:#eef4ff;border-color:#c7d7fb;color:var(--accent-dark)}
+  .btn-soft:hover{background:#e0ebff}
+  .tool-btn{position:absolute;right:0;top:-8px;padding:6px 12px;font-size:12px;text-transform:none;letter-spacing:0}
+  .tb-label{font-size:12px;font-weight:700;color:#6b7280;margin-right:4px}
+  .sign-hint{font-size:12.5px;color:#6b7280;margin-bottom:10px}
   .btn-outline{background:#fff;border-color:var(--accent);color:var(--accent)}
   .btn-outline:hover{background:#eef4ff}
   .sign-choice{padding:14px 0;font-size:14px;min-width:160px;margin:0 5px}
@@ -416,30 +434,20 @@
       <div class="sub" id="phSub">Fill in the form, then choose how people will sign</div>
     </div>
     <div class="btns" id="phDraftBtns">
-      <button type="button" onclick="openDraftsModal()">My Drafts</button>
-      <button type="button" onclick="saveForm()">Save Draft</button>
+      <button type="button" onclick="openDraftsModal()" title="Open a form you saved earlier">My Drafts</button>
+      <button type="button" onclick="newForm()" title="Clear the form and start a new requisition">New</button>
+      <button type="button" onclick="duplicateForm()" title="Create a fresh, unsaved copy of this form">Duplicate</button>
+      <button type="button" class="btn-soft" onclick="saveForm()" title="Save what you have so far and finish later">Save Draft</button>
     </div>
   </div>
 
   <div class="action-toolbar">
+    <span class="tb-label">Export this form</span>
     <div class="btn-group">
-      <button onclick="newForm()">New</button>
-      <button onclick="duplicateForm()" title="Create a fresh, unsaved copy of this form">⧉ Duplicate Form</button>
-    </div>
-    <div class="divider"></div>
-    <div class="btn-group">
+      <button onclick="exportPDF()">Export PDF</button>
       <button onclick="exportCSV()">Export CSV</button>
-      <button class="primary" onclick="exportPDF()">Export PDF</button>
-    </div>
-
-    <div class="divider"></div>
-    <div class="btn-group">
-      <button onclick="openCurrencyModal()">💱 Currency Converter</button>
-    </div>
-    <div class="divider"></div>
-    <div class="btn-group">
       <button onclick="window.print()">Print</button>
-      <button onclick="shareFile()">Share</button>
+      <button onclick="shareFile()" title="Send the PDF through your device's share menu">Share</button>
     </div>
   </div>
 
@@ -472,7 +480,7 @@
       </div>
     </div>
 
-    <div class="section-title">Materials</div>
+    <div class="section-title" style="position:relative">Materials<button type="button" class="tool-btn" onclick="openCurrencyModal()" title="Convert a price from another currency">Currency converter</button></div>
     <div class="items-wrap">
       <table id="itemsTable">
         <thead>
@@ -519,6 +527,7 @@
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:24px">
+        <div class="sign-hint" id="signHint">When it's ready, choose how people will sign:</div>
         <button class="primary sign-choice" id="submitBtn" onclick="submitToDashboard()" title="Save this MRF to the tracker and get one link where approvers sign with their PIN">PIN Sign</button>
         <button class="btn-outline sign-choice" id="eSignBtn" onclick="copyESignLink()" title="Save this MRF to the tracker and get one link where approvers draw their signature on the PDF form">PDF Sign</button>
       </div>
@@ -587,6 +596,9 @@
 
 <script src="dates.js"></script>
 <script src="appbar.js"></script>
+<script src="supplier.js"></script>
+<script src="itemmatch.js"></script>
+<script src="history.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -1060,6 +1072,79 @@ function newForm(){
   setStatus("New blank requisition created.");
 }
 
+// ---- item name box: pick from what we've bought before ----
+(function initItemSuggest(){
+  const menu = document.createElement("div");
+  menu.className = "hs-menu"; menu.setAttribute("role","listbox"); menu.style.display = "none";
+  document.body.appendChild(menu);
+  let active = null, items = [], sel = -1;
+  const money = n => "$ " + Number(n||0).toFixed(2);
+  const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+  function position(){
+    if(!active) return;
+    const r = active.getBoundingClientRect(), w = Math.min(Math.max(r.width, 480), window.innerWidth-16);
+    menu.style.width = w+"px";
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth-w-8))+"px";
+    const below = window.innerHeight - r.bottom - 12;
+    if(below < 200 && r.top > below){ menu.style.top = "auto"; menu.style.bottom = (window.innerHeight - r.top + 4)+"px"; menu.style.maxHeight = Math.min(340, r.top-12)+"px"; }
+    else { menu.style.bottom = "auto"; menu.style.top = (r.bottom+4)+"px"; menu.style.maxHeight = Math.min(340, below)+"px"; }
+  }
+  function render(){
+    const typed = active ? active.value.trim() : "";
+    if(!PurchaseHistory.count()){ menu.style.display="none"; return; }
+    let html = "";
+    if(items.length){
+      html += `<div class="hs-head">${typed ? "Bought before — pick one to fill in the price and link" : "Items we've bought before"}</div>`;
+      html += items.map((g,i)=>{
+        const cheaper = g.best && g.best.unit>0 && g.last.unit>0 && g.best.unit < g.last.unit-0.005;
+        return `<div class="hs-row ${i===sel?"on":""}" data-i="${i}" role="option">
+          <div class="hs-main"><b>${esc(g.name)}</b><span class="hs-sub">${esc(g.last.desc||"")}${g.last.desc?" · ":""}bought ${g.times}×</span></div>
+          <div class="hs-price"><b>${money(g.last.unit)}</b><span class="hs-sub">${esc(g.last.supplier)}${g.last.date?" · "+esc(fmtDMY(g.last.date)):""}</span>${cheaper?`<span class="hs-sub hs-best">cheapest ${money(g.best.unit)} · ${esc(g.best.supplier)}</span>`:""}</div></div>`;
+      }).join("");
+    } else if(typed.length>=2){
+      html += `<div class="hs-none">Nothing like “${esc(typed)}” in the purchase history — just type your own item.</div>`;
+    } else { menu.style.display="none"; return; }
+    html += `<div class="hs-foot">↑↓ to choose, Enter to select · <a href="items.html" target="_blank" rel="noopener">Open Purchase History</a></div>`;
+    menu.innerHTML = html; menu.style.display = "block"; position();
+  }
+  async function open(input){
+    active = input;
+    await PurchaseHistory.load(supabaseClient, requesterId, requesterPin);
+    if(active !== input) return;
+    update();
+  }
+  function update(){ if(!active) return; items = PurchaseHistory.suggest(active.value, 8); sel = -1; render(); }
+  function close(){ menu.style.display = "none"; active = null; }
+  function pick(i){
+    const g = items[i]; if(!g || !active) return;
+    const tr = active.closest("tr"), L = g.last;
+    const put = (selector, val, onlyIfEmpty)=>{ const el = tr.querySelector(selector); if(!el) return; if(onlyIfEmpty && el.value) return; el.value = val; };
+    active.value = g.name;
+    put(".r-desc", L.desc||"", true);
+    put(".r-qty", L.qty||1, true);
+    put(".r-price", L.unit>0 ? L.unit : "");
+    put(".r-link", L.link||"");
+    recalc();
+    close();
+    setStatus("Filled in from your purchase history — check the quantity and price.");
+  }
+  document.addEventListener("focusin", e=>{ if(e.target.classList && e.target.classList.contains("r-name")) open(e.target); });
+  document.addEventListener("click", e=>{ if(e.target.classList && e.target.classList.contains("r-name") && active!==e.target) open(e.target); });
+  document.addEventListener("input", e=>{ if(active && e.target===active) update(); });
+  document.addEventListener("keydown", e=>{
+    if(!active || menu.style.display==="none") return;
+    if(e.key==="ArrowDown"){ e.preventDefault(); sel = Math.min(items.length-1, sel+1); render(); const on = menu.querySelector(".hs-row.on"); if(on) on.scrollIntoView({block:"nearest"}); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); sel = Math.max(0, sel-1); render(); const on = menu.querySelector(".hs-row.on"); if(on) on.scrollIntoView({block:"nearest"}); }
+    else if(e.key==="Enter" && sel>=0){ e.preventDefault(); pick(sel); }
+    else if(e.key==="Escape"){ menu.style.display="none"; }
+  });
+  menu.addEventListener("mousedown", e=>{ e.preventDefault(); const row = e.target.closest("[data-i]"); if(row) pick(Number(row.dataset.i)); });
+  document.addEventListener("mousedown", e=>{ if(active && e.target!==active && !menu.contains(e.target)) close(); });
+  window.addEventListener("resize", position);
+  window.addEventListener("scroll", position, true);
+})();
+
 // ?reorder=1 — items picked on the Purchase History page arrive via localStorage
 function loadReorder(){
   let list = [];
@@ -1112,8 +1197,7 @@ async function loadForAdminEdit(requisitionId){
   document.getElementById("phDraftBtns").style.display = "none";
   document.getElementById("phTitle").textContent = "Edit requisition " + (req.tracking_no||"");
   document.getElementById("phSub").textContent = "Admin edit — change what's needed, then save";
-  const firstGroup = tb.querySelector(".btn-group");
-  if(firstGroup){ const sep = firstGroup.nextElementSibling; firstGroup.style.display = "none"; if(sep && sep.classList.contains("divider")) sep.style.display = "none"; }
+  document.getElementById("signHint").style.display = "none";
   const saveBtn = document.getElementById("submitBtn");
   saveBtn.textContent = "Save Changes";
   const eBtn = document.getElementById("eSignBtn");

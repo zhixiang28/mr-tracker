@@ -30,7 +30,8 @@
   .pagehead .btns button, .pagehead .btns a.btn{ padding:10px 16px; }
   /* "what's new" notice */
   .wn-back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; padding:18px; z-index:1000; font-family:inherit; }
-  .wn-box{ background:var(--surface,#fff); color:var(--ink,#1f2933); border-radius:16px; max-width:520px; width:100%; max-height:92vh; overflow:auto; padding:24px 26px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .wn-box{ background:var(--surface,#fff); color:var(--ink,#1f2933); border-radius:16px; max-width:520px; width:100%; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .wn-body{ overflow:auto; padding:24px 26px 6px; }
   .wn-box h2{ margin:0 0 4px; font-size:20px; letter-spacing:-.3px; }
   .wn-box .wn-sub{ color:var(--muted,#6b7280); font-size:13px; margin-bottom:14px; }
   .wn-box ul{ list-style:none; margin:0 0 16px; padding:0; }
@@ -39,7 +40,7 @@
   .wn-box li b{ display:block; font-size:13.5px; }
   .wn-box li span.t{ color:var(--muted,#6b7280); font-size:12.5px; }
   .wn-dot{ flex:none; width:8px; height:8px; border-radius:50%; background:#2f6fed; margin-top:6px; }
-  .wn-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .wn-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 26px 18px; border-top:1px solid var(--line,#d7dbe0); }
   .wn-foot label{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink,#1f2933); cursor:pointer; }
   .wn-foot button{ font:inherit; font-size:13px; font-weight:700; padding:10px 22px; border-radius:8px; border:1px solid #2f6fed; background:#2f6fed; color:#fff; cursor:pointer; }
   .wn-foot button:hover{ background:#2050bd; }
@@ -74,6 +75,7 @@
           <button class="ab-userbtn" data-act="menu" aria-haspopup="true"><span class="ab-avatar">${esc((name||"?").trim().charAt(0).toUpperCase())}</span><span>${esc(name)}</span>${state.isAdmin?'<span class="ab-role">Admin</span>':""} ▾</button>
           <div class="ab-menu" id="abMenu">
             <button data-act="profile">My Profile</button>
+            <button data-act="pin">Change PIN</button>
             <button data-act="reminders">Reminder Settings</button>
             <hr>
             <a href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -101,6 +103,7 @@
       if(act==="logout") logout();
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="profile") (o.onProfile || (()=>go("dashboard.html?open=profile", o.newTab)))();
+      else if(act==="pin") (o.onPin || (()=>go("dashboard.html?open=pin", o.newTab)))();
       else if(act==="reminders") (o.onReminders || (()=>go("dashboard.html?open=reminders", o.newTab)))();
     });
     document.addEventListener("click", ()=>{ const m=document.getElementById("abMenu"); if(m) m.classList.remove("open"); });
@@ -111,14 +114,16 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const NOTICE_ID = "upgrade-2026-10";
+  const NOTICE_ID = "upgrade-2026-10b";
   const NOTICE = [
-    ["Same layout on every page", "One header with Dashboard, Purchase History and Analytics, and your name menu at the top right (profile, reminders, log out)."],
+    ["Same layout on every page", "One header with Dashboard, Purchase History and Analytics, and your name menu at the top right. Buttons that belong together now sit together on every page."],
+    ["Pick items you've bought before", "On the requisition form, click the Item box and choose from past purchases. The price and product link are filled in for you, and you can see the cheapest price paid before."],
+    ["Purchase History (new)", "Search for an item and see what we paid, which supplier, and when. Tick items to add them to a new requisition. Similar item names are matched automatically, and you can combine or separate them."],
     ["Dashboard: organise it your way", "Group requisitions by status, stage, project, requester or month. The headings stay in view as you scroll, and the blue REQ number opens the full form."],
     ["One link to sign", "PIN Sign and the new PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form, and you can track it on the dashboard."],
-    ["Purchase History (new)", "Find items we've bought before with the price, supplier and date, then add them to a new requisition in one click. Similar names are matched automatically."],
     ["Analytics (new)", "Spending, approval speed and price insights. You see your own requisitions; admins see everything."],
-    ["Smaller improvements", "Dates now show as dd/mm/yyyy, the form can remember your projects, and CSV exports open correctly in Excel with Chinese text."]
+    ["Account settings", "My Profile and Change PIN are now one tidy window under your name, with live checks so you can't mistype a PIN."],
+    ["Smaller improvements", "Dates show as dd/mm/yyyy, the form can remember your projects, and CSV exports open correctly in Excel with Chinese text."]
   ];
   function showNotice(){
     try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){}
@@ -126,9 +131,11 @@
     const back = document.createElement("div"); back.className="wn-back"; back.id="wnBack";
     back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","What's new");
     back.innerHTML = `<div class="wn-box">
-      <h2>The system has been upgraded</h2>
-      <div class="wn-sub">Here's what's new for you:</div>
-      <ul>${NOTICE.map(n=>`<li><span class="wn-dot"></span><div><b>${esc(n[0])}</b><span class="t">${esc(n[1])}</span></div></li>`).join("")}</ul>
+      <div class="wn-body">
+        <h2>The system has been upgraded</h2>
+        <div class="wn-sub">Here's what's new for you:</div>
+        <ul>${NOTICE.map(n=>`<li><span class="wn-dot"></span><div><b>${esc(n[0])}</b><span class="t">${esc(n[1])}</span></div></li>`).join("")}</ul>
+      </div>
       <div class="wn-foot"><label><input type="checkbox" id="wnDont" checked> Don't show this again</label><button type="button" id="wnOk">Got it</button></div>
     </div>`;
     const close = ()=>{
@@ -140,7 +147,7 @@
     back.querySelector("#wnOk").addEventListener("click", close);
     document.addEventListener("keydown", onKey);
     document.body.appendChild(back);
-    back.querySelector("#wnOk").focus();
+    back.querySelector("#wnOk").focus({preventScroll:true});
   }
 
   function setAdmin(v){
