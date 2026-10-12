@@ -101,6 +101,9 @@
   tbody td{ padding:12px 14px; border-bottom:1px solid #eef0f2; vertical-align:middle; }
   tbody tr.req-row:hover{ background:#fafcff; cursor:pointer; }
   .tracking{ font-weight:700; color:var(--accent-dark); }
+  .open-cell{ text-align:right; white-space:nowrap; }
+  .open-btn{ display:inline-block; font-size:12px; font-weight:600; color:var(--accent); text-decoration:none; border:1px solid #c7d7fb; background:#fff; border-radius:7px; padding:6px 11px; }
+  .open-btn:hover{ background:#eef4ff; border-color:var(--accent); }
   .proj{ font-weight:600; }
   .muted{ color:var(--muted); font-size:12px; }
   .pill{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:11.5px; font-weight:700; color:#fff; white-space:nowrap; }
@@ -206,6 +209,7 @@
           <th class="sortable" data-sort="form_date" onclick="setSort('form_date')">Date <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="grand_total" onclick="setSort('grand_total')">Grand Total <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="status" onclick="setSort('status')">Stage <span class="sort-arrow"></span></th>
+          <th style="width:96px"></th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -547,11 +551,12 @@ function render(){
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
+        <td class="open-cell"><a class="open-btn" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">Open form</a></td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
     const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !["Purchased","Received","Withdrawn"].includes(r.status);
     const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="8"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   }).join("");
 }
