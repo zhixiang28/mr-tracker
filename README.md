@@ -65,3 +65,7 @@ For a transition period where approvers sign on the PDF form instead of using PI
 Notes: there is no PIN on this page, so anyone holding the link can sign the next open slot. Only share it with the intended signers. Signing is strictly in order. The database part is in `esign-pdf-upgrade.sql` (already applied to the live project).
 
 `esign-hardening.sql` (run after `esign-pdf-upgrade.sql`) tightens `sign_step`, `decline_step` and `requester_resubmit`: a withdrawn/declined requisition can't be signed through an already-claimed link, and resubmitting clears drawn signatures and typed-only names.
+
+## Analytics page (`analytics.html`)
+
+Charts for the requisitions you can see (all of them for admins): total value, counts by stage, value by week/month, average time per approval step (slowest highlighted), value by project, top materials, and (admins) requisitions by requester. A period filter at the top scopes everything; every chart has a "View as table" and hover/keyboard tooltips. Open it from the **Analytics** button in the dashboard header. It supports the browser's dark mode.

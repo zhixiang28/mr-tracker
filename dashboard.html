@@ -95,12 +95,20 @@
   .toolbar2 input[type=text]{ flex:1; min-width:200px; }
   .count-note{ font-size:12px; color:var(--muted); margin-left:auto; }
 
-  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; }
+  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:visible; overflow:clip; }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfc; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfc; position:sticky; top:0; z-index:3; box-shadow:0 1px 0 var(--line); }
+  thead th:first-child{ border-top-left-radius:14px; } thead th:last-child{ border-top-right-radius:14px; }
   tbody td{ padding:12px 14px; border-bottom:1px solid #eef0f2; vertical-align:middle; }
   tbody tr.req-row:hover{ background:#fafcff; cursor:pointer; }
   .tracking{ font-weight:700; color:var(--accent-dark); }
+  tr.group-row td{ padding:10px 14px; background:#f4f6fa; border-bottom:1px solid var(--line); font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); cursor:pointer; user-select:none; }
+  tr.group-row:hover td{ background:#eef2f8; }
+  tr.group-row .g-count{ margin-left:6px; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  tr.group-row.needs td{ background:#fff7e6; color:#92400e; border-left:3px solid #f59e0b; }
+  tr.group-row.needs .g-count{ background:#fde7b0; color:#92400e; }
+  tr.group-row .g-chev{ display:inline-block; width:14px; transition:transform .15s; }
+  tr.group-row.closed-grp .g-chev{ transform:rotate(-90deg); }
   .open-cell{ text-align:right; white-space:nowrap; }
   .open-btn{ display:inline-block; font-size:12px; font-weight:600; color:var(--accent); text-decoration:none; border:1px solid #c7d7fb; background:#fff; border-radius:7px; padding:6px 11px; }
   .open-btn:hover{ background:#eef4ff; border-color:var(--accent); }
@@ -165,6 +173,7 @@
     <div class="header-actions">
       <span class="mode-badge personal" id="modeBadge">Loading...</span>
       <button class="header-icon-btn" onclick="loadData()">↻ Refresh</button>
+      <a href="analytics.html"><button type="button" class="header-btn">Analytics</button></a>
       <a href="admin.html" id="adminSettingsLink" style="display:none"><button type="button" class="header-btn">Admin Settings</button></a>
       <div class="header-divider"></div>
       <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">Manual</button>
@@ -545,7 +554,21 @@ function render(){
   document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
-  tbody.innerHTML = filtered.map(r=>{
+  const needIds = new Set(computeStats().attention.map(x=>x.r.id));
+  const GROUPS = [
+    {key:"needs",   label:"Needs action", test:r=>needIds.has(r.id)},
+    {key:"active",  label:"In progress",  test:r=>["Submitted","Manager Approved","Procurement Approved","Purchased"].includes(r.status)},
+    {key:"done",    label:"Completed",    test:r=>r.status==="Received"},
+    {key:"closed",  label:"Declined / withdrawn", test:r=>["Declined","Withdrawn"].includes(r.status)}
+  ];
+  const placed = new Set();
+  const grouped = GROUPS.map(g=>{
+    const rows = filtered.filter(r=>!placed.has(r.id) && g.test(r));
+    rows.forEach(r=>placed.add(r.id));
+    return {...g, rows};
+  }).filter(g=>g.rows.length);
+
+  const renderRow = r=>{
     const isOpen = openRows.has(r.id);
     const mainRow = `
       <tr class="req-row" onclick="toggleRow('${r.id}')">
@@ -561,7 +584,20 @@ function render(){
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="8"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
+  };
+
+  tbody.innerHTML = grouped.map(g=>{
+    const collapsed = collapsedGroups.has(g.key);
+    const head = `<tr class="group-row ${g.key==="needs"?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${g.key}')">
+      <td colspan="8"><span class="g-chev">▾</span>${g.label}<span class="g-count">${g.rows.length}</span></td></tr>`;
+    return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
+}
+
+const collapsedGroups = new Set();
+function toggleGroup(key){
+  if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
+  render();
 }
 
 const STEP_SHORT = {1:"Manager", 2:"Approve", 3:"Purchase", 4:"Received"};
