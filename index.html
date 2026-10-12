@@ -426,10 +426,7 @@
       <button onclick="exportCSV()">Export CSV</button>
       <button class="primary" onclick="exportPDF()">Export PDF</button>
     </div>
-    <div class="divider"></div>
-    <div class="btn-group">
-      <button onclick="copyESignLink()" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ Copy E-Sign Link</button>
-    </div>
+
     <div class="divider"></div>
     <div class="btn-group">
       <button onclick="openCurrencyModal()">💱 Currency Converter</button>
@@ -510,6 +507,7 @@
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:24px">
         <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px">Submit</button>
+        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF E-Sign Link</button>
       </div>
       <div class="status" id="status"></div>
     </div>
@@ -1045,6 +1043,19 @@ async function submitToDashboard(){
 }
 
 // Hybrid mode: save the MRF in the tracker, but collect signatures on the drawn-signature PDF page (esign.html)
+// Clipboard write that also works without the async Clipboard API / after an await
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }catch(_){}
+  try{
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }catch(_){ return false; }
+}
+
 async function copyESignLink(){
   if(!supabaseClient){ setStatus("Supabase isn't configured yet."); return; }
   if(!requesterId || !requesterPin){
@@ -1080,12 +1091,11 @@ async function copyESignLink(){
 
     const link = new URL("esign.html", window.location.href);
     link.searchParams.set("token", data.first_token);
-    let copied = false;
-    try{ await navigator.clipboard.writeText(link.toString()); copied = true; }catch(_){}
+    const copied = await copyText(link.toString());
 
     document.getElementById("submitResultTitle").textContent = `Saved — ${data.tracking_no}`;
     document.getElementById("submitResultBody").innerHTML = `
-      <p>${copied ? "The e-sign link has been copied." : "Copy the e-sign link below."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
+      <p>${copied ? "The e-sign link has been copied to your clipboard." : "Tap <b>Copy</b> to copy the e-sign link."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
       <div class="link-copy-box">
         <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
         <button type="button" onclick="copySignLink()">Copy</button>
@@ -1156,10 +1166,11 @@ async function emailTheLink(link, roleName, inputId, statusId){
     statusEl.textContent = result.success ? "Sent!" : (result.error || "Could not send.");
   }catch(e){ statusEl.textContent = "Could not send — check the address and try again."; }
 }
-function copySignLink(){
+async function copySignLink(){
   const inp=document.getElementById("firstSignLinkInput");
-  inp.select(); document.execCommand("copy");
-  setStatus("Link copied.");
+  inp.select();
+  const ok = await copyText(inp.value);
+  setStatus(ok ? "Link copied." : "Couldn't copy automatically — the link is selected, press Ctrl+C / long-press to copy.");
 }
 function closeSubmitResultModal(){
   document.getElementById("submitResultModal").style.display="none";
