@@ -453,7 +453,7 @@
     </div>
 
     <div class="section-title">Project Details</div>
-    <div class="no-print" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">
+    <div class="no-print" id="presetRow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">
       <label for="presetSelect" style="font-weight:600;color:#4b5563">Saved projects:</label>
       <select id="presetSelect" onchange="applyPreset()" style="padding:6px 8px;border:1px solid #d7dbe0;border-radius:6px;font:inherit;max-width:320px"></select>
       <button type="button" onclick="savePreset()" title="Remember the project name, location, PC no. and PM for next time on this device">Save project details</button>
@@ -515,8 +515,8 @@
     </div>
 
     <div class="footer">
-      <div class="section-title">Approval Chain</div>
-      <div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
+      <div class="section-title" id="chainTitle">Approval Chain</div>
+      <div class="muted" id="chainNote" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
         This gets signed off in order — <strong>Team Manager → Procurement Approval → Purchase → Received</strong>. After you submit, copy the link and send it to the Team Manager. It is one link for the whole chain — after each signature it opens on the next person's turn, so just keep forwarding the same link.
       </div>
 
@@ -1093,9 +1093,18 @@ async function loadForAdminEdit(requisitionId){
   banner.innerHTML = `<strong>Admin edit — ${escHtml(req.tracking_no)}</strong> (${escHtml(req.status)}). Change what's needed below, then click <b>Save Changes</b>. Signatures already given and the approval chain stay as they are.`;
   document.querySelector(".action-toolbar").insertAdjacentElement("afterend", banner);
 
-  document.getElementById("submitBtn").textContent = "Save Changes";
+  // Edit mode only needs: change the form, Save or Cancel. Hide drafts/new/duplicate and the sign-link choice.
+  const tb = document.querySelector(".action-toolbar");
+  const firstGroup = tb.querySelector(".btn-group");
+  if(firstGroup){ const sep = firstGroup.nextElementSibling; firstGroup.style.display = "none"; if(sep && sep.classList.contains("divider")) sep.style.display = "none"; }
+  const saveBtn = document.getElementById("submitBtn");
+  saveBtn.textContent = "Save Changes";
   const eBtn = document.getElementById("eSignBtn");
-  if(eBtn){ eBtn.style.display = "none"; }
+  eBtn.textContent = "Cancel";
+  eBtn.title = "Leave without saving";
+  eBtn.onclick = ()=>{ window.location.href = "dashboard.html"; };
+  ["presetRow","chainTitle","chainNote"].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display="none"; });
+  const hint = document.querySelector(".hint"); if(hint) hint.style.display = "none";
   setStatus("Loaded for admin edit.");
 }
 

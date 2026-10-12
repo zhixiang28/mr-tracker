@@ -136,7 +136,6 @@
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
-  .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -515,7 +514,7 @@ function render(){
         <td>${renderProgressCell(r)}</td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const canWithdraw = r.requester_person_id===myId && !["Purchased","Received","Withdrawn"].includes(r.status);
+    const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !["Purchased","Received","Withdrawn"].includes(r.status);
     const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
@@ -590,7 +589,7 @@ function renderTimelineBlock(r){
     let metaLine="";
     if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.signed_at)}` +
       (s.signed_via==="esign" ? ` · PDF signature${s.signature_data?` <img src="${escapeHtml(s.signature_data)}" alt="signature" style="height:22px;vertical-align:middle;margin-left:6px;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}` : "");
-    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.declined_at)}`;
+    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(r.declined_by||s.assigned_person_name)} · ${fmtDateTime(s.declined_at)}`;
     else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
     else metaLine = `Waiting`;
 
@@ -660,31 +659,21 @@ function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
   return `
     <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
-      <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(declinedStep?.assigned_person_name||"")}</div>
+      <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(r.declined_by||declinedStep?.assigned_person_name||"")}</div>
       <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
       <a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Edit &amp; Resubmit in Full Form →</button></a>
     </div>`;
 }
 
 function renderAdminPanel(r){
-  const stageOptionsForReassign = (steps)=>steps.map(s=>`
-    <div class="reassign-row">
-      <select id="reassign-person-${s.id}" style="flex:1">
-        <option value="">Reassign ${escapeHtml(s.stage_name)} to...</option>
-        ${peopleForAdmin.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("")}
-      </select>
-      <button onclick="event.stopPropagation();adminReassign('${s.id}')">Set</button>
-    </div>`).join("");
-
   return `
     <div class="admin-panel" onclick="event.stopPropagation()">
       <div class="admin-panel-title">Admin</div>
       <div class="row" style="display:flex;gap:6px">
         <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">Edit in form</button></a>
+        ${["Declined","Purchased","Received","Withdrawn"].includes(r.status) ? "" : `<button class="danger" onclick="adminReject('${r.id}')">Reject</button>`}
         <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
       </div>
-      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:12px 0 4px">Reassign a step's signer</div>
-      ${stageOptionsForReassign((r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order))}
       <div class="sign-error" id="admin-err-${r.id}"></div>
     </div>`;
 }
@@ -692,10 +681,23 @@ function renderAdminPanel(r){
 
 async function withdrawRequisition(reqId){
   if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
-  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
+  const req = allReqs.find(x=>x.id===reqId);
+  const asAdmin = iAmAdmin && !(req && req.requester_person_id===myId);
+  const {data, error} = asAdmin
+    ? await supabaseClient.rpc("admin_withdraw_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId})
+    : await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadData();
   setStatus("Requisition withdrawn.");
+}
+
+async function adminReject(reqId){
+  const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
+  if(!reason) return;
+  const {data, error} = await supabaseClient.rpc("admin_reject_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_reason: reason});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
+  await loadData();
+  setStatus("Requisition rejected.");
 }
 
 async function adminDelete(reqId){
@@ -707,15 +709,6 @@ async function adminDelete(reqId){
   await loadData();
 }
 
-async function adminReassign(stepId){
-  const sel = document.getElementById("reassign-person-"+stepId);
-  const newPersonId = sel.value;
-  if(!newPersonId) return;
-  const {data, error} = await supabaseClient.rpc("admin_reassign_step", {p_admin_id: myId, p_admin_pin: myPin, p_step_id: stepId, p_new_person_id: newPersonId});
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reassign."); return; }
-  setStatus(`Reassigned to ${data.name}.`);
-  await loadData();
-}
 
 async function openProfileModal(){
   document.getElementById("profileModal").style.display="flex";
