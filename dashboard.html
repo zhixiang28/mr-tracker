@@ -95,6 +95,7 @@
   tr.group-row .g-count{ margin-left:6px; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
   tr.group-row.needs td{ background:#fff7e6; color:#92400e; border-left:3px solid #f59e0b; }
   tr.group-row.needs .g-count{ background:#fde7b0; color:#92400e; }
+  tr.group-row .g-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; vertical-align:middle; }
   tr.group-row .g-chev{ display:inline-block; width:14px; transition:transform .15s; }
   tr.group-row.closed-grp .g-chev{ transform:rotate(-90deg); }
   .proj{ font-weight:600; }
@@ -182,6 +183,10 @@
   .kcol{ background:#f4f6fa; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; min-width:0; }
   .kcol-h{ display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); padding:2px 4px 4px; }
   .kcol-h i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .kcol-h{ cursor:pointer; user-select:none; }
+  .kcol-h .kc-chev{ color:var(--muted); }
+  .kcol-fold{ cursor:pointer; }
+  .kcol-fold:hover{ background:#eef2f8; }
   .kcol-h .g-count{ margin-left:auto; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
   .kcol.kcol-empty{ padding:10px 0; align-items:center; background:#f8f9fc; }
   .kcol-empty span{ writing-mode:vertical-rl; font-size:11px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
@@ -620,6 +625,17 @@ function monthLabel(r){
 }
 function monthSort(r){ const d = new Date(r.form_date || r.created_at || 0); return isNaN(d) ? 0 : d.getFullYear()*100 + d.getMonth(); }
 
+const GROUP_PALETTE = ["#3b82f6","#8b5cf6","#14b8a6","#f59e0b","#ec4899","#22c55e","#06b6d4","#f97316","#6366f1","#84cc16"];
+function groupDotColor(g){
+  const k = g.key||"";
+  if(k.startsWith("stage:")){ const v = STAGE_VARS[k.slice(6)]; if(v) return `var(${v})`; }
+  if(k==="status:needs") return "#f59e0b";
+  if(k==="status:active") return "#3b82f6";
+  if(k==="status:done") return "#16a34a";
+  if(k==="status:closed") return "#94a3b8";
+  let h=0; for(const c of (g.label||"")) h=(h*31+c.charCodeAt(0))>>>0;
+  return GROUP_PALETTE[h%GROUP_PALETTE.length];
+}
 function buildGroups(list, needIds){
   const by = (keyFn, order)=>{
     const m = new Map();
@@ -708,11 +724,13 @@ function render(){
   const groups = buildGroups(filtered, needIds);
   if(cardsMode){
     if(!allReqs.length){ return; }
-    cardWrap.style.gridTemplateColumns = STAGES.map(st=>filtered.some(r=>r.status===st) ? "minmax(210px,1fr)" : "44px").join(" ");
+    const colOpen = st=>filtered.some(r=>r.status===st) && !collapsedGroups.has("col:"+st);
+    cardWrap.style.gridTemplateColumns = STAGES.map(st=>colOpen(st) ? "minmax(210px,1fr)" : "44px").join(" ");
     cardWrap.innerHTML = STAGES.map(st=>{
       const rows = filtered.filter(r=>r.status===st);
       if(!rows.length) return `<div class="kcol kcol-empty" title="${escapeHtml(st)}: none"><span><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)} · 0</span></div>`;
-      return `<div class="kcol"><div class="kcol-h"><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)}<span class="g-count">${rows.length}</span></div>${rows.map(renderCard).join("")}</div>`;
+      if(collapsedGroups.has("col:"+st)) return `<div class="kcol kcol-empty kcol-fold" title="Click to expand ${escapeHtml(st)}" onclick="toggleGroup('col:${st}')"><span><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)} · ${rows.length}</span></div>`;
+      return `<div class="kcol"><div class="kcol-h" onclick="toggleGroup('col:${st}')" title="Click to collapse"><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)}<span class="g-count">${rows.length}</span><span class="kc-chev">▾</span></div>${rows.map(renderCard).join("")}</div>`;
     }).join("");
     return;
   }
@@ -724,7 +742,7 @@ function render(){
     if(g.flat) return g.rows.map(renderRow).join("");
     const collapsed = collapsedGroups.has(g.key);
     const head = `<tr class="group-row ${g.needs&&g.rows.length?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">
-      <td colspan="6"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
+      <td colspan="6"><span class="g-chev">▾</span><i class="g-dot" style="background:${groupDotColor(g)}"></i>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
     return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
 }
