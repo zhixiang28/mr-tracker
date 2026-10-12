@@ -90,3 +90,33 @@ end;
 $$;
 revoke all on function admin_save_project(uuid, text, uuid, text, text, text, text, boolean) from public;
 grant execute on function admin_save_project(uuid, text, uuid, text, text, text, text, boolean) to anon, authenticated;
+
+-- Any signed-in person can add a project (editing/archiving stays admin-only). Already applied to the live project.
+create or replace function add_project(p_person_id uuid, p_pin text, p_name text, p_location text, p_pc_no text, p_pm text)
+returns json
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_id uuid;
+  v_name text := left(trim(coalesce(p_name,'')), 200);
+  v_pc text := nullif(left(trim(coalesce(p_pc_no,'')), 80), '');
+begin
+  if not verify_pin(p_person_id, p_pin) then
+    return json_build_object('success', false, 'error', 'Incorrect PIN.');
+  end if;
+  if v_name = '' then
+    return json_build_object('success', false, 'error', 'Project name is required.');
+  end if;
+  if exists (select 1 from projects where lower(name) = lower(v_name) and coalesce(lower(pc_no),'') = coalesce(lower(v_pc),'')) then
+    return json_build_object('success', false, 'error', 'This project is already in the list.');
+  end if;
+  insert into projects(name, location, pc_no, pm_incharge, active, created_by)
+  values (v_name, nullif(left(trim(coalesce(p_location,'')), 200), ''), v_pc, nullif(left(trim(coalesce(p_pm,'')), 120), ''), true, p_person_id)
+  returning id into v_id;
+  return json_build_object('success', true, 'id', v_id);
+end;
+$$;
+revoke all on function add_project(uuid, text, text, text, text, text) from public;
+grant execute on function add_project(uuid, text, text, text, text, text) to anon, authenticated;
