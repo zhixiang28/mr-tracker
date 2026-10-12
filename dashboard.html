@@ -141,6 +141,30 @@
   .link-tools button{ font-size:10.5px; padding:4px 8px; }
   .link-copy-box{ display:flex; gap:6px; margin-top:6px; background:#f4f6f8; border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
   .link-copy-box input{ flex:1; border:0; background:transparent; font-size:11px; padding:0; }
+  /* ---- account settings window ---- */
+  .acct-back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:center; justify-content:center; padding:18px; z-index:999; }
+  .acct{ background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:94vh; overflow:auto; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .acct-head{ display:flex; align-items:center; gap:14px; padding:22px 24px 14px; }
+  .acct-av{ width:46px; height:46px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:800; flex:none; }
+  .acct-head h3{ margin:0; font-size:17px; } .acct-head .who{ font-size:13px; color:var(--muted); margin-top:1px; }
+  .acct-x{ margin-left:auto; border:0 !important; background:none !important; font-size:22px; line-height:1; color:var(--muted); padding:4px 8px !important; }
+  .acct-tabs{ display:flex; gap:4px; padding:0 24px; border-bottom:1px solid var(--line); }
+  .acct-tab{ border:0 !important; background:none !important; border-radius:0 !important; padding:10px 12px !important; font-size:13px; font-weight:700; color:var(--muted); border-bottom:2px solid transparent !important; margin-bottom:-1px; }
+  .acct-tab[aria-selected="true"]{ color:var(--accent-dark); border-bottom-color:var(--accent) !important; }
+  .acct-pane{ padding:18px 24px 22px; }
+  .acct-pane label{ display:block; font-size:12px; font-weight:700; color:var(--ink); margin:14px 0 5px; }
+  .acct-pane label:first-child{ margin-top:0; }
+  .acct-pane label .opt{ font-weight:500; color:var(--muted); }
+  .acct-pane input{ width:100%; padding:10px 12px; }
+  .acct-pane input.bad{ border-color:var(--declined); box-shadow:0 0 0 3px rgba(220,38,38,.1); }
+  .acct-pane input[readonly]{ background:#f4f6f8; color:var(--muted); }
+  .fieldnote{ font-size:12px; color:var(--muted); margin-top:5px; min-height:16px; }
+  .fieldnote.err{ color:var(--declined); } .fieldnote.ok{ color:#15803d; }
+  .pinbox{ display:flex; gap:8px; } .pinbox input{ letter-spacing:6px; font-size:16px; text-align:center; }
+  .pin-show{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); margin-top:12px; cursor:pointer; }
+  .acct-foot{ display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:20px; }
+  .acct-msg{ font-size:12.5px; margin-right:auto; }
+  .acct-msg.err{ color:var(--declined); } .acct-msg.ok{ color:#15803d; font-weight:600; }
   .manage-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .manage-bar button{ padding:7px 11px; font-size:12px; }
   .manage-danger{ display:flex; gap:6px; }
@@ -216,35 +240,53 @@
   <div class="status-msg" id="statusMsg"></div>
 </div>
 
-<div class="modal-overlay" id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:20px;z-index:999">
-  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)">
-    <h3 style="margin:0 0 4px">My Profile</h3>
-    <div class="muted" style="font-size:12px;margin-bottom:14px">Optional — helps others know who they're dealing with.</div>
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Name</label>
-    <input id="profileNameDisplay" disabled style="width:100%;box-sizing:border-box;background:#f4f6f8">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Position</label>
-    <input id="profilePosition" placeholder="e.g. Site Engineer" style="width:100%;box-sizing:border-box">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Team / Department</label>
-    <input id="profileDepartment" placeholder="e.g. Operations" style="width:100%;box-sizing:border-box">
-    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Company email</label>
-    <input id="profileEmail" type="email" placeholder="you@company.com" style="width:100%;box-sizing:border-box">
-    <div class="sign-error" id="profileErr" style="margin-top:8px"></div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
-      <button type="button" onclick="closeProfileModal()">Cancel</button>
-      <button type="button" class="primary" onclick="saveProfile()">Save</button>
+<div class="acct-back" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="acctTitle" onclick="if(event.target===this) closeProfileModal()">
+  <div class="acct">
+    <div class="acct-head">
+      <span class="acct-av" id="acctAv">?</span>
+      <div><h3 id="acctTitle">Account settings</h3><div class="who" id="acctWho"></div></div>
+      <button type="button" class="acct-x" onclick="closeProfileModal()" aria-label="Close">×</button>
+    </div>
+    <div class="acct-tabs" role="tablist">
+      <button type="button" class="acct-tab" id="tabProfile" role="tab" aria-selected="true" aria-controls="paneProfile" onclick="acctTab('profile')">Profile</button>
+      <button type="button" class="acct-tab" id="tabSecurity" role="tab" aria-selected="false" aria-controls="paneSecurity" onclick="acctTab('security')">Change PIN</button>
     </div>
 
-    <div style="border-top:1px dashed var(--line);margin-top:18px;padding-top:14px">
-      <div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Change PIN</div>
-      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">Current PIN</label>
-      <input id="pinOld" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
-      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">New PIN</label>
-      <input id="pinNew1" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
-      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:6px 0 4px">Confirm new PIN</label>
-      <input id="pinNew2" type="password" maxlength="4" inputmode="numeric" placeholder="••••" style="width:100%;box-sizing:border-box">
-      <div class="sign-error" id="pinChangeErr" style="margin-top:8px"></div>
-      <button type="button" onclick="changeMyPin()" style="margin-top:10px;width:100%">Update PIN</button>
-    </div>
+    <form class="acct-pane" id="paneProfile" role="tabpanel" aria-labelledby="tabProfile" onsubmit="saveProfile(); return false;" novalidate>
+      <label for="profileNameDisplay">Name</label>
+      <input id="profileNameDisplay" readonly>
+      <div class="fieldnote">Your name is set when you register. Ask an admin if it needs to change.</div>
+      <label for="profilePosition">Position <span class="opt">(optional)</span></label>
+      <input id="profilePosition" placeholder="e.g. Site Engineer" maxlength="80" autocomplete="organization-title" oninput="profileDirty()">
+      <label for="profileDepartment">Team / department <span class="opt">(optional)</span></label>
+      <input id="profileDepartment" placeholder="e.g. Operations" maxlength="80" oninput="profileDirty()">
+      <label for="profileEmail">Company email</label>
+      <input id="profileEmail" type="email" placeholder="you@spacelogic.com.sg" maxlength="120" autocomplete="email" oninput="profileDirty()">
+      <div class="fieldnote" id="profileEmailNote">Used to send you notifications about your requisitions.</div>
+      <div class="acct-foot">
+        <span class="acct-msg" id="profileErr" role="status" aria-live="polite"></span>
+        <button type="button" onclick="closeProfileModal()">Close</button>
+        <button type="submit" class="primary" id="profileSaveBtn" disabled>Save changes</button>
+      </div>
+    </form>
+
+    <form class="acct-pane" id="paneSecurity" role="tabpanel" aria-labelledby="tabSecurity" hidden onsubmit="changeMyPin(); return false;" novalidate>
+      <div class="fieldnote" style="margin:0 0 4px">Your PIN is 4 digits. You'll use the new one to sign in and to approve requisitions.</div>
+      <label for="pinOld">Current PIN</label>
+      <input id="pinOld" type="password" maxlength="4" inputmode="numeric" autocomplete="current-password" placeholder="••••" oninput="pinInput(this)">
+      <label for="pinNew1">New PIN</label>
+      <input id="pinNew1" type="password" maxlength="4" inputmode="numeric" autocomplete="new-password" placeholder="••••" oninput="pinInput(this)">
+      <div class="fieldnote" id="pinStrength"></div>
+      <label for="pinNew2">Confirm new PIN</label>
+      <input id="pinNew2" type="password" maxlength="4" inputmode="numeric" autocomplete="new-password" placeholder="••••" oninput="pinInput(this)">
+      <div class="fieldnote" id="pinMatch"></div>
+      <label class="pin-show"><input type="checkbox" id="pinShow" style="width:auto" onchange="togglePinShow(this.checked)"> Show PINs</label>
+      <div class="acct-foot">
+        <span class="acct-msg" id="pinChangeErr" role="status" aria-live="polite"></span>
+        <button type="button" onclick="closeProfileModal()">Close</button>
+        <button type="submit" class="primary" id="pinSaveBtn" disabled>Update PIN</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -334,13 +376,13 @@ function logout(){
 
 async function showApp(){
   document.getElementById("app").style.display="block";
-  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:openProfileModal, onReminders:openReminderModal});
+  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadPeopleForAdmin();
   await loadMySettings();
   await loadData();
   const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
-  if(open==="profile") openProfileModal(); else if(open==="reminders") openReminderModal();
+  if(open==="profile") openProfileModal(); else if(open==="pin") openProfileModal("security"); else if(open==="reminders") openReminderModal();
 }
 
 async function loadMySettings(){
@@ -775,51 +817,112 @@ async function adminDelete(reqId){
 }
 
 
-async function openProfileModal(){
-  document.getElementById("profileModal").style.display="flex";
-  document.getElementById("profileNameDisplay").value = myName;
-  document.getElementById("profileErr").textContent = "";
+let profileOrig = {position:"", department:"", email:""};
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function openProfileModal(tab){
+  const back = document.getElementById("profileModal");
+  back.style.display = "flex";
+  document.getElementById("acctWho").textContent = myName || "";
+  document.getElementById("acctAv").textContent = (myName||"?").trim().charAt(0).toUpperCase();
+  document.getElementById("profileNameDisplay").value = myName || "";
+  ["profileErr","pinChangeErr"].forEach(id=>{ const el=document.getElementById(id); el.textContent=""; el.className="acct-msg"; });
+  ["pinOld","pinNew1","pinNew2"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("pinShow").checked = false; togglePinShow(false);
+  validatePins();
+  acctTab(tab==="security" ? "security" : "profile");
+  document.addEventListener("keydown", acctKey);
   const {data, error} = await supabaseClient.rpc("get_my_profile", {p_person_id: myId, p_pin: myPin});
-  if(error || !data.success){ document.getElementById("profileErr").textContent = (data&&data.error)||"Could not load profile."; return; }
-  document.getElementById("profilePosition").value = data.position || "";
-  document.getElementById("profileDepartment").value = data.department || "";
-  document.getElementById("profileEmail").value = data.email || "";
+  if(error || !data || !data.success){ setAcctMsg("profileErr", (data&&data.error)||"Could not load your profile.", "err"); return; }
+  profileOrig = {position:data.position||"", department:data.department||"", email:data.email||""};
+  document.getElementById("profilePosition").value = profileOrig.position;
+  document.getElementById("profileDepartment").value = profileOrig.department;
+  document.getElementById("profileEmail").value = profileOrig.email;
+  profileDirty();
 }
 function closeProfileModal(){
-  document.getElementById("profileModal").style.display="none";
+  document.getElementById("profileModal").style.display = "none";
+  document.removeEventListener("keydown", acctKey);
+}
+function acctKey(e){
+  if(e.key==="Escape"){ closeProfileModal(); return; }
+  if(e.key==="Tab"){                                  // keep keyboard focus inside the window
+    const box = document.querySelector("#profileModal .acct");
+    const f = [...box.querySelectorAll("button:not([disabled]), input:not([readonly]):not([disabled]), [tabindex]:not([tabindex='-1'])")].filter(el=>el.offsetParent!==null);
+    if(!f.length) return;
+    const first = f[0], last = f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }
+}
+function acctTab(which){
+  const prof = which==="profile";
+  document.getElementById("paneProfile").hidden = !prof;
+  document.getElementById("paneSecurity").hidden = prof;
+  document.getElementById("tabProfile").setAttribute("aria-selected", String(prof));
+  document.getElementById("tabSecurity").setAttribute("aria-selected", String(!prof));
+  const first = document.getElementById(prof ? "profilePosition" : "pinOld"); if(first) setTimeout(()=>first.focus(), 30);
+}
+function setAcctMsg(id, text, kind){ const el=document.getElementById(id); el.textContent=text||""; el.className="acct-msg"+(kind?" "+kind:""); }
+
+/* ---- profile ---- */
+function profileDirty(){
+  const v = {position:document.getElementById("profilePosition").value.trim(), department:document.getElementById("profileDepartment").value.trim(), email:document.getElementById("profileEmail").value.trim()};
+  const changed = v.position!==profileOrig.position || v.department!==profileOrig.department || v.email!==profileOrig.email;
+  const emailOk = !v.email || EMAIL_RE.test(v.email);
+  const note = document.getElementById("profileEmailNote"), inp = document.getElementById("profileEmail");
+  inp.classList.toggle("bad", !emailOk);
+  note.textContent = emailOk ? "Used to send you notifications about your requisitions." : "That doesn't look like an email address.";
+  note.className = "fieldnote" + (emailOk ? "" : " err");
+  document.getElementById("profileSaveBtn").disabled = !(changed && emailOk);
+  if(changed) setAcctMsg("profileErr","");
 }
 async function saveProfile(){
+  const btn = document.getElementById("profileSaveBtn"); if(btn.disabled) return;
   const position = document.getElementById("profilePosition").value.trim();
   const department = document.getElementById("profileDepartment").value.trim();
   const email = document.getElementById("profileEmail").value.trim();
-  const errEl = document.getElementById("profileErr");
-  const {data, error} = await supabaseClient.rpc("update_my_profile", {
-    p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: email
-  });
-  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not save."; return; }
-  closeProfileModal();
-  setStatus("Profile updated.");
+  btn.disabled = true; btn.textContent = "Saving…";
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: email});
+  btn.textContent = "Save changes";
+  if(error || !data || !data.success){ btn.disabled = false; setAcctMsg("profileErr", (data&&data.error)||(error&&error.message)||"Could not save. Please try again.", "err"); return; }
+  profileOrig = {position, department, email};
+  profileDirty();
+  setAcctMsg("profileErr", "Saved ✓", "ok");
 }
 
+/* ---- PIN ---- */
+function pinInput(el){ el.classList.remove("bad"); el.value = el.value.replace(/\D/g,"").slice(0,4); validatePins(); }
+function togglePinShow(on){ ["pinOld","pinNew1","pinNew2"].forEach(id=>document.getElementById(id).type = on ? "text" : "password"); }
+function weakPin(p){ return /^(\d)\1{3}$/.test(p) || ["1234","4321","0123","3210","1212","2580","0852"].includes(p); }
+function validatePins(){
+  const o = document.getElementById("pinOld").value, a = document.getElementById("pinNew1").value, b = document.getElementById("pinNew2").value;
+  const sNote = document.getElementById("pinStrength"), mNote = document.getElementById("pinMatch");
+  let ok = o.length===4 && a.length===4 && b.length===4 && a===b && a!==o;
+  if(a.length===4 && a===o){ sNote.textContent = "Choose a PIN that's different from your current one."; sNote.className="fieldnote err"; }
+  else if(a.length===4 && weakPin(a)){ sNote.textContent = "That PIN is easy to guess — consider something less obvious."; sNote.className="fieldnote"; sNote.style.color="#b45309"; }
+  else { sNote.textContent = a.length>0 && a.length<4 ? `${4-a.length} more digit${4-a.length===1?"":"s"}` : ""; sNote.className="fieldnote"; sNote.style.color=""; }
+  if(b.length===4 && a.length===4){ mNote.textContent = a===b ? "PINs match ✓" : "PINs don't match yet."; mNote.className = "fieldnote " + (a===b ? "ok" : "err"); }
+  else { mNote.textContent=""; mNote.className="fieldnote"; }
+  document.getElementById("pinSaveBtn").disabled = !ok;
+  if(ok || o.length||a.length||b.length) setAcctMsg("pinChangeErr","");
+}
 async function changeMyPin(){
-  const oldPin = document.getElementById("pinOld").value.trim();
-  const newPin1 = document.getElementById("pinNew1").value.trim();
-  const newPin2 = document.getElementById("pinNew2").value.trim();
-  const errEl = document.getElementById("pinChangeErr");
-  if(!/^\d{4}$/.test(oldPin)){ errEl.textContent="Enter your current 4-digit PIN."; return; }
-  if(!/^\d{4}$/.test(newPin1)){ errEl.textContent="New PIN must be exactly 4 digits."; return; }
-  if(newPin1 !== newPin2){ errEl.textContent="New PINs don't match."; return; }
-
-  const {data, error} = await supabaseClient.rpc("change_pin", {p_person_id: myId, p_old_pin: oldPin, p_new_pin: newPin1});
-  if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not change PIN."; return; }
-
-  myPin = newPin1;
+  const btn = document.getElementById("pinSaveBtn"); if(btn.disabled) return;
+  const oldPin = document.getElementById("pinOld").value, newPin = document.getElementById("pinNew1").value;
+  btn.disabled = true; btn.textContent = "Updating…";
+  const {data, error} = await supabaseClient.rpc("change_pin", {p_person_id: myId, p_old_pin: oldPin, p_new_pin: newPin});
+  btn.textContent = "Update PIN";
+  if(error || !data || !data.success){
+    validatePins();
+    document.getElementById("pinOld").classList.add("bad"); document.getElementById("pinOld").focus();
+    setAcctMsg("pinChangeErr", (data&&data.error)||(error&&error.message)||"Could not change your PIN.", "err"); return;
+  }
+  myPin = newPin;
   sessionStorage.setItem("sl_pin", myPin);
-  document.getElementById("pinOld").value="";
-  document.getElementById("pinNew1").value="";
-  document.getElementById("pinNew2").value="";
-  errEl.textContent="";
-  setStatus("PIN updated. Remember your new PIN — it's needed for everything from now on.");
+  ["pinOld","pinNew1","pinNew2"].forEach(id=>{ const el=document.getElementById(id); el.value=""; el.classList.remove("bad"); });
+  validatePins();
+  setAcctMsg("pinChangeErr", "PIN updated ✓ Use the new one from now on.", "ok");
 }
 
 function hoursToFields(hours, inputId, unitId){
