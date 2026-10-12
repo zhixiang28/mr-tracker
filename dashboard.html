@@ -188,16 +188,18 @@
   .kcol-empty i{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-bottom:6px; }
   .rcard .pill{ display:none; }
   .rcard.open{ border-color:var(--accent); box-shadow:0 0 0 2px #dbe6fb; }
-  .drawer-back{ position:fixed; inset:0; background:rgba(15,23,42,.35); z-index:60; display:none; }
-  .drawer-back.show{ display:block; }
-  .drawer{ position:fixed; top:0; right:0; bottom:0; width:min(560px,100%); background:#fff; box-shadow:-8px 0 30px rgba(15,23,42,.18); z-index:61; display:none; flex-direction:column; }
-  .drawer.show{ display:flex; }
-  .drawer-head{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--line); }
-  .drawer-head .dh-t{ flex:1; min-width:0; }
-  .drawer-head .dh-t b{ font-size:15px; }
-  .drawer-body{ padding:16px 18px 28px; overflow-y:auto; }
-  .drawer-body .items-inner{ grid-template-columns:1fr; padding:0; gap:20px; }
-  .drawer-body .item-row{ grid-template-columns:minmax(0,1fr) 40px 70px 70px 76px; }
+  .hover-pop{ position:fixed; z-index:70; width:330px; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(15,23,42,.18); padding:12px 14px; font-size:12.5px; display:none; pointer-events:none; }
+  .hover-pop.show{ display:block; }
+  .hp-h{ display:flex; justify-content:space-between; font-size:14px; }
+  .hp-sub{ color:var(--muted); margin:2px 0 8px; }
+  .hp-sec{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:10px 0 4px; }
+  .hp-it,.hp-st{ display:flex; justify-content:space-between; gap:10px; padding:2px 0; }
+  .hp-it span:first-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hp-it span:last-child,.hp-st span:last-child{ color:var(--muted); white-space:nowrap; }
+  .hp-st.ok span:first-child{ color:var(--received); font-weight:700; } .hp-st.bad span:first-child{ color:var(--declined); font-weight:700; }
+  .hp-more{ color:var(--muted); font-style:italic; }
+  .hp-foot{ margin-top:10px; padding-top:8px; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px; }
+  .hover-pop .decline-reason-box{ margin:0 0 6px; }
   .cards-empty{ grid-column:1/-1; text-align:center; color:var(--muted); padding:36px 16px; }
   .rcard{ border:1px solid var(--line); border-radius:12px; padding:13px 14px; background:#fff; cursor:pointer; display:flex; flex-direction:column; gap:7px; }
   .rcard:hover{ border-color:#b9c6dd; box-shadow:0 2px 8px rgba(15,23,42,.06); }
@@ -270,7 +272,6 @@
     <table id="reqTable">
       <thead>
         <tr>
-          <th style="width:26px"></th>
           <th class="sortable" data-sort="tracking_no" onclick="setSort('tracking_no')">Tracking No <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="project_name" onclick="setSort('project_name')">Project <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="request_by" onclick="setSort('request_by')">Requested By <span class="sort-arrow"></span></th>
@@ -290,11 +291,7 @@
   <div class="status-msg" id="statusMsg"></div>
 </div>
 
-<div class="drawer-back" id="drawerBack" onclick="closeDrawer()"></div>
-<aside class="drawer" id="drawer" aria-label="Requisition details">
-  <div class="drawer-head"><div class="dh-t" id="drawerTitle"></div><a id="drawerLink" href="#"><button type="button">Open full form</button></a><button type="button" onclick="closeDrawer()" aria-label="Close">Close</button></div>
-  <div class="drawer-body" id="drawerBody"></div>
-</aside>
+<div class="hover-pop" id="hoverPop"></div>
 
 <div class="acct-back" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="acctTitle" onclick="if(event.target===this) closeProfileModal()">
   <div class="acct">
@@ -666,7 +663,6 @@ function render(){
 
   const tbody = document.getElementById("tbody");
   const cardsMode = viewMode==="cards";
-  if(!cardsMode && drawerId){ drawerId = null; document.getElementById("drawerBack").classList.remove("show"); document.getElementById("drawer").classList.remove("show"); }
   document.getElementById("vtList").classList.toggle("on", !cardsMode);
   document.getElementById("vtCards").classList.toggle("on", cardsMode);
   const cardWrap = document.getElementById("cardWrap");
@@ -676,11 +672,9 @@ function render(){
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
   const renderRow = r=>{
-    const isOpen = openRows.has(r.id);
     const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
     const mainRow = `
-      <tr class="req-row" onclick="toggleRow('${r.id}')">
-        <td><span class="chev ${isOpen?'open':''}">›</span></td>
+      <tr class="req-row" data-rid="${r.id}" onclick="goFull('${r.id}')">
         <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
         <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}${declineSnippet(r)}</td>
         <td>${escapeHtml(r.request_by||"-")}</td>
@@ -688,16 +682,13 @@ function render(){
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
       </tr>`;
-    const showResubmitPanel = r.status==="Declined";
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
-    return mainRow + detailRow;
+    return mainRow;
   };
 
   const renderCard = r=>{
-    const isOpen = drawerId===r.id;
     const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
     const detail = "";
-    return `<div class="rcard ${isOpen?"open":""}" onclick="openDrawer('${r.id}')">
+    return `<div class="rcard" data-rid="${r.id}" onclick="goFull('${r.id}')">
       <div class="rc-top"><span class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></span><span class="rc-total">${fmtMoney(r.grand_total)}</span></div>
       <div><b>${escapeHtml(r.project_name||"-")}</b><div class="muted">${escapeHtml(r.project_location||"")}</div></div>
       <div class="rc-meta"><span>${escapeHtml(r.request_by||"-")}</span><span>${fmtDMY(r.form_date)||"-"}</span></div>
@@ -709,7 +700,6 @@ function render(){
 
   const groups = buildGroups(filtered, needIds);
   if(cardsMode){
-    renderDrawer(filtered, needIds);
     if(!allReqs.length){ return; }
     cardWrap.style.gridTemplateColumns = STAGES.map(st=>filtered.some(r=>r.status===st) ? "minmax(210px,1fr)" : "44px").join(" ");
     cardWrap.innerHTML = STAGES.map(st=>{
@@ -720,14 +710,14 @@ function render(){
     return;
   }
   if(!groups.length && allReqs.length){
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
     return;
   }
   tbody.innerHTML = groups.map(g=>{
     if(g.flat) return g.rows.map(renderRow).join("");
     const collapsed = collapsedGroups.has(g.key);
     const head = `<tr class="group-row ${g.needs&&g.rows.length?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">
-      <td colspan="7"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
+      <td colspan="6"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
     return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
 }
@@ -837,19 +827,49 @@ async function copyESignLink(tok){
   catch(_){ window.prompt("Copy this PDF sign link:", url.toString()); }
 }
 
-let drawerId = null;
-function openDrawer(id){ drawerId = id; render(); }
-function closeDrawer(){ drawerId = null; render(); }
-function renderDrawer(list){
-  const r = drawerId ? allReqs.find(x=>x.id===drawerId) : null;
-  const back = document.getElementById("drawerBack"), box = document.getElementById("drawer");
-  if(!r){ back.classList.remove("show"); box.classList.remove("show"); return; }
-  document.getElementById("drawerTitle").innerHTML = `<b>${escapeHtml(r.tracking_no||"-")}</b> <span class="muted">· ${escapeHtml(r.project_name||"-")}</span>`;
-  document.getElementById("drawerLink").href = "view.html?id="+r.id;
-  document.getElementById("drawerBody").innerHTML = `${r.status==="Declined" ? renderResubmitPanel(r) : ""}<div style="margin:12px 0">${renderProgressCell(r)}</div><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}</div></div>`;
-  back.classList.add("show"); box.classList.add("show");
+function goFull(id){ location.href = "view.html?id="+id; }
+// ---- hover preview: more info before you click ----
+let hoverT = null;
+function hoverHtml(r){
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const rows = items.slice(0,5).map(it=>`<div class="hp-it"><span>${escapeHtml(it.name||"-")}</span><span>${it.qty} × ${fmtMoney(it.unit_price)}</span></div>`).join("") + (items.length>5?`<div class="hp-more">+ ${items.length-5} more item${items.length-5>1?"s":""}</div>`:"");
+  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order).map(x=>{
+    const ic = x.status==="Signed" ? "✓" : x.status==="Declined" ? "✕" : "○";
+    const cls = x.status==="Signed" ? "ok" : x.status==="Declined" ? "bad" : "";
+    return `<div class="hp-st ${cls}"><span>${ic} ${escapeHtml(STEP_SHORT[x.step_order]||x.stage_name)}</span><span>${escapeHtml(x.assigned_person_name||"—")}${x.signed_at?" · "+fmtDMY(x.signed_at):""}</span></div>`;
+  }).join("");
+  return `<div class="hp-h"><b>${escapeHtml(r.tracking_no||"-")}</b><span>${fmtMoney(r.grand_total)}</span></div>
+    <div class="hp-sub">${escapeHtml(r.project_name||"-")}${r.project_location?" · "+escapeHtml(r.project_location):""}</div>
+    ${declineSnippet(r)}
+    <div class="hp-sec">Materials (${items.length})</div>${rows||'<div class="hp-more">No items</div>'}
+    <div class="hp-sec">Sign-off</div>${steps}
+    <div class="hp-foot">Click to open the full form</div>`;
 }
-document.addEventListener("keydown",e=>{ if(e.key==="Escape" && drawerId) closeDrawer(); });
+function placePop(pop, e){
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = e.clientX + 18, y = e.clientY + 14;
+  if(x + w > innerWidth - 8) x = e.clientX - w - 18;
+  if(y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  pop.style.left = Math.max(8,x)+"px"; pop.style.top = y+"px";
+}
+(function(){
+  if(!window.matchMedia || !matchMedia("(hover:hover)").matches) return;
+  const pop = () => document.getElementById("hoverPop");
+  const hide = ()=>{ clearTimeout(hoverT); const p=pop(); if(p) p.classList.remove("show"); };
+  document.addEventListener("mouseover", e=>{
+    const el = e.target.closest && e.target.closest("[data-rid]");
+    if(!el){ hide(); return; }
+    if(el.contains(e.relatedTarget)) return;
+    clearTimeout(hoverT);
+    hoverT = setTimeout(()=>{
+      const r = allReqs.find(x=>x.id===el.dataset.rid); if(!r) return;
+      const p = pop(); p.innerHTML = hoverHtml(r); p.classList.add("show"); placePop(p, e);
+    }, 280);
+  });
+  document.addEventListener("mousemove", e=>{ const p=pop(); if(p && p.classList.contains("show")) placePop(p,e); });
+  document.addEventListener("scroll", hide, true);
+  document.addEventListener("click", hide, true);
+})();
 function toggleRow(id){
   if(openRows.has(id)) openRows.delete(id); else openRows.add(id);
   render();
