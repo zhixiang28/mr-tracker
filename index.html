@@ -518,8 +518,8 @@
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:24px">
-        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px">Submit</button>
-        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF E-Sign Link</button>
+        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px" title="Save this MRF to the tracker and get one link where approvers sign with their PIN">PIN Sign</button>
+        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF Sign</button>
       </div>
       <div class="status" id="status"></div>
     </div>
@@ -684,7 +684,7 @@ function duplicateForm(){
   document.getElementById("declineReviseBanner")?.remove();
   const btn = document.getElementById("submitBtn");
   btn.disabled = false;
-  btn.textContent = "Submit";
+  btn.textContent = "PIN Sign";
   setStatus("Duplicated — this is now a new, unsubmitted copy. Review the details and submit when ready.");
 }
 
@@ -1098,7 +1098,7 @@ async function loadForAdminEdit(requisitionId){
 function updateSubmitBtnLabel(){
   const btn=document.getElementById("submitBtn");
   btn.disabled = false;
-  btn.textContent = "Submit";
+  btn.textContent = "PIN Sign";
 }
 
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -1122,7 +1122,7 @@ async function submitToDashboard(){
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
 
   const btn=document.getElementById("submitBtn");
-  btn.disabled=true; btn.textContent="Submitting...";
+  btn.disabled=true; btn.textContent="Saving...";
 
   try{
     const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
@@ -1191,7 +1191,7 @@ async function submitToDashboard(){
   }catch(e){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
-    btn.disabled=false; btn.textContent = adminEditId ? "Save Changes" : editRequisitionId ? "Revise & Resubmit" : "Submit";
+    btn.disabled=false; btn.textContent = adminEditId ? "Save Changes" : editRequisitionId ? "Revise & Resubmit" : "PIN Sign";
   }
 }
 
