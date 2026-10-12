@@ -114,7 +114,7 @@ const STAGE_VARS = { "Submitted":"#94a3b8","Manager Approved":"#f59e0b","Procure
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function money(n){ return "$ "+Number(n||0).toFixed(2); }
 
-if(sessionStorage.getItem("sl_person_id")) AppBar.mount("appbar", {active:"", client:supabaseClient});
+if(sessionStorage.getItem("sl_person_id")) AppBar.mount("appbar", {active:"", client:supabaseClient, notice:false});
 let myId=null, myPin=null;
 
 async function init(){

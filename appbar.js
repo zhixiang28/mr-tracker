@@ -28,7 +28,22 @@
   .pagehead .sub{ color:var(--muted,#6b7280); font-size:13px; margin-top:3px; }
   .pagehead .btns{ display:flex; gap:8px; flex-wrap:wrap; }
   .pagehead .btns button, .pagehead .btns a.btn{ padding:10px 16px; }
-  @media print{ .appbar, .pagehead .btns{ display:none !important; } }
+  /* "what's new" notice */
+  .wn-back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; padding:18px; z-index:1000; font-family:inherit; }
+  .wn-box{ background:var(--surface,#fff); color:var(--ink,#1f2933); border-radius:16px; max-width:520px; width:100%; max-height:92vh; overflow:auto; padding:24px 26px 20px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .wn-box h2{ margin:0 0 4px; font-size:20px; letter-spacing:-.3px; }
+  .wn-box .wn-sub{ color:var(--muted,#6b7280); font-size:13px; margin-bottom:14px; }
+  .wn-box ul{ list-style:none; margin:0 0 16px; padding:0; }
+  .wn-box li{ display:flex; gap:12px; padding:9px 0; border-top:1px solid var(--line,#d7dbe0); font-size:13.5px; line-height:1.45; }
+  .wn-box li:first-child{ border-top:0; }
+  .wn-box li b{ display:block; font-size:13.5px; }
+  .wn-box li span.t{ color:var(--muted,#6b7280); font-size:12.5px; }
+  .wn-dot{ flex:none; width:8px; height:8px; border-radius:50%; background:#2f6fed; margin-top:6px; }
+  .wn-foot{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .wn-foot label{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink,#1f2933); cursor:pointer; }
+  .wn-foot button{ font:inherit; font-size:13px; font-weight:700; padding:10px 22px; border-radius:8px; border:1px solid #2f6fed; background:#2f6fed; color:#fff; cursor:pointer; }
+  .wn-foot button:hover{ background:#2050bd; }
+  @media print{ .appbar, .pagehead .btns, .wn-back{ display:none !important; } }
   `;
   const NAV = [
     {id:"dashboard", label:"Dashboard",        href:"dashboard.html"},
@@ -77,6 +92,7 @@
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
     render();
+    if(state.opts.notice !== false) showNotice();
     state.root.addEventListener("click", e=>{
       const t = e.target.closest("[data-act]"); if(!t) return;
       const act = t.getAttribute("data-act"), o = state.opts;
@@ -94,6 +110,39 @@
       if(id && pin) state.opts.client.rpc("verify_admin", {p_person_id:id, p_pin:pin}).then(r=>{ if(r && !r.error) setAdmin(r.data===true); });
     }
   }
+  /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
+  const NOTICE_ID = "upgrade-2026-10";
+  const NOTICE = [
+    ["Same layout on every page", "One header with Dashboard, Purchase History and Analytics, and your name menu at the top right (profile, reminders, log out)."],
+    ["Dashboard: organise it your way", "Group requisitions by status, stage, project, requester or month. The headings stay in view as you scroll, and the blue REQ number opens the full form."],
+    ["One link to sign", "PIN Sign and the new PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form, and you can track it on the dashboard."],
+    ["Purchase History (new)", "Find items we've bought before with the price, supplier and date, then add them to a new requisition in one click. Similar names are matched automatically."],
+    ["Analytics (new)", "Spending, approval speed and price insights. You see your own requisitions; admins see everything."],
+    ["Smaller improvements", "Dates now show as dd/mm/yyyy, the form can remember your projects, and CSV exports open correctly in Excel with Chinese text."]
+  ];
+  function showNotice(){
+    try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){}
+    if(document.getElementById("wnBack")) return;
+    const back = document.createElement("div"); back.className="wn-back"; back.id="wnBack";
+    back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","What's new");
+    back.innerHTML = `<div class="wn-box">
+      <h2>The system has been upgraded</h2>
+      <div class="wn-sub">Here's what's new for you:</div>
+      <ul>${NOTICE.map(n=>`<li><span class="wn-dot"></span><div><b>${esc(n[0])}</b><span class="t">${esc(n[1])}</span></div></li>`).join("")}</ul>
+      <div class="wn-foot"><label><input type="checkbox" id="wnDont" checked> Don't show this again</label><button type="button" id="wnOk">Got it</button></div>
+    </div>`;
+    const close = ()=>{
+      try{ if(document.getElementById("wnDont").checked) localStorage.setItem("sl_notice_seen", NOTICE_ID); }catch(_){}
+      back.remove(); document.removeEventListener("keydown", onKey);
+    };
+    const onKey = e=>{ if(e.key==="Escape") close(); };
+    back.addEventListener("click", e=>{ if(e.target===back) close(); });
+    back.querySelector("#wnOk").addEventListener("click", close);
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(back);
+    back.querySelector("#wnOk").focus();
+  }
+
   function setAdmin(v){
     try{ sessionStorage.setItem("sl_is_admin", v ? "1" : "0"); }catch(_){}
     if(state.root && state.isAdmin !== !!v){ state.isAdmin = !!v; render(); }

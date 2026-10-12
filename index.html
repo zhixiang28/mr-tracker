@@ -601,7 +601,7 @@ const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
-AppBar.mount("appbar", {active:"", client:supabaseClient, newTab:true});   // links open in a new tab so an unsaved form isn't lost
+AppBar.mount("appbar", {active:"", client:supabaseClient, newTab:true, notice:false});   // links open in a new tab so an unsaved form isn't lost
 const STORAGE_KEY = "spacelogic_purchase_requisition_v1";
 let currentRequisitionId = null; // set once this draft has been submitted to Supabase
 
