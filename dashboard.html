@@ -44,8 +44,6 @@
   .mode-badge.admin{ color:#fff; background:var(--admin); }
 
   .attn{ background:#fff; border:1px solid var(--line); border-left:4px solid #f59e0b; border-radius:12px; margin-bottom:16px; overflow:hidden; }
-  .attn.clear{ border-left-color:#16a34a; display:flex; align-items:center; gap:10px; padding:13px 18px; font-size:13px; font-weight:600; color:var(--muted); }
-  .attn.clear b{ color:var(--ink); }
   .attn-head{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid #f0f2f5; }
   .attn-title{ font-weight:800; font-size:13.5px; }
   .attn-count{ background:#fef3c7; color:#92400e; font-weight:800; font-size:11.5px; border-radius:999px; padding:2px 9px; }
@@ -68,6 +66,8 @@
 
   .quick-actions{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
   .quick-actions button{ padding:10px 16px; }
+  .caught-up{ margin-left:auto; align-self:center; display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#15803d; padding-right:4px; }
+  .caught-up i{ width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block; }
   #actionFilterBtn.active{ background:var(--admin); border-color:var(--admin); color:#fff; }
 
   th.sortable{ cursor:pointer; user-select:none; }
@@ -175,6 +175,7 @@
     <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
     <button type="button" onclick="openProfileModal()">👤 My Profile</button>
     <button type="button" onclick="openReminderModal()">⏰ Reminder Settings</button>
+    <span class="caught-up" id="caughtUp" style="display:none" title="Nothing is waiting on you"><i></i>All caught up</span>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -414,10 +415,13 @@ function computeStats(){
 function renderStats(){
   const s = computeStats();
   const panel = document.getElementById("attnPanel");
+  const caughtUp = document.getElementById("caughtUp");
   if(s.attention.length === 0){
-    panel.innerHTML = `<div class="attn clear"><span>✓</span><span>You're all caught up — <b>${s.mySubmissions}</b> submitted, <b>${s.completed}</b> completed.</span></div>`;
+    panel.innerHTML = "";
+    caughtUp.style.display = "inline-flex";
     return;
   }
+  caughtUp.style.display = "none";
   const rows = s.attention.map(({r, chips, meta})=>`
     <a class="attn-row" href="view.html?id=${r.id}" title="Open the form">
       <span class="attn-chips">${chips.map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("")}</span>
