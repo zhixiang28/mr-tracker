@@ -22,6 +22,14 @@
   button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   button.primary:hover{ background:var(--accent-dark); }
   button:disabled{ opacity:.45; cursor:default; }
+  .intro{ font-size:13px; color:var(--ink2); margin:-6px 0 14px; line-height:1.5; }
+  .dupn{ background:#fef3c7; color:var(--warn); border-radius:999px; padding:0 7px; font-weight:700; font-size:11.5px; }
+  .variant{ display:inline-flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line); border-radius:999px; padding:3px 6px 3px 10px; font-size:12px; margin:0 6px 6px 0; }
+  .variant button{ border:0; background:#f4f6fa; border-radius:999px; padding:2px 8px; font-size:11px; color:var(--ink2); }
+  .variant button:hover{ background:#fee2e2; color:var(--bad); }
+  .sugg{ display:flex; align-items:center; gap:10px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12.5px; }
+  .sugg .nm{ flex:1; min-width:0; } .sugg .sub{ margin:0; }
+  #toast{ position:fixed; left:50%; bottom:76px; transform:translateX(-50%); background:#1f2933; color:#fff; font-size:13px; padding:10px 16px; border-radius:10px; display:none; z-index:40; box-shadow:0 8px 24px rgba(0,0,0,.25); }
   .tabs{ display:flex; gap:4px; margin-bottom:12px; }
   .tab{ border:0; background:transparent; padding:9px 16px; border-radius:8px; color:var(--ink2); font-weight:700; }
   .tab.on{ background:#fff; color:var(--accent-dark); box-shadow:0 1px 3px rgba(15,23,42,.1); }
@@ -74,6 +82,7 @@
     </div>
   </div>
 
+  <div class="intro">Find what we've bought before — the price, the supplier and when. Tick an item and press <b>Add to a new requisition</b> to reorder it.</div>
   <div class="tabs">
     <button class="tab on" id="tab-items" onclick="setTab('items')">Items</button>
     <button class="tab" id="tab-sup" onclick="setTab('sup')">Suppliers</button>
@@ -95,7 +104,8 @@
       <option value="spend">Sort: highest total spend</option>
       <option value="gap">Sort: biggest price gap</option>
     </select>
-    <label class="chk"><input type="checkbox" id="incl" onchange="draw()"> Include not yet purchased</label>
+    <label class="chk" title="Also show items on requisitions that are still waiting for approval or purchase"><input type="checkbox" id="incl" onchange="draw()"> Include not yet purchased</label>
+    <label class="chk" id="dupWrap" style="display:none" title="Items that look similar to another item"><input type="checkbox" id="dupOnly" onchange="draw()"> Possible duplicates <span class="dupn" id="dupCount"></span></label>
     <span class="count" id="count"></span>
   </div>
 
@@ -103,14 +113,17 @@
   <div class="note" id="foot"></div>
 </div>
 
+<div id="toast" role="status"></div>
 <div class="reorder-bar" id="reorderBar">
   <span id="reorderText"></span>
   <button class="primary" onclick="reorderSelected()">Add to a new requisition</button>
+  <button id="combineBtn" onclick="combineSelected()" title="Tell the page these are the same item" style="display:none">Combine as one item</button>
   <button onclick="clearSel()">Clear</button>
 </div>
 
 <script src="dates.js"></script>
 <script src="supplier.js"></script>
+<script src="itemmatch.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -122,6 +135,7 @@ const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=items.html"; }
 
 const BOUGHT = ["Purchased","Received"];
+let RAW = [], ALIASES = [], RESOLVER = null;
 let LINES = [];          // every purchased line, enriched
 let tab = "items";
 const openRows = new Set();
@@ -138,16 +152,31 @@ async function load(){
     document.getElementById("view").innerHTML = `<div class="empty">${esc((data&&data.error)||(error&&error.message)||"Could not load the purchase history.")}</div>`;
     return;
   }
-  LINES = (data.items||[]).map(it=>{
+  RAW = data.items || [];
+  await loadAliases();
+  buildLines();
+  draw();
+}
+async function loadAliases(){
+  try{
+    const {data} = await supabaseClient.rpc("list_item_aliases", {p_person_id: myId, p_pin: myPin});
+    ALIASES = (data && data.success) ? (data.aliases||[]) : [];
+  }catch(_){ ALIASES = []; }
+}
+function buildLines(){
+  RESOLVER = ItemMatch.resolver(RAW.map(i=>i.name), ALIASES);
+  LINES = RAW.map(it=>{
     const sup = supplierOf(it.link);
     return {...it, qty:Number(it.qty||0), unit:Number(it.unit_price||0), delivery:Number(it.delivery_tax||0),
-      key:keyOf(it.name), supplier:sup.name, host:sup.host, url:safeUrl(it.link),
+      key:RESOLVER.keyFor(it.name), smart:RESOLVER.smartKey(it.name), supplier:sup.name, host:sup.host, url:safeUrl(it.link),
       ts: it.item_date ? new Date(it.item_date).getTime() : 0, bought: BOUGHT.includes(it.status)};
   });
   const sups = [...new Set(LINES.map(l=>l.supplier))].sort((a,b)=>a.localeCompare(b));
+  const cur = document.getElementById("supplierSel").value;
   document.getElementById("supplierSel").innerHTML = `<option value="">All suppliers</option>` + sups.map(s=>`<option>${esc(s)}</option>`).join("");
-  draw();
+  document.getElementById("supplierSel").value = sups.includes(cur) ? cur : "";
 }
+function toast(t){ const el=document.getElementById("toast"); el.textContent=t; el.style.display="block"; clearTimeout(window._tt); window._tt=setTimeout(()=>el.style.display="none",3500); }
 
 function setTab(t){
   tab = t;
@@ -179,15 +208,26 @@ function groupItems(lines){
     const avg = priced.length ? priced.reduce((a,l)=>a+l.unit*l.qty,0) / (priced.reduce((a,l)=>a+l.qty,0) || 1) : 0;   // qty-weighted average price
     const last = ls[0];
     const gap = best && last.unit>0 ? (last.unit-best.unit)/best.unit : 0;
-    return {key:ls[0].key, name:ls[0].name, desc:ls[0].description, lines:ls, last, best, avg, gap,
+    // the different ways people typed this item
+    const vm = new Map();
+    ls.forEach(l=>{ const e = vm.get(l.smart) || {smart:l.smart, names:new Map(), n:0}; e.n++; e.names.set(l.name.trim(), (e.names.get(l.name.trim())||0)+1); vm.set(l.smart,e); });
+    const variants = [...vm.values()].map(e=>({smart:e.smart, n:e.n, name:[...e.names.entries()].sort((a,b)=>b[1]-a[1])[0][0]})).sort((a,b)=>b.n-a.n);
+    const key = ls[0].key;
+    const name = RESOLVER.canonicalName(key) || variants[0].name;
+    return {key, name, desc:last.description, lines:ls, last, best, avg, gap, variants,
       times:ls.length, qty:ls.reduce((a,l)=>a+l.qty,0), spend:ls.reduce((a,l)=>a+l.unit*l.qty+l.delivery,0)};
   });
+}
+// other items that look a lot like this one (similar, but not already merged)
+function suggestionsFor(g, groups){
+  return groups.filter(h=>h.key!==g.key).map(h=>({h, sc:ItemMatch.score(g.name, h.name)})).filter(x=>x.sc>=ItemMatch.SUGGEST && x.sc<ItemMatch.AUTO).sort((a,b)=>b.sc-a.sc).slice(0,4).map(x=>x.h);
 }
 
 function draw(){
   const lines = filtered();
   document.getElementById("count").textContent = `${lines.length} purchase line${lines.length===1?"":"s"}`;
   if(tab==="items") drawItems(lines); else drawSuppliers(lines);
+  document.getElementById("dupWrap").style.display = tab==="items" ? "" : "none";
   updateReorderBar();
   document.getElementById("foot").textContent = "Suppliers are worked out from each item's product link (the shop's website). Items entered without a link show as “(no link)”. Prices are per unit as entered on the requisition.";
 }
@@ -195,34 +235,43 @@ function draw(){
 function drawItems(lines){
   const sort = document.getElementById("sort").value;
   let groups = groupItems(lines);
+  const dup = new Map(groups.map(g=>[g.key, suggestionsFor(g, groups)]));
+  const dupN = [...dup.values()].filter(x=>x.length).length;
+  document.getElementById("dupCount").textContent = dupN;
+  document.getElementById("dupWrap").style.display = dupN || document.getElementById("dupOnly").checked ? "" : "none";
+  if(document.getElementById("dupOnly").checked) groups = groups.filter(g=>dup.get(g.key).length);
   const cmp = {
     recent:(a,b)=>b.last.ts-a.last.ts, name:(a,b)=>a.name.localeCompare(b.name), times:(a,b)=>b.times-a.times,
     spend:(a,b)=>b.spend-a.spend, gap:(a,b)=>b.gap-a.gap }[sort];
   groups.sort(cmp);
   const view = document.getElementById("view");
-  if(!groups.length){ view.innerHTML = `<div class="empty">Nothing matches. Try a shorter search, or tick “Include not yet purchased”.</div>`; return; }
-
+  if(!groups.length){
+    view.innerHTML = `<div class="empty"><b>Nothing found.</b><br>Try fewer or shorter words (for example “screw” instead of “M3 screw 10mm”),<br>clear the supplier or period filter, or tick “Include not yet purchased”.</div>`;
+    return;
+  }
+  const kq = k => esc(k).replace(/'/g,"&#39;");
   const rows = groups.map(g=>{
     const open = openRows.has(g.key);
-    const badge = !g.best || g.times<2 ? `<span class="muted" style="color:var(--muted)">—</span>`
-      : g.gap<=0.005 ? `<span class="badge best">Best price</span>`
-      : `<span class="badge ${g.gap>0.1?"up":"mid"}">+${(g.gap*100).toFixed(0)}% vs best</span>`;
-    const main = `<tr class="row" onclick="toggle('${esc(g.key).replace(/'/g,"&#39;")}')">
-      <td style="width:34px" onclick="event.stopPropagation()"><input type="checkbox" ${selected.has(g.key)?"checked":""} onchange="pick('${esc(g.key).replace(/'/g,"&#39;")}',this.checked)" aria-label="Select ${esc(g.name)}"></td>
-      <td><div class="iname">${esc(g.name)}</div>${g.desc?`<div class="idesc">${esc(g.desc)}</div>`:""}</td>
-      <td class="num">${g.times}×</td>
-      <td class="hide-sm">${esc(fmtDMY(g.last.item_date))}<div class="sub">${esc(g.last.tracking_no||"")}</div></td>
+    const sg = dup.get(g.key) || [];
+    const badge = !g.best || g.times<2 ? `<span style="color:var(--muted)">—</span>`
+      : g.gap<=0.005 ? `<span class="badge best" title="You paid the lowest price we've seen">Best price</span>`
+      : `<span class="badge ${g.gap>0.1?"up":"mid"}" title="Last price compared with the cheapest we've paid">+${(g.gap*100).toFixed(0)}% vs cheapest</span>`;
+    const extra = [`bought ${g.times}×`, g.variants.length>1 ? `${g.variants.length} name variants` : "", sg.length ? `<span style="color:var(--warn)">possible duplicate</span>` : ""].filter(Boolean).join(" · ");
+    const main = `<tr class="row" onclick="toggle('${kq(g.key)}')">
+      <td style="width:34px" onclick="event.stopPropagation()"><input type="checkbox" ${selected.has(g.key)?"checked":""} onchange="pick('${kq(g.key)}',this.checked)" aria-label="Select ${esc(g.name)}"></td>
+      <td><div class="iname">${esc(g.name)}</div><div class="sub">${extra}</div></td>
+      <td class="hide-sm">${esc(fmtDMY(g.last.item_date))}<div class="sub">qty ${g.last.qty}</div></td>
       <td class="num"><b>${money(g.last.unit)}</b><div class="sub"><span class="sup">${esc(g.last.supplier)}</span></div></td>
       <td class="num hide-sm">${g.best?money(g.best.unit):"—"}${g.best?`<div class="sub">${esc(g.best.supplier)}</div>`:""}</td>
-      <td class="num hide-sm">${g.avg?money(g.avg):"—"}</td>
       <td>${badge}</td>
-      <td style="width:26px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
-    return main + (open ? `<tr class="detail"><td colspan="9">${detailHtml(g)}</td></tr>` : "");
+      <td class="num" onclick="event.stopPropagation()"><button onclick="reorderOne('${kq(g.key)}')" title="Add this item to a new requisition">Add to requisition</button></td>
+      <td style="width:22px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
+    return main + (open ? `<tr class="detail"><td colspan="8">${detailHtml(g, sg)}</td></tr>` : "");
   }).join("");
-  view.innerHTML = `<table><thead><tr><th></th><th>Item</th><th class="num">Bought</th><th class="hide-sm">Last bought</th><th class="num">Last price</th><th class="num hide-sm">Best price</th><th class="num hide-sm">Avg price</th><th>Price check</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  view.innerHTML = `<table><thead><tr><th></th><th>Item</th><th class="hide-sm">Last bought</th><th class="num">Last price</th><th class="num hide-sm">Cheapest paid</th><th>Price check</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function detailHtml(g){
+function detailHtml(g, sg){
   // price by supplier
   const bySup = new Map();
   g.lines.forEach(l=>{ const e = bySup.get(l.supplier) || {n:0, qty:0, cost:0, last:l, min:l.unit||Infinity}; e.n++; e.qty+=l.qty; e.cost+=l.unit*l.qty; if(l.unit>0) e.min=Math.min(e.min,l.unit); bySup.set(l.supplier,e); });
@@ -235,11 +284,15 @@ function detailHtml(g){
     <td class="num">${l.qty}</td><td class="num">${money(l.unit)}</td><td class="num hide-sm">${money(l.delivery)}</td>
     <td class="hide-sm">${esc(l.project_name||"")}</td><td class="hide-sm">${esc(l.request_by||"")}</td>${BOUGHT.includes(l.status)?"<td></td>":`<td><span class="sub">${esc(l.status)}</span></td>`}</tr>`).join("");
   const spark = sparkline(g.lines.filter(l=>l.unit>0).slice().reverse());
+  const kq = k => esc(k).replace(/'/g,"&#39;");
+  const variantHtml = g.variants.length>1 ? `<h4 style="margin-top:14px">Names people used for this item</h4><div>${g.variants.map(v=>`<span class="variant">${esc(v.name)} <span class="sub" style="margin:0">${v.n}×</span><button onclick="separate('${kq(v.smart)}','${kq(v.name)}')" title="This is a different item — keep it separate">Not the same</button></span>`).join("")}</div>` : "";
+  const suggHtml = sg && sg.length ? `<h4 style="margin-top:14px">Could be the same item?</h4>${sg.map(h=>`<div class="sugg"><div class="nm"><b>${esc(h.name)}</b><div class="sub">bought ${h.times}× · last ${money(h.last.unit)} at ${esc(h.last.supplier)}</div></div><button class="primary" onclick="combineTwo('${kq(g.key)}','${kq(h.key)}')">Yes, combine</button></div>`).join("")}` : "";
   return `<div class="cols">
     <div><h4>Every purchase</h4><table class="mini"><thead><tr><th>Date</th><th>REQ</th><th>Supplier</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num hide-sm">Delivery</th><th class="hide-sm">Project</th><th class="hide-sm">By</th><th></th></tr></thead><tbody>${lineRows}</tbody></table></div>
     <div><h4>Price by supplier</h4><table class="mini"><thead><tr><th>Supplier</th><th class="num">Buys</th><th class="num">Avg</th><th class="num">Last</th><th class="num">Lowest</th></tr></thead><tbody>${supRows}</tbody></table>${spark}
       <div class="sub" style="margin-top:6px">Average is weighted by quantity. Cheapest supplier first.</div></div>
   </div>
+  ${variantHtml}${suggHtml}
   <div class="actions"><button class="primary" onclick="reorderOne('${esc(g.key).replace(/'/g,"&#39;")}')">Add to a new requisition</button>
     ${g.last.url?`<a class="btn" href="${esc(g.last.url)}" target="_blank" rel="noopener">Open last product link ↗</a>`:""}
     ${g.best && g.best.url?`<a class="btn" href="${esc(g.best.url)}" target="_blank" rel="noopener">Open best-price link ↗</a>`:""}</div>`;
@@ -280,15 +333,45 @@ function drawSuppliers(lines){
 
 function toggle(k){ if(openRows.has(k)) openRows.delete(k); else openRows.add(k); draw(); }
 
+/* ---------- combine / separate (shared with everyone via item_aliases) ---------- */
+async function saveAliases(rows){
+  const {data, error} = await supabaseClient.rpc("set_item_aliases", {p_person_id: myId, p_pin: myPin, p_rows: rows});
+  if(error || !data || !data.success){ toast((data&&data.error)||(error&&error.message)||"Could not save that."); return false; }
+  await loadAliases(); buildLines(); return true;
+}
+function groupNow(key){ return groupItems(LINES).find(g=>g.key===key); }   // every purchase, ignoring the filters
+function groupVisible(key){ return groupItems(filtered().filter(l=>l.key===key))[0]; }   // only what the filters show
+async function combineGroups(groups, name){
+  const target = groups[0], rows = [];
+  groups.forEach(g=>g.variants.forEach(v=>rows.push({member_key:v.smart, canonical_key:target.key, canonical_name:name})));
+  rows.push({member_key:target.key, canonical_key:target.key, canonical_name:name});
+  if(await saveAliases(rows)){ selected.clear(); draw(); toast(`Combined into “${name}”. Everyone now sees them as one item.`); }
+}
+async function combineTwo(aKey, bKey){
+  const a = groupNow(aKey), b = groupNow(bKey); if(!a||!b) return;
+  await combineGroups([a,b], a.name);
+}
+async function combineSelected(){
+  const gs = [...selected.keys()].map(groupNow).filter(Boolean); if(gs.length<2) return;
+  const name = (window.prompt("These will be treated as one item from now on, for everyone.\n\nName to show for the combined item:", gs[0].name)||"").trim();
+  if(!name) return;
+  await combineGroups(gs, name);
+}
+async function separate(smart, name){
+  if(!await saveAliases([{member_key:smart, canonical_key:smart, canonical_name:name}])) return;
+  draw(); toast(`“${name}” is now kept as its own item.`);
+}
+
 /* ---------- reorder: hand the chosen items to the requisition form ---------- */
 function pick(key, on){
-  if(on){ const g = groupItems(filtered().filter(l=>l.key===key))[0]; if(g) selected.set(key, g); } else selected.delete(key);
+  if(on){ const g = groupVisible(key); if(g) selected.set(key, g); } else selected.delete(key);
   updateReorderBar();
 }
 function clearSel(){ selected.clear(); draw(); }
 function updateReorderBar(){
   const bar = document.getElementById("reorderBar");
   bar.classList.toggle("on", selected.size>0);
+  document.getElementById("combineBtn").style.display = selected.size>1 ? "" : "none";
   document.getElementById("reorderText").textContent = `${selected.size} item${selected.size===1?"":"s"} selected`;
 }
 function sendToForm(groups){
@@ -296,8 +379,8 @@ function sendToForm(groups){
   try{ localStorage.setItem("sl_reorder", JSON.stringify(payload)); }catch(_){ alert("Your browser is blocking local storage, so the items can't be passed to the form."); return; }
   window.location.href = "index.html?reorder=1";
 }
-function reorderSelected(){ sendToForm([...selected.values()]); }
-function reorderOne(key){ const g = groupItems(filtered().filter(l=>l.key===key))[0]; if(g) sendToForm([g]); }
+function reorderSelected(){ sendToForm([...selected.keys()].map(groupVisible).filter(Boolean)); }
+function reorderOne(key){ const g = groupVisible(key); if(g) sendToForm([g]); }
 
 function exportCSV(){
   const lines = filtered();

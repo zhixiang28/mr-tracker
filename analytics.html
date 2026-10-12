@@ -128,13 +128,13 @@
       <div class="card"><h2>Value by project</h2><div class="sub" id="s-proj"></div><div id="c-proj"></div><details><summary>View as table</summary><div id="d-proj"></div></details></div>
       <div class="card"><h2>Value by supplier</h2><div class="sub" id="s-sup"></div><div id="c-sup"></div><details><summary>View as table</summary><div id="d-sup"></div></details></div>
 
-      <div class="card"><h2>Savings opportunity by item</h2><div class="sub">What the extra paid over the lowest price ever paid for the same item adds up to</div><div id="c-save"></div><details><summary>View as table</summary><div id="d-save"></div></details></div>
+      <div class="card"><h2>Savings opportunity by item</h2><div class="sub" id="s-save">What the extra paid over the lowest price ever paid for the same item adds up to</div><div id="c-save"></div><details><summary>View as table</summary><div id="d-save"></div></details></div>
       <div class="card"><h2>Price movers</h2><div class="sub">Items bought more than once: first price paid versus latest</div><div id="c-move"></div></div>
 
       <div class="card"><h2>Open requisitions by waiting time</h2><div class="sub">Days since the last sign-off (or since submission)</div><div id="c-age"></div><details><summary>View as table</summary><div id="d-age"></div></details></div>
       <div class="card"><h2>Waiting the longest</h2><div class="sub">Open requisitions that have been sitting at their current step longest</div><div id="c-wait"></div></div>
 
-      <div class="card wide"><h2>Requisitions by requester</h2><div class="sub">Number of requisitions and their total value</div><div id="c-req"></div><details><summary>View as table</summary><div id="d-req"></div></details></div>
+      <div class="card wide" id="card-req"><h2>Requisitions by requester</h2><div class="sub">Number of requisitions and their total value</div><div id="c-req"></div><details><summary>View as table</summary><div id="d-req"></div></details></div>
     </div>
   </div>
 </div>
@@ -142,6 +142,7 @@
 
 <script src="dates.js"></script>
 <script src="supplier.js"></script>
+<script src="itemmatch.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -152,7 +153,7 @@ const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=analytics.html"; }
 
-let ALL = [], IS_ADMIN = false;
+let ALL = [], IS_ADMIN = false, RES = null;
 
 const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
 const STEP_NAMES = ["Manager","Procurement","Purchase","Received"];
@@ -289,14 +290,11 @@ async function load(){
     msg.style.display="block"; msg.textContent = (data&&data.error) || (error&&error.message) || "Could not load data.";
     return;
   }
-  IS_ADMIN = !!data.is_admin;
-  if(!IS_ADMIN){
-    document.querySelector(".filters").style.display = "none";
-    msg.style.display="block";
-    msg.innerHTML = 'Analytics is for admin accounts only. <a class="lnk" href="items.html">Open Purchase History</a> to look up items, prices and suppliers.';
-    return;
-  }
+  IS_ADMIN = !!data.is_admin;   // admins see every requisition; everyone else sees only the ones they submitted or are asked to sign
   ALL = data.requisitions || [];
+  let aliases = [];
+  try{ const ar = await supabaseClient.rpc("list_item_aliases", {p_person_id: myId, p_pin: myPin}); if(ar.data && ar.data.success) aliases = ar.data.aliases || []; }catch(_){}
+  RES = ItemMatch.resolver(ALL.flatMap(r=>(r.requisition_items||[]).map(it=>it.name)), aliases);
   document.getElementById("content").style.display="block";
   draw();
 }
@@ -321,13 +319,13 @@ function draw(){
   const {days, cur:R, prev} = rangeInfo();
   const live = R.filter(r=>!LIVE_EXCLUDED.includes(r.status));
   const rangeVal = document.getElementById("range").value;
-  document.getElementById("scopeNote").textContent = `${R.length} requisition${R.length===1?"":"s"} · all requisitions`;
+  document.getElementById("scopeNote").textContent = `${R.length} requisition${R.length===1?"":"s"} · ${IS_ADMIN ? "all requisitions" : "your requisitions"}`;
 
   /* ---- price baselines (all time, live requisitions): lowest price ever paid per item ---- */
   const liveAll = ALL.filter(r=>!LIVE_EXCLUDED.includes(r.status));
   const itemHist = new Map();     // key -> [{unit, qty, ts, supplier, tracking}]
   liveAll.forEach(r=>(r.requisition_items||[]).forEach(it=>{
-    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "); const unit = Number(it.unit_price||0);
+    const key = RES.keyFor(it.name); const unit = Number(it.unit_price||0);
     if(!key || unit<=0) return;
     if(!itemHist.has(key)) itemHist.set(key, {name:String(it.name).trim(), lines:[]});
     itemHist.get(key).lines.push({unit, qty:Number(it.qty||0), ts:when(r).getTime(), supplier:supplierOf(it.link).name, rid:r.id});
@@ -345,7 +343,7 @@ function draw(){
   const onTime = cycles.length ? cycles.filter(h=>h<=SLA_DAYS*24).length/cycles.length*100 : null;
   let saving = 0, paidOnPriced = 0;
   live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
-    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
+    const key = RES.keyFor(it.name), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
     if(!best || unit<=0) return;
     paidOnPriced += unit*qty;
     if(unit>best.unit) saving += (unit-best.unit)*qty;
@@ -425,7 +423,7 @@ function draw(){
   /* ---- savings opportunity per item ---- */
   const saveM = new Map();
   live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
-    const key = String(it.name||"").trim().toLowerCase().replace(/\s+/g," "), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
+    const key = RES.keyFor(it.name), unit=Number(it.unit_price||0), qty=Number(it.qty||0), best=bestOf(key);
     if(!best || unit<=best.unit || unit<=0) return;
     const e = saveM.get(key) || {name:String(it.name).trim(), value:0, qty:0, paid:0, best}; e.value += (unit-best.unit)*qty; e.qty += qty; e.paid += unit*qty; saveM.set(key,e);
   }));
@@ -482,7 +480,9 @@ function draw(){
     t.appendChild(tb); wt.appendChild(t);
   }
 
-  /* ---- by requester ---- */
+  /* ---- by requester (admins only: everyone else only sees their own) ---- */
+  document.getElementById("card-req").style.display = IS_ADMIN ? "" : "none";
+  document.getElementById("s-save").textContent = "What the extra paid over the lowest price ever paid for the same item adds up to" + (IS_ADMIN ? "" : " (based on the requisitions you can see)");
   const byReq = groupSum(live, r=>r.request_by||"(unknown)", reqTotal);
   const reqAll = [...byReq.entries()].sort((a,b)=>b[1].value-a[1].value);
   const reqRows = reqAll.slice(0,8).map(([k,v])=>({label:k, value:v.value, text:`${money(v.value)} · ${v.n} req.`, tip:`${k} · ${v.n} requisition${v.n===1?"":"s"} · average ${money(v.value/v.n)}`}));

@@ -66,10 +66,18 @@ Notes: there is no PIN on this page, so anyone holding the link can sign the nex
 
 `esign-hardening.sql` (run after `esign-pdf-upgrade.sql`) tightens `sign_step`, `decline_step` and `requester_resubmit`: a withdrawn/declined requisition can't be signed through an already-claimed link, and resubmitting clears drawn signatures and typed-only names.
 
-## Analytics page (`analytics.html`) — admins only
+## Analytics page (`analytics.html`) — everyone (each person sees only the data they can access)
 
-Procurement analytics over all requisitions, scoped by a period filter. Total value (with change vs the previous period), average/median requisition, "done within 7 days" rate, **savings opportunity** (extra paid over the lowest price ever paid for the same item × quantity), decline rate; value over time with a 3-period moving average; approval funnel with stage-to-stage conversion; time per approval step (average, median, 90th percentile); value by project (top-3 concentration) and by supplier; savings opportunity by item; price movers (first vs latest price); open requisitions by waiting time and the longest-waiting list; requisitions by requester. Every chart has a "View as table" and tooltips; dark mode supported. Non-admins who open it see a short notice.
+Procurement analytics over all requisitions, scoped by a period filter. Total value (with change vs the previous period), average/median requisition, "done within 7 days" rate, **savings opportunity** (extra paid over the lowest price ever paid for the same item × quantity), decline rate; value over time with a 3-period moving average; approval funnel with stage-to-stage conversion; time per approval step (average, median, 90th percentile); value by project (top-3 concentration) and by supplier; savings opportunity by item; price movers (first vs latest price); open requisitions by waiting time and the longest-waiting list; requisitions by requester. Every chart has a "View as table" and tooltips; dark mode supported. Admins see every requisition; everyone else sees the requisitions they submitted or are asked to sign (the by-requester chart is admin-only).
 
 ## Purchase History (`items.html`) — everyone
 
 Search everything bought before (company-wide, excluding declined/withdrawn; "Include not yet purchased" widens it): per item the times bought, last bought, last price, best price (and who), quantity-weighted average price and a "price vs best" check. Expand an item to see every purchase (date, REQ, product link, qty, price, project, requester), price by supplier and a price trend. A **Suppliers** tab shows spend per supplier and what was bought from each. Tick items and **Add to a new requisition** to prefill the form (qty and price from the last purchase), or export the filtered list to CSV. Suppliers are derived from each item's product link (the form has no separate supplier field). Backed by `list_purchase_history` (`purchase-history.sql`).
+
+## How similar item names are matched (Purchase History & Analytics)
+
+`itemmatch.js` groups names that mean the same thing: case, punctuation, plurals and word order are ignored ("M3 screws" = "screw M3"), near-identical names / typos are merged automatically, but names whose sizes or numbers differ stay apart ("M3 screw" ≠ "M4 screw"). Names that are only similar show up as **"Could be the same item?"** with a **Yes, combine** button; ticking two or more items offers **Combine as one item**; each name variant has **Not the same** to separate it again. These choices are stored for everyone in `item_aliases` (`item-aliases.sql`; rows are switched off, never deleted).
+
+## Dashboard layout
+
+Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (My Profile, Reminder Settings, Manual, FAQ, Log out). Below: five summary cards that double as quick filters (All / Needs action / In progress / Completed / Declined-withdrawn), a search box, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).
