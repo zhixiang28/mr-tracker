@@ -14,14 +14,14 @@
   }
   *{box-sizing:border-box}
   body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
-  .wrap{ max-width:900px; margin:24px auto 60px; padding:0 16px; }
+  .wrap{ max-width:1000px; margin:24px auto 60px; padding:0 16px; }
   .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
   .brand{ font-weight:800; font-size:16px; }
   .brand span{ font-weight:400; color:var(--muted); }
   button, a.btn{ border:1px solid var(--line); background:#fff; color:var(--ink); padding:8px 14px; border-radius:8px; cursor:pointer; font:inherit; font-weight:600; font-size:12.5px; text-decoration:none; display:inline-block; }
   .view-tag{ font-size:11px; font-weight:700; color:var(--muted); background:#eef1f6; border:1px solid var(--line); padding:5px 10px; border-radius:999px; }
 
-  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:30px; }
+  .sheet{ max-width:900px; margin-left:auto; margin-right:auto; background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:30px; }
   .form-header{ display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:18px; }
   .form-title{ font-size:20px; font-weight:800; }
   .form-sub{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
@@ -72,21 +72,22 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="toolbar">
-    <div style="display:flex;gap:12px;align-items:center">
-      <a class="btn" href="dashboard.html">← Dashboard</a>
-      <div class="brand">SPACE<span>logic</span></div>
-      <span class="view-tag">Full form view</span>
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1 id="phTitle">Requisition</h1>
+      <div class="sub">Full form view</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn" onclick="window.print()">Print</button>
-      <button class="btn" onclick="exportPDF()">Export PDF</button>
+    <div class="btns">
+      <button type="button" onclick="window.print()">Print</button>
+      <button type="button" onclick="exportPDF()">Export PDF</button>
     </div>
   </div>
   <div class="sheet" id="content"><div class="center-note">Loading...</div></div>
 </div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -113,6 +114,7 @@ const STAGE_VARS = { "Submitted":"#94a3b8","Manager Approved":"#f59e0b","Procure
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function money(n){ return "$ "+Number(n||0).toFixed(2); }
 
+if(sessionStorage.getItem("sl_person_id")) AppBar.mount("appbar", {active:"", client:supabaseClient, notice:false});
 let myId=null, myPin=null;
 
 async function init(){
@@ -331,6 +333,7 @@ let currentReq = null;
 
 function render(req){
   currentReq = req;
+  document.getElementById("phTitle").textContent = req.tracking_no || "Requisition";
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
   const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);

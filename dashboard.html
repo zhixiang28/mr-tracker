@@ -39,36 +39,12 @@
   .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
   .primary:hover{ background:var(--accent-dark); }
   .danger{ background:#fff; color:var(--declined); border-color:#fecaca; }
-  .mode-badge{ font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px; }
-  .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
-  .mode-badge.admin{ color:#fff; background:var(--admin); }
-
-  .attn{ background:#fff; border:1px solid var(--line); border-left:4px solid #f59e0b; border-radius:12px; margin-bottom:16px; overflow:hidden; }
-  .attn-head{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid #f0f2f5; }
-  .attn-title{ font-weight:800; font-size:13.5px; }
-  .attn-count{ background:#fef3c7; color:#92400e; font-weight:800; font-size:11.5px; border-radius:999px; padding:2px 9px; }
-  .attn-tools{ margin-left:auto; font-size:12px; font-weight:600; color:var(--accent); cursor:pointer; user-select:none; }
-  .attn-tools:hover{ text-decoration:underline; }
-  .attn-row{ display:grid; grid-template-columns:270px 100px 1fr 130px 14px; align-items:center; gap:12px; padding:11px 18px; border-bottom:1px solid #f4f5f7; color:inherit; text-decoration:none; font-size:13px; transition:background .12s; }
-  .attn-row:last-child{ border-bottom:0; }
-  .attn-row:hover{ background:#f8fafc; }
-  .attn-chips{ display:flex; gap:6px; flex-wrap:wrap; }
-  .chip{ font-size:11px; font-weight:700; border-radius:999px; padding:3px 10px; white-space:nowrap; }
+  /* chips (reasons a requisition needs you) */
+  .chip{ font-size:11px; font-weight:700; border-radius:999px; padding:2px 9px; white-space:nowrap; display:inline-block; }
   .chip.warn{ background:#fef3c7; color:#92400e; }
   .chip.late{ background:#ffedd5; color:#c2410c; }
   .chip.bad{ background:#fee2e2; color:#b91c1c; }
-  .attn-no{ font-weight:700; color:var(--accent-dark); }
-  .attn-proj{ font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .attn-meta{ color:var(--muted); font-size:12px; white-space:nowrap; text-align:right; }
-  .attn-go{ color:var(--muted); font-size:18px; line-height:1; }
-  @media(max-width:800px){ .attn-row{ grid-template-columns:1fr auto; } .attn-no{ grid-column:1; } .attn-chips{ grid-column:1 / -1; } .attn-proj{ grid-column:1 / -1; white-space:normal; } .attn-meta{ grid-column:1; } .attn-go{ display:none; } }
-  @media(max-width:800px){ }
-
-  .quick-actions{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
-  .quick-actions button{ padding:10px 16px; }
-  .caught-up{ margin-left:auto; align-self:center; display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#15803d; padding-right:4px; }
-  .caught-up i{ width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block; }
-  #actionFilterBtn.active{ background:var(--admin); border-color:var(--admin); color:#fff; }
+  .chips{ display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
 
   th.sortable{ cursor:pointer; user-select:none; }
   th.sortable:hover{ color:var(--ink); }
@@ -91,8 +67,16 @@
   .stage-label{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.3px; color:var(--muted); }
   .stage-count{ font-size:24px; font-weight:800; margin-top:6px; line-height:1; }
 
-  .toolbar2{ display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
-  .toolbar2 input[type=text]{ flex:1; min-width:200px; }
+  .needs-chip{ display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  .needs-chip .nn{ background:#e5e7eb; border-radius:999px; padding:0 8px; font-size:11.5px; }
+  .needs-chip.hot{ border-color:#fbbf24; background:#fffbeb; color:#92400e; }
+  .needs-chip.hot .nn{ background:#fde68a; }
+  .needs-chip.on{ box-shadow:0 0 0 3px rgba(245,158,11,.25); }
+
+  /* ---- list toolbar ---- */
+  .toolbar2{ display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center; }
+  .toolbar2 input[type=text]{ flex:1; min-width:220px; }
+  .toolbar2 .lbl{ font-size:12px; font-weight:700; color:var(--muted); }
   .count-note{ font-size:12px; color:var(--muted); margin-left:auto; }
 
   .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:visible; overflow:clip; }
@@ -169,37 +153,34 @@
 </head>
 <body>
 <div class="app" id="app" style="display:none">
-  <div class="toolbar">
-    <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
-    <div class="header-actions">
-      <span class="mode-badge personal" id="modeBadge">Loading...</span>
-      <button class="header-icon-btn" onclick="loadData()">↻ Refresh</button>
-      <a href="analytics.html"><button type="button" class="header-btn">Analytics</button></a>
-      <a href="admin.html" id="adminSettingsLink" style="display:none"><button type="button" class="header-btn">Admin Settings</button></a>
-      <div class="header-divider"></div>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">Manual</button>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">FAQ</button>
-      <div class="header-divider"></div>
-      <span class="whoami-text" id="whoami"></span>
-      <button class="logout-link" onclick="logout()">Log out</button>
+  <div id="appbar"></div>
+
+  <div class="pagehead">
+    <div>
+      <h1>Requisitions</h1>
+      <div class="sub" id="pageSub">Everything you submitted or are asked to sign</div>
     </div>
-  </div>
-
-  <div id="attnPanel"></div>
-
-  <div class="quick-actions">
-    <a href="index.html"><button class="primary" type="button">+ New Requisition</button></a>
-    <a href="index.html?drafts=1"><button type="button">My Drafts</button></a>
-    <button type="button" onclick="openProfileModal()">My Profile</button>
-    <button type="button" onclick="openReminderModal()">Reminder Settings</button>
-    <span class="caught-up" id="caughtUp" style="display:none" title="Nothing is waiting on you"><i></i>All caught up</span>
+    <div class="btns">
+      <a href="index.html?drafts=1"><button type="button">My Drafts</button></a>
+      <a href="index.html"><button class="primary" type="button">+ New requisition</button></a>
+    </div>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
 
   <div class="toolbar2">
-    <input type="text" id="searchBox" placeholder="Search by tracking no, project, or requester..." oninput="render()">
-    <select id="stageFilter" onchange="render()">
+    <input type="text" id="searchBox" placeholder="Search by REQ no., project or requester…" oninput="render()">
+    <button type="button" class="needs-chip" id="needsChip" onclick="setQuick('needs')" title="Show only the requisitions that need you">Needs action <span class="nn" id="needsN">0</span></button>
+    <span class="lbl">Group by</span>
+    <select id="groupMode" onchange="setGroupMode(this.value)" title="Choose how the list is organised">
+      <option value="status">Status</option>
+      <option value="stage">Stage</option>
+      <option value="project">Project</option>
+      <option value="requester">Requester</option>
+      <option value="month">Month</option>
+      <option value="none">No grouping</option>
+    </select>
+    <select id="stageFilter" onchange="render()" title="Only show one stage">
       <option value="">All stages</option>
       <option>Submitted</option>
       <option>Manager Approved</option>
@@ -305,6 +286,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -352,10 +334,13 @@ function logout(){
 
 async function showApp(){
   document.getElementById("app").style.display="block";
-  document.getElementById("whoami").textContent = `Logged in as ${myName}`;
+  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:openProfileModal, onReminders:openReminderModal});
+  try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadPeopleForAdmin();
   await loadMySettings();
   await loadData();
+  const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
+  if(open==="profile") openProfileModal(); else if(open==="reminders") openReminderModal();
 }
 
 async function loadMySettings(){
@@ -429,42 +414,6 @@ function computeStats(){
   return {mySubmissions, awaitingMySignature, completed, declinedNeedsFix, overdueList, attention, total: allReqs.length};
 }
 
-function renderStats(){
-  const s = computeStats();
-  const panel = document.getElementById("attnPanel");
-  const caughtUp = document.getElementById("caughtUp");
-  if(s.attention.length === 0){
-    panel.innerHTML = "";
-    caughtUp.style.display = "inline-flex";
-    return;
-  }
-  caughtUp.style.display = "none";
-  const rows = s.attention.map(({r, chips, meta})=>`
-    <a class="attn-row" href="view.html?id=${r.id}" title="Open the form">
-      <span class="attn-chips">${chips.map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("")}</span>
-      <span class="attn-no">${escapeHtml(r.tracking_no||"-")}</span>
-      <span class="attn-proj">${escapeHtml(r.project_name||"-")}</span>
-      <span class="attn-meta">${escapeHtml(meta||"")}</span>
-      <span class="attn-go">›</span>
-    </a>`).join("");
-  panel.innerHTML = `
-    <div class="attn">
-      <div class="attn-head">
-        <span class="attn-title">Needs your attention</span>
-        <span class="attn-count">${s.attention.length}</span>
-        <span class="attn-tools" onclick="toggleActionFilter()">${actionFilterOn ? "Show all requisitions" : "Show only these in the list"}</span>
-      </div>
-      ${rows}
-    </div>`;
-}
-
-let actionFilterOn = false;
-function toggleActionFilter(){
-  actionFilterOn = !actionFilterOn;
-  render();
-  renderStats();
-}
-
 let sortField = "created_at", sortDir = "desc";
 function setSort(field){
   if(sortField===field){ sortDir = sortDir==="asc" ? "desc" : "asc"; }
@@ -496,17 +445,11 @@ async function loadData(){
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not load data."); return; }
   iAmAdmin = !!data.is_admin;
   allReqs = data.requisitions || [];
-  const badge = document.getElementById("modeBadge");
-  if(iAmAdmin){
-    badge.className = "mode-badge admin"; badge.textContent = "Admin — all requisitions";
-  } else {
-    badge.className = "mode-badge personal"; badge.textContent = "Your requisitions";
-  }
-  document.getElementById("adminSettingsLink").style.display = iAmAdmin ? "" : "none";
+  document.getElementById("pageSub").textContent = iAmAdmin ? "Every requisition in the system" : "Everything you submitted or are asked to sign";
+  AppBar.setAdmin(iAmAdmin);
   document.getElementById("emptyStateText").textContent = iAmAdmin
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";
-  renderStats();
   setStatus("");
   render();
 }
@@ -534,47 +477,100 @@ function matchesSearch(r, q){
   return (r.tracking_no||"").toLowerCase().includes(q) || (r.project_name||"").toLowerCase().includes(q) || (r.request_by||"").toLowerCase().includes(q);
 }
 
+// ---------- organising the list ----------
+let groupMode = "status";      // status | stage | project | requester | month | none
+let quickFilter = "";          // "" | needs | active | done | closed   (the summary cards)
+const collapsedGroups = new Set();
+
+function setGroupMode(m){
+  groupMode = m;
+  try{ localStorage.setItem("sl_group_mode", m); }catch(_){}
+  render();
+}
+function setQuick(k){ quickFilter = (quickFilter===k) ? "" : k; render(); }
+function toggleGroup(key){
+  if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
+  render();
+}
+
+const STATUS_GROUPS = [
+  {key:"needs",  label:"Needs action"},
+  {key:"active", label:"In progress"},
+  {key:"done",   label:"Completed"},
+  {key:"closed", label:"Declined / withdrawn"}
+];
+function statusGroupOf(r, needIds){
+  if(needIds.has(r.id)) return "needs";
+  if(["Declined","Withdrawn"].includes(r.status)) return "closed";
+  if(r.status==="Received") return "done";
+  return "active";
+}
+function monthLabel(r){
+  const d = new Date(r.form_date || r.created_at || Date.now());
+  return isNaN(d) ? "No date" : ["January","February","March","April","May","June","July","August","September","October","November","December"][d.getMonth()] + " " + d.getFullYear();
+}
+function monthSort(r){ const d = new Date(r.form_date || r.created_at || 0); return isNaN(d) ? 0 : d.getFullYear()*100 + d.getMonth(); }
+
+function buildGroups(list, needIds){
+  const by = (keyFn, order)=>{
+    const m = new Map();
+    list.forEach(r=>{ const k = keyFn(r); if(!m.has(k)) m.set(k, []); m.get(k).push(r); });
+    return [...m.entries()].map(([label,rows])=>({key:groupMode+":"+label, label, rows})).sort(order);
+  };
+  switch(groupMode){
+    case "status": {
+      return STATUS_GROUPS.map(g=>({key:"status:"+g.key, label:g.label, needs:g.key==="needs", rows:list.filter(r=>statusGroupOf(r,needIds)===g.key)})).filter(g=>g.rows.length);
+    }
+    case "stage":
+      return STAGES.map(st=>({key:"stage:"+st, label:st, rows:list.filter(r=>r.status===st)})).filter(g=>g.rows.length);
+    case "project":
+      return by(r=>r.project_name||"(no project)", (a,b)=>a.label.localeCompare(b.label));
+    case "requester":
+      return by(r=>r.request_by||"(unknown)", (a,b)=>a.label.localeCompare(b.label));
+    case "month": {
+      const g = by(monthLabel, (a,b)=>monthSort(b.rows[0])-monthSort(a.rows[0]));
+      return g;
+    }
+    default:
+      return [{key:"none", label:"", rows:list, flat:true}];
+  }
+}
+
+function renderSummary(needIds){
+  let n = 0; allReqs.forEach(r=>{ if(needIds.has(r.id)) n++; });
+  const chip = document.getElementById("needsChip");
+  document.getElementById("needsN").textContent = n;
+  chip.classList.toggle("hot", n>0);
+  chip.classList.toggle("on", quickFilter==="needs");
+  renderPipeline();
+}
+
 function render(){
   const q = document.getElementById("searchBox").value.trim();
   const stageSel = document.getElementById("stageFilter").value;
   activeStageFilter = stageSel;
-  let filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel));
-  if(actionFilterOn){
-    // same list as the "Needs your attention" panel (declined, awaiting my signature, overdue)
-    const ids = new Set(computeStats().attention.map(x=>x.r.id));
-    if(ids.size === 0) actionFilterOn = false;   // nothing left to filter on — show everything again
-    else filtered = filtered.filter(r=>ids.has(r.id));
-  }
+  const attention = computeStats().attention;
+  const needIds = new Set(attention.map(x=>x.r.id));
+  const chipsById = new Map(attention.map(x=>[x.r.id, x.chips]));
+  renderSummary(needIds);
+
+  let filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel) && (!quickFilter || statusGroupOf(r,needIds)===quickFilter));
   filtered = applySort(filtered);
   document.getElementById("countNote").textContent = `${filtered.length} of ${allReqs.length} requisitions`;
-  renderPipeline();
   updateSortArrows();
 
   const tbody = document.getElementById("tbody");
   document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
-  const needIds = new Set(computeStats().attention.map(x=>x.r.id));
-  const GROUPS = [
-    {key:"needs",   label:"Needs action", test:r=>needIds.has(r.id)},
-    {key:"active",  label:"In progress",  test:r=>["Submitted","Manager Approved","Procurement Approved","Purchased"].includes(r.status)},
-    {key:"done",    label:"Completed",    test:r=>r.status==="Received"},
-    {key:"closed",  label:"Declined / withdrawn", test:r=>["Declined","Withdrawn"].includes(r.status)}
-  ];
-  const placed = new Set();
-  const grouped = GROUPS.map(g=>{
-    const rows = filtered.filter(r=>!placed.has(r.id) && g.test(r));
-    rows.forEach(r=>placed.add(r.id));
-    return {...g, rows};
-  }).filter(g=>g.rows.length);
-
   const renderRow = r=>{
     const isOpen = openRows.has(r.id);
+    const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
     const mainRow = `
       <tr class="req-row" onclick="toggleRow('${r.id}')">
         <td><span class="chev ${isOpen?'open':''}">›</span></td>
         <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
-        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div></td>
+        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}</td>
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
@@ -585,18 +581,18 @@ function render(){
     return mainRow + detailRow;
   };
 
-  tbody.innerHTML = grouped.map(g=>{
+  const groups = buildGroups(filtered, needIds);
+  if(!groups.length && allReqs.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = groups.map(g=>{
+    if(g.flat) return g.rows.map(renderRow).join("");
     const collapsed = collapsedGroups.has(g.key);
-    const head = `<tr class="group-row ${g.key==="needs"?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${g.key}')">
-      <td colspan="7"><span class="g-chev">▾</span>${g.label}<span class="g-count">${g.rows.length}</span></td></tr>`;
+    const head = `<tr class="group-row ${g.needs&&g.rows.length?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">
+      <td colspan="7"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
     return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
-}
-
-const collapsedGroups = new Set();
-function toggleGroup(key){
-  if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
-  render();
 }
 
 const STEP_SHORT = {1:"Manager", 2:"Approve", 3:"Purchase", 4:"Received"};
@@ -866,7 +862,7 @@ async function saveReminderSettings(){
   if(error || !data.success){ errEl.textContent = (data&&data.error)||(error&&error.message)||"Could not save."; return; }
 
   await loadMySettings();
-  renderStats();
+  render();
   closeReminderModal();
   setStatus("Reminder settings saved.");
 }

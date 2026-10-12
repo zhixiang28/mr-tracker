@@ -409,24 +409,21 @@
   }
 </script>
 <div class="app">
-  <div class="toolbar">
-    <div class="brand">SPACE<span>logic</span> — Purchase Requisition</div>
-    <div class="header-actions">
-      <button type="button" class="dashboard-btn" onclick="window.open('dashboard.html','_blank')">Open Dashboard</button>
-      <div class="header-divider"></div>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">📘 Manual</button>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">❓ FAQ</button>
-      <div class="header-divider"></div>
-      <span class="whoami-text" id="loginBarText"></span>
-      <button id="logoutBtn" class="logout-link" onclick="requesterLogout()">Log out</button>
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1 id="phTitle">New requisition</h1>
+      <div class="sub" id="phSub">Fill in the form, then choose how people will sign</div>
+    </div>
+    <div class="btns" id="phDraftBtns">
+      <button type="button" onclick="openDraftsModal()">My Drafts</button>
+      <button type="button" onclick="saveForm()">Save Draft</button>
     </div>
   </div>
 
   <div class="action-toolbar">
     <div class="btn-group">
       <button onclick="newForm()">New</button>
-      <button onclick="saveForm()">Save Draft</button>
-      <button onclick="openDraftsModal()">My Drafts</button>
       <button onclick="duplicateForm()" title="Create a fresh, unsaved copy of this form">⧉ Duplicate Form</button>
     </div>
     <div class="divider"></div>
@@ -589,6 +586,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -603,6 +601,7 @@ const supabaseClient = (SUPABASE_URL.startsWith("http") && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
+AppBar.mount("appbar", {active:"", client:supabaseClient, newTab:true, notice:false});   // links open in a new tab so an unsaved form isn't lost
 const STORAGE_KEY = "spacelogic_purchase_requisition_v1";
 let currentRequisitionId = null; // set once this draft has been submitted to Supabase
 
@@ -618,7 +617,7 @@ async function loadRequesterPeopleList(){
 }
 
 function updateLoginBar(){
-  const text = document.getElementById("loginBarText");
+  const text = document.getElementById("loginBarText") || {};
   const requestByField = document.getElementById("requestBy");
   text.textContent = `Logged in as ${requesterName}`;
   if(requestByField){ requestByField.value = requesterName; requestByField.readOnly = true; requestByField.style.background="#f4f6f8"; }
@@ -968,6 +967,8 @@ async function loadForEdit(requisitionId){
   }
 
   editRequisitionId = requisitionId;
+  document.getElementById("phTitle").textContent = "Revise " + (req.tracking_no||"requisition");
+  document.getElementById("phSub").textContent = "Fix what was declined, then resubmit";
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   apply({
     meta: {
@@ -1059,6 +1060,19 @@ function newForm(){
   setStatus("New blank requisition created.");
 }
 
+// ?reorder=1 — items picked on the Purchase History page arrive via localStorage
+function loadReorder(){
+  let list = [];
+  try{ list = JSON.parse(localStorage.getItem("sl_reorder") || "[]"); localStorage.removeItem("sl_reorder"); }catch(_){ list = []; }
+  if(!Array.isArray(list) || !list.length) return;
+  const body = document.getElementById("itemsBody");
+  const starter = [...body.querySelectorAll("tr")];
+  if(starter.length===1 && !starter[0].querySelector(".r-name").value) starter[0].remove();
+  list.forEach(it=>addRow([String(it.name||""), String(it.description||""), it.qty||1, it.unit_price||"", it.delivery_tax||"", String(it.link||"")]));
+  recalc();
+  setStatus(`Added ${list.length} item${list.length===1?"":"s"} from your purchase history — check quantity and price before you submit.`);
+}
+
 // Admin edit mode: ?adminEdit=<id>. Admins change a submitted requisition here, in the form (not on the dashboard).
 async function loadForAdminEdit(requisitionId){
   const {data: isAdmin} = await supabaseClient.rpc("verify_admin", {p_person_id: requesterId, p_pin: requesterPin});
@@ -1095,6 +1109,9 @@ async function loadForAdminEdit(requisitionId){
 
   // Edit mode only needs: change the form, Save or Cancel. Hide drafts/new/duplicate and the sign-link choice.
   const tb = document.querySelector(".action-toolbar");
+  document.getElementById("phDraftBtns").style.display = "none";
+  document.getElementById("phTitle").textContent = "Edit requisition " + (req.tracking_no||"");
+  document.getElementById("phSub").textContent = "Admin edit — change what's needed, then save";
   const firstGroup = tb.querySelector(".btn-group");
   if(firstGroup){ const sep = firstGroup.nextElementSibling; firstGroup.style.display = "none"; if(sep && sep.classList.contains("divider")) sep.style.display = "none"; }
   const saveBtn = document.getElementById("submitBtn");
@@ -1728,6 +1745,8 @@ updateLoginBar();
     loadForEdit(params.get("editRequisition"));
   } else if(params.get("adminEdit")){
     loadForAdminEdit(params.get("adminEdit"));
+  } else if(params.get("reorder")){
+    setTimeout(loadReorder, 0);   // after the form has added its starter row
   }
 })();
 

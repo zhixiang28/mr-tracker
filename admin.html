@@ -11,10 +11,9 @@
   :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --success:#16a34a; }
   *{box-sizing:border-box}
   body{ margin:0; font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
-  .wrap{ max-width:820px; margin:40px auto 60px; padding:0 16px; }
-  .brand{ font-weight:800; font-size:18px; margin-bottom:18px; }
-  .brand span{ font-weight:400; color:var(--muted); }
-  .card{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:24px; margin-bottom:20px; }
+  .wrap{ max-width:1000px; margin:28px auto 60px; padding:0 16px; }
+  .pagehead h1{ font-size:24px; }
+  .card{ max-width:820px; background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); padding:24px; margin-bottom:20px; }
   h2{ font-size:15px; margin:0 0 4px; }
   .desc{ font-size:12.5px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
   label{ display:block; font-size:11.5px; font-weight:700; color:var(--muted); margin:10px 0 4px; }
@@ -44,7 +43,10 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">SPACE<span>logic</span> — Admin Settings</div>
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div><h1>Admin Settings</h1><div class="sub">Manage who can approve and administer requisitions</div></div>
+  </div>
 
   <div class="card" id="claimCard" style="display:none">
     <h2>Claim the first admin slot</h2>
@@ -95,10 +97,12 @@
 
 <script src="dates.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="appbar.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+if(sessionStorage.getItem("sl_person_id")) AppBar.mount("appbar", {active:"admin", client:supabaseClient});
 
 let people = [];
 let loggedInAdminId = null, loggedInAdminPin = null;
