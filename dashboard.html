@@ -179,7 +179,7 @@
   .view-toggle button{ border:0; border-radius:0; background:#fff; padding:6px 11px; font-size:12px; color:var(--muted); }
   .view-toggle button+button{ border-left:1px solid var(--line); }
   .view-toggle button.on{ background:#eaf0fb; color:var(--ink); font-weight:700; }
-  .cards{ display:grid; grid-template-columns:repeat(7,minmax(210px,1fr)); gap:10px; padding:12px; overflow-x:auto; align-items:start; }
+  .cards{ display:grid; grid-template-columns:repeat(7,minmax(172px,1fr)); gap:10px; padding:12px; overflow-x:auto; align-items:start; }
   .kcol{ background:#f4f6fa; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; min-width:0; }
   .kcol-h{ display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); padding:2px 4px 4px; }
   .kcol-h i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
@@ -227,6 +227,11 @@
   .rcard .item-row{ grid-template-columns:1fr 34px 62px 62px; }
   .rcard .item-row>div:nth-child(4){ display:none; }
   .rcard .rc-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .rcard .rc-top{ flex-wrap:wrap; gap:2px 8px; }
+  .rcard .rc-top>*{ white-space:nowrap; }
+  .rcard .rc-top .tracking a{ font-size:13px; }
+  .rcard .rc-total{ font-size:13px; }
+  .rcard .rc-meta{ flex-wrap:wrap; gap:0 8px; }
   .rcard .rc-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
   .rcard .rc-total{ font-weight:800; color:var(--ink); }
   .rcard .rc-detail{ border-top:1px solid var(--line); margin-top:4px; padding-top:12px; }
@@ -725,7 +730,7 @@ function render(){
   if(cardsMode){
     if(!allReqs.length){ return; }
     const colOpen = st=>filtered.some(r=>r.status===st) && !collapsedGroups.has("col:"+st);
-    cardWrap.style.gridTemplateColumns = STAGES.map(st=>colOpen(st) ? "minmax(210px,1fr)" : "44px").join(" ");
+    cardWrap.style.gridTemplateColumns = STAGES.map(st=>colOpen(st) ? "minmax(172px,1fr)" : "44px").join(" ");
     cardWrap.innerHTML = STAGES.map(st=>{
       const rows = filtered.filter(r=>r.status===st);
       if(!rows.length) return `<div class="kcol kcol-empty" title="${escapeHtml(st)}: none"><span><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)} · 0</span></div>`;
