@@ -225,22 +225,12 @@
   .total{width:92px}
   .num{text-align:right}
   .center{text-align:center}
-  .row-remove{
-    width:26px;
-    height:26px;
-    padding:0;
-    border:0;
-    background:transparent;
-    font-size:16px;
-    color:#a5abb3;
-    border-radius:6px;
+  .row-actions{display:flex;gap:6px;justify-content:center}
+  .row-remove, .row-duplicate{
+    width:30px; height:30px; padding:0; border:0; background:transparent; color:#9aa3af; border-radius:8px;
+    display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none;
   }
   .row-remove:hover{color:#dc2626;background:#fee2e2}
-  .row-actions{display:flex;gap:2px}
-  .row-duplicate{
-    width:26px; height:26px; padding:0; border:0; background:transparent;
-    font-size:14px; color:#a5abb3; border-radius:6px;
-  }
   .row-duplicate:hover{color:#2f6fed;background:#eaf1ff}
   .bottom-row td{height:32px; padding:7px}
   .bottom-row td:first-child{text-align:right; font-weight:600; padding-right:16px; color:#4b5563}
@@ -458,15 +448,9 @@
     </div>
 
     <div class="section-title">Project Details</div>
-    <div class="no-print" id="presetRow" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">
-      <label for="presetSelect" style="font-weight:600;color:#4b5563">Saved projects:</label>
-      <select id="presetSelect" onchange="applyPreset()" style="padding:6px 8px;border:1px solid #d7dbe0;border-radius:6px;font:inherit;max-width:320px"></select>
-      <button type="button" onclick="savePreset()" title="Remember the project name, location, PC no. and PM for next time on this device">Save project details</button>
-      <button type="button" onclick="deletePreset()" title="Remove the selected saved project">Remove</button>
-    </div>
     <div class="meta">
       <div class="meta-col">
-        <div class="field"><label>PROJECT NAME :</label><input id="projectName"></div>
+        <div class="field"><label>PROJECT NAME :</label><input id="projectName" autocomplete="off" placeholder="Start typing to find a project…"></div>
         <div class="field"><label>PROJECT LOCATION :</label><input id="projectLocation"></div>
         <div class="field"><label>REQUEST BY :</label><input id="requestBy"></div>
         <div class="field"><label>SUPPLY DATE :</label>
@@ -475,7 +459,7 @@
       <div class="meta-col">
         <div class="field"><label>DATE :</label>
           <div class="dmy-wrap"><input id="formDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('formDate')" title="Pick a date"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></button><input type="date" id="formDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('formDate')"></div></div>
-        <div class="field"><label>PC NO. :</label><input id="pcNo"></div>
+        <div class="field"><label>PC NO. :</label><input id="pcNo" autocomplete="off"></div>
         <div class="field"><label>PM Incharge :</label><input id="pmIncharge"></div>
       </div>
     </div>
@@ -494,7 +478,7 @@
             <th class="delivery">DELIVERY / TAX</th>
             <th class="link">LINK</th>
             <th class="total">TOTAL</th>
-            <th style="width:28px"></th>
+            <th style="width:76px"></th>
           </tr>
         </thead>
         <tbody id="itemsBody"></tbody>
@@ -563,7 +547,7 @@
 <div id="currencyModal" class="modal-overlay" style="display:none">
   <div class="modal-box" style="max-width:400px">
     <h3 style="margin:0 0 4px">💱 Currency Converter</h3>
-    <div class="muted" style="font-size:12px;margin-bottom:14px">Quick lookup to help you price items — type the converted amount into whichever field you need.</div>
+    <div class="muted" style="font-size:12px;margin-bottom:14px">Quick lookup to help you price items. The exchange rate is fetched live each time you open this or change currency.</div>
 
     <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:0 0 4px">Amount</label>
     <input type="number" id="curAmount" value="1" min="0" step="0.01" style="width:100%;box-sizing:border-box;margin-bottom:10px">
@@ -581,8 +565,11 @@
     </div>
 
     <label style="display:block;font-size:11.5px;font-weight:700;color:var(--muted);margin:0 0 4px">Exchange rate (1 <span id="curRateFromLabel">CNY</span> = ? <span id="curRateToLabel">SGD</span>)</label>
-    <input type="number" id="curRate" min="0" step="0.0001" style="width:100%;box-sizing:border-box;margin-bottom:10px">
-    <div class="muted" style="font-size:11px;margin:-6px 0 10px">Fixed rate you set — update it whenever you check the latest rate. Not fetched automatically.</div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <input type="number" id="curRate" min="0" step="0.0001" style="flex:1;box-sizing:border-box">
+      <button type="button" id="curRefresh" onclick="updateLiveRate(true)" title="Fetch the latest rate again">Refresh</button>
+    </div>
+    <div id="curStatus" class="muted" style="font-size:11.5px;margin:0 0 10px;min-height:16px" role="status" aria-live="polite"></div>
 
     <div id="curResultBox" style="background:#f4f6f8;border-radius:10px;padding:14px 16px;margin-bottom:6px">
       <div id="curResult" style="font-size:22px;font-weight:700;color:var(--ink)">—</div>
@@ -680,8 +667,8 @@ function addRow(data=["","","","","",""], insertAfterEl=null){
     <td class="num">$ <span class="r-total">0.00</span></td>
     <td>
       <div class="row-actions">
-        <button class="row-duplicate" title="Duplicate this row" onclick="duplicateRow(this)">⧉</button>
-        <button class="row-remove" title="Remove" onclick="this.closest('tr').remove();recalc()">×</button>
+        <button type="button" class="row-duplicate" title="Duplicate this row" aria-label="Duplicate this row" onclick="duplicateRow(this)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>
+        <button type="button" class="row-remove" title="Remove this row" aria-label="Remove this row" onclick="this.closest('tr').remove();recalc()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
       </div>
     </td>
   `;
@@ -899,6 +886,55 @@ const DEFAULT_RATES = {
   "USD_SGD": 1.35, "SGD_USD": 0.74
 };
 
+/* ---------- live exchange rate ---------- */
+// Tries three free, key-less rate services in turn; the first that answers wins. Falls back to a rate you type.
+const RATE_CACHE = {};
+let rateSeq = 0;
+async function getJSON(url, ms){
+  const ctl = new AbortController(), t = setTimeout(()=>ctl.abort(), ms||7000);
+  try{
+    const r = await fetch(url, {signal: ctl.signal, headers:{"Accept":"application/json"}});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+const RATE_SOURCES = [
+  {name:"European Central Bank (frankfurter.dev)", get: async (f,t)=>{ const j = await getJSON(`https://api.frankfurter.dev/v1/latest?base=${f}&symbols=${t}`); return {rate:j.rates && j.rates[t], date:j.date}; }},
+  {name:"open.er-api.com", get: async (f,t)=>{ const j = await getJSON(`https://open.er-api.com/v6/latest/${f}`); return {rate:j.rates && j.rates[t], date:(j.time_last_update_utc||"").slice(5,16)}; }},
+  {name:"currency-api (jsDelivr)", get: async (f,t)=>{ const j = await getJSON(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${f.toLowerCase()}.json`); return {rate:j[f.toLowerCase()] && j[f.toLowerCase()][t.toLowerCase()], date:j.date}; }}
+];
+async function fetchLiveRate(from, to){
+  if(from===to) return {rate:1, source:"same currency", date:""};
+  const key = from+"_"+to, c = RATE_CACHE[key];
+  if(c && Date.now()-c.at < 10*60*1000) return c;
+  for(const src of RATE_SOURCES){
+    try{
+      const r = await src.get(from, to);
+      const v = Number(r.rate);
+      if(v>0 && isFinite(v)){ const out = {rate:v, source:src.name, date:r.date||"", at:Date.now()}; RATE_CACHE[key] = out; return out; }
+    }catch(_){ /* try the next service */ }
+  }
+  throw new Error("no rate service answered");
+}
+async function updateLiveRate(force){
+  const from = document.getElementById("curFrom").value, to = document.getElementById("curTo").value;
+  const status = document.getElementById("curStatus"), rateEl = document.getElementById("curRate"), btn = document.getElementById("curRefresh");
+  const mySeq = ++rateSeq;
+  if(force) delete RATE_CACHE[from+"_"+to];
+  status.style.color = ""; status.textContent = "Getting the latest rate…"; btn.disabled = true;
+  try{
+    const r = await fetchLiveRate(from, to);
+    if(mySeq !== rateSeq) return;                       // a newer request replaced this one
+    rateEl.value = Number(r.rate.toPrecision(6));
+    status.style.color = "#15803d";
+    status.textContent = `Live rate${r.date ? " · "+(/^\d{4}-\d{2}-\d{2}$/.test(r.date) ? fmtDMY(r.date) : r.date) : ""} · ${r.source}`;
+  }catch(_){
+    if(mySeq !== rateSeq) return;
+    status.style.color = "#b45309";
+    status.textContent = "Couldn't reach the exchange-rate service, so the rate below is a rough estimate. Type the current rate yourself, or press Refresh to try again.";
+  } finally { if(mySeq === rateSeq) btn.disabled = false; runConversion(); }
+}
+
 function openCurrencyModal(){
   const fromSel = document.getElementById("curFrom");
   const toSel = document.getElementById("curTo");
@@ -913,10 +949,11 @@ function openCurrencyModal(){
     fromSel.addEventListener("change", onCurrencyPairChange);
     toSel.addEventListener("change", onCurrencyPairChange);
     document.getElementById("curAmount").addEventListener("input", runConversion);
-    document.getElementById("curRate").addEventListener("input", runConversion);
+    document.getElementById("curRate").addEventListener("input", ()=>{ rateSeq++; const st=document.getElementById("curStatus"); st.style.color=""; st.textContent="Using the rate you typed."; runConversion(); });
   }
   document.getElementById("currencyModal").style.display="flex";
   runConversion();
+  updateLiveRate(false);
 }
 function closeCurrencyModal(){
   document.getElementById("currencyModal").style.display="none";
@@ -929,6 +966,7 @@ function onCurrencyPairChange(){
   const known = DEFAULT_RATES[`${from}_${to}`];
   if(known != null) document.getElementById("curRate").value = known;
   runConversion();
+  updateLiveRate(false);
 }
 function swapCurrencies(){
   const fromSel = document.getElementById("curFrom"), toSel = document.getElementById("curTo");
@@ -1003,61 +1041,83 @@ async function loadForEdit(requisitionId){
   setStatus("Loaded for revision.");
 }
 
-// ---------------- Saved projects (project name / location / PC no. / PM) ----------------
-// Stored in this browser only, so each device keeps its own list.
-const PRESETS_KEY = "spacelogic_project_presets_v1";
-function readPresets(){
-  try{ const a = JSON.parse(localStorage.getItem(PRESETS_KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(_){ return []; }
+// ---------------- Shared projects (managed by admins on Projects) ----------------
+// Typing in Project name or PC no. filters the shared list; choosing one fills in location, PC no. and PM.
+let SHARED_PROJECTS = null;
+async function loadSharedProjects(){
+  if(SHARED_PROJECTS) return SHARED_PROJECTS;
+  try{
+    const {data} = await supabaseClient.rpc("list_projects", {p_person_id: requesterId, p_pin: requesterPin});
+    SHARED_PROJECTS = (data && data.success) ? (data.projects||[]) : [];
+  }catch(_){ SHARED_PROJECTS = []; }
+  return SHARED_PROJECTS;
 }
-function writePresets(list){
-  try{ localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); return true; }catch(_){ return false; }
-}
-function presetLabel(p){
-  return [p.projectName, p.pcNo?`PC ${p.pcNo}`:"", p.pmIncharge?`PM ${p.pmIncharge}`:""].filter(Boolean).join(" · ");
-}
-function renderPresets(selectedKey){
-  const sel = document.getElementById("presetSelect");
-  if(!sel) return;
-  const list = readPresets();
-  sel.innerHTML = `<option value="">${list.length ? "— choose a saved project —" : "— none saved yet —"}</option>` +
-    list.map(p=>`<option value="${esc(p.key)}">${esc(presetLabel(p))}</option>`).join("");
-  if(selectedKey) sel.value = selectedKey;
-}
-function savePreset(){
-  const m = collect().meta;
-  if(!m.projectName.trim()){ setStatus("Enter a Project Name first, then save."); return; }
-  const entry = {
-    key: (m.projectName.trim()+"|"+m.pcNo.trim()).toLowerCase(),
-    projectName: m.projectName.trim(), projectLocation: m.projectLocation.trim(),
-    pcNo: m.pcNo.trim(), pmIncharge: m.pmIncharge.trim()
-  };
-  const list = readPresets().filter(p=>p.key!==entry.key);
-  list.push(entry);
-  list.sort((a,b)=>a.projectName.localeCompare(b.projectName));
-  if(!writePresets(list)){ setStatus("Couldn't save — this browser is blocking local storage."); return; }
-  renderPresets(entry.key);
-  setStatus(`Saved "${entry.projectName}" for next time on this device.`);
-}
-function applyPreset(){
-  const key = document.getElementById("presetSelect").value;
-  const p = readPresets().find(x=>x.key===key);
-  if(!p) return;
-  document.getElementById("projectName").value = p.projectName;
-  document.getElementById("projectLocation").value = p.projectLocation;
-  document.getElementById("pcNo").value = p.pcNo;
-  document.getElementById("pmIncharge").value = p.pmIncharge;
-  setStatus(`Filled in "${p.projectName}".`);
-}
-function deletePreset(){
-  const key = document.getElementById("presetSelect").value;
-  const p = readPresets().find(x=>x.key===key);
-  if(!p){ setStatus("Choose a saved project to remove first."); return; }
-  if(!confirm(`Remove saved project "${p.projectName}"?`)) return;
-  writePresets(readPresets().filter(x=>x.key!==key));
-  renderPresets();
-  setStatus("Removed.");
-}
-renderPresets();
+(function initProjectSuggest(){
+  const menu = document.createElement("div");
+  menu.className = "hs-menu"; menu.setAttribute("role","listbox"); menu.style.display = "none";
+  document.body.appendChild(menu);
+  let active = null, items = [], sel = -1;
+  const e2 = s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const isAdminUser = ()=>{ try{ return sessionStorage.getItem("sl_is_admin")==="1"; }catch(_){ return false; } };
+
+  function position(){
+    if(!active) return;
+    const r = active.getBoundingClientRect(), w = Math.min(Math.max(r.width, 420), window.innerWidth-16);
+    menu.style.width = w+"px";
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth-w-8))+"px";
+    const below = window.innerHeight - r.bottom - 12;
+    if(below < 200 && r.top > below){ menu.style.top = "auto"; menu.style.bottom = (window.innerHeight - r.top + 4)+"px"; menu.style.maxHeight = Math.min(340, r.top-12)+"px"; }
+    else { menu.style.bottom = "auto"; menu.style.top = (r.bottom+4)+"px"; menu.style.maxHeight = Math.min(340, below)+"px"; }
+  }
+  function match(q){
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const first = words[0] || "";
+    return (SHARED_PROJECTS||[]).filter(p=>{ const hay = [p.name,p.location,p.pc_no,p.pm_incharge].join(" ").toLowerCase(); return words.every(w=>hay.includes(w)); })
+      .sort((a,b)=>((b.name.toLowerCase().startsWith(first)?1:0)-(a.name.toLowerCase().startsWith(first)?1:0)) || a.name.localeCompare(b.name)).slice(0,30);
+  }
+  function render(){
+    if(!SHARED_PROJECTS || !SHARED_PROJECTS.length){ menu.style.display="none"; return; }
+    const typed = active.value.trim();
+    let html = "";
+    if(items.length){
+      html += `<div class="hs-head">${typed ? "Matching projects" : "Projects"} — pick one to fill in the details</div>`;
+      html += items.map((p,i)=>`<div class="hs-row ${i===sel?"on":""}" data-i="${i}" role="option">
+        <div class="hs-main"><b>${e2(p.name)}</b><span class="hs-sub">${[p.location, p.pc_no?("PC "+p.pc_no):"", p.pm_incharge?("PM "+p.pm_incharge):""].filter(Boolean).map(e2).join(" · ") || "No other details"}</span></div></div>`).join("");
+    } else if(typed.length>=2){
+      html += `<div class="hs-none">No project like “${e2(typed)}” in the list — you can still type it yourself.</div>`;
+    } else { menu.style.display="none"; return; }
+    html += `<div class="hs-foot">↑↓ to choose, Enter to select · ${isAdminUser() ? '<a href="projects.html" target="_blank" rel="noopener">Manage projects</a>' : "Missing a project? Ask an admin to add it."}</div>`;
+    menu.innerHTML = html; menu.style.display = "block"; position();
+  }
+  async function open(input){ active = input; await loadSharedProjects(); if(active!==input) return; update(); }
+  function update(){ if(!active) return; items = match(active.value); sel = -1; render(); }
+  function close(){ menu.style.display = "none"; active = null; }
+  function pick(i){
+    const p = items[i]; if(!p) return;
+    document.getElementById("projectName").value = p.name;
+    document.getElementById("projectLocation").value = p.location || "";
+    document.getElementById("pcNo").value = p.pc_no || "";
+    document.getElementById("pmIncharge").value = p.pm_incharge || "";
+    close();
+    setStatus(`Filled in the details for “${p.name}”.`);
+  }
+  const isMine = el => el && (el.id==="projectName" || el.id==="pcNo");
+  document.addEventListener("focusin", e=>{ if(isMine(e.target)) open(e.target); });
+  document.addEventListener("click", e=>{ if(isMine(e.target) && active!==e.target) open(e.target); });
+  document.addEventListener("input", e=>{ if(active && e.target===active) update(); });
+  document.addEventListener("keydown", e=>{
+    if(!active || menu.style.display==="none") return;
+    const keepVisible = ()=>{ const on = menu.querySelector(".hs-row.on"); if(on) on.scrollIntoView({block:"nearest"}); };
+    if(e.key==="ArrowDown"){ e.preventDefault(); sel = Math.min(items.length-1, sel+1); render(); keepVisible(); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); sel = Math.max(0, sel-1); render(); keepVisible(); }
+    else if(e.key==="Enter" && sel>=0){ e.preventDefault(); pick(sel); }
+    else if(e.key==="Escape"){ menu.style.display="none"; }
+  });
+  menu.addEventListener("mousedown", e=>{ e.preventDefault(); const row = e.target.closest("[data-i]"); if(row) pick(Number(row.dataset.i)); });
+  document.addEventListener("mousedown", e=>{ if(active && e.target!==active && !menu.contains(e.target)) close(); });
+  window.addEventListener("resize", position);
+  window.addEventListener("scroll", position, true);
+})();
 
 function newForm(){
   if(!confirm("Start a new requisition? Unsaved changes will be cleared."))return;

@@ -136,6 +136,7 @@
   .tstage{ font-weight:700; font-size:12.5px; }
   .tmeta{ font-size:11.5px; color:var(--muted); }
   .sign-error{ color:var(--declined); font-size:11.5px; margin-top:4px; }
+  .rcard .decline-reason-box{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin:0; }
   .decline-reason-box{ font-size:11.5px; color:var(--declined); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:4px; }
   .link-tools{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
   .link-tools button{ font-size:10.5px; padding:4px 8px; }
@@ -167,7 +168,63 @@
   .acct-msg.err{ color:var(--declined); } .acct-msg.ok{ color:#15803d; font-weight:600; }
   .manage-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
   .manage-bar button{ padding:7px 11px; font-size:12px; }
-  .manage-danger{ display:flex; gap:6px; }
+  .mdz-l{ margin-left:10px; }
+  .manage-bar button.rej{ color:var(--declined); border-color:#fecaca; background:#fff; }
+  .manage-danger{ display:flex; gap:6px; align-items:center; }
+  .manage-danger .mdz{ margin-left:14px; padding-left:14px; border-left:1px solid var(--line); }
+  .manage-danger button.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
+  .manage-danger button.del:hover{ background:#fee2e2; }
+  .view-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+  .view-toggle button{ border:0; border-radius:0; background:#fff; padding:6px 11px; font-size:12px; color:var(--muted); }
+  .view-toggle button+button{ border-left:1px solid var(--line); }
+  .view-toggle button.on{ background:#eaf0fb; color:var(--ink); font-weight:700; }
+  .cards{ display:grid; grid-template-columns:repeat(7,minmax(210px,1fr)); gap:10px; padding:12px; overflow-x:auto; align-items:start; }
+  .kcol{ background:#f4f6fa; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .kcol-h{ display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); padding:2px 4px 4px; }
+  .kcol-h i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .kcol-h .g-count{ margin-left:auto; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  .kcol.kcol-empty{ padding:10px 0; align-items:center; background:#f8f9fc; }
+  .kcol-empty span{ writing-mode:vertical-rl; font-size:11px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+  .kcol-empty i{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-bottom:6px; }
+  .rcard .pill{ display:none; }
+  .rcard.open{ border-color:var(--accent); box-shadow:0 0 0 2px #dbe6fb; }
+  .hover-pop{ position:fixed; z-index:70; width:330px; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(15,23,42,.18); padding:12px 14px; font-size:12.5px; display:none; pointer-events:none; }
+  .hover-pop.show{ display:block; }
+  .hp-h{ display:flex; justify-content:space-between; font-size:14px; }
+  .hp-sub{ color:var(--muted); margin:2px 0 8px; }
+  .hp-sec{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin:10px 0 4px; }
+  .hp-it,.hp-st{ display:flex; justify-content:space-between; gap:10px; padding:2px 0; }
+  .hp-it span:first-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hp-it span:last-child,.hp-st span:last-child{ color:var(--muted); white-space:nowrap; }
+  .hp-st.ok span:first-child{ color:var(--received); font-weight:700; } .hp-st.bad span:first-child{ color:var(--declined); font-weight:700; }
+  .hp-more{ color:var(--muted); font-style:italic; }
+  .hp-foot{ margin-top:10px; padding-top:8px; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px; }
+  .hover-pop .decline-reason-box{ margin:0 0 6px; }
+  .cards-empty{ grid-column:1/-1; text-align:center; color:var(--muted); padding:36px 16px; }
+  .ip{ font-size:12px; color:#475569; border-left:2px solid var(--line); padding-left:8px; }
+  .ip-l{ display:flex; justify-content:space-between; gap:8px; line-height:1.45; }
+  .ip-l span:first-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ip-l span:last-child,.ip-m{ color:var(--muted); }
+  .ip-m{ font-style:italic; line-height:1.45; }
+  td .ip{ margin-top:5px; max-width:420px; }
+  .rc-proj{ line-height:1.3; }
+  .rcard{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:#fff; cursor:pointer; display:flex; flex-direction:column; gap:5px; }
+  .rcard:hover{ border-color:#b9c6dd; box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .rcard.open{ cursor:default; }
+  .rcard{ min-width:0; overflow:hidden; }
+  .rcard .items-inner>*{ min-width:0; }
+  .rcard .manage-bar{ flex-direction:column; align-items:flex-start; }
+  .rcard .manage-danger{ flex-wrap:wrap; }
+  .rcard .manage-danger .mdz{ margin-left:6px; padding-left:8px; }
+  .rcard .item-row>div:nth-child(2),.rcard .item-row>div:nth-child(3),.rcard .item-row>div:nth-child(5){ white-space:nowrap; }
+  .rcard .item-row{ grid-template-columns:minmax(0,1fr) 30px 58px 64px; gap:6px; font-size:12px; }
+  .rcard .items-inner{ grid-template-columns:1fr; padding:0; gap:16px; }
+  .rcard .item-row{ grid-template-columns:1fr 34px 62px 62px; }
+  .rcard .item-row>div:nth-child(4){ display:none; }
+  .rcard .rc-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .rcard .rc-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
+  .rcard .rc-total{ font-weight:800; color:var(--ink); }
+  .rcard .rc-detail{ border-top:1px solid var(--line); margin-top:4px; padding-top:12px; }
   .manage-danger button{ color:var(--declined); border-color:#fecaca; background:#fff; }
   .manage-danger button:hover{ background:#fef2f2; }
 
@@ -214,6 +271,7 @@
       <option>Declined</option>
       <option>Withdrawn</option>
     </select>
+    <span class="view-toggle" title="Switch between a table and cards"><button type="button" id="vtList" onclick="setViewMode('list')">List</button><button type="button" id="vtCards" onclick="setViewMode('cards')">Cards</button></span>
     <span class="count-note" id="countNote"></span>
   </div>
 
@@ -221,7 +279,6 @@
     <table id="reqTable">
       <thead>
         <tr>
-          <th style="width:26px"></th>
           <th class="sortable" data-sort="tracking_no" onclick="setSort('tracking_no')">Tracking No <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="project_name" onclick="setSort('project_name')">Project <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="request_by" onclick="setSort('request_by')">Requested By <span class="sort-arrow"></span></th>
@@ -232,6 +289,7 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
+    <div class="cards" id="cardWrap" style="display:none"></div>
     <div class="empty-state" id="emptyState" style="display:none">
       <h3>Nothing here yet</h3>
       <div id="emptyStateText">Requisitions you submit or are asked to sign will show up here.</div>
@@ -239,6 +297,8 @@
   </div>
   <div class="status-msg" id="statusMsg"></div>
 </div>
+
+<div class="hover-pop" id="hoverPop"></div>
 
 <div class="acct-back" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="acctTitle" onclick="if(event.target===this) closeProfileModal()">
   <div class="acct">
@@ -377,6 +437,7 @@ function logout(){
 async function showApp(){
   document.getElementById("app").style.display="block";
   AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
+  try{ const vm = localStorage.getItem("sl_view_mode"); if(vm==="cards"||vm==="list") viewMode = vm; }catch(_){}
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadPeopleForAdmin();
   await loadMySettings();
@@ -524,6 +585,12 @@ let groupMode = "status";      // status | stage | project | requester | month |
 let quickFilter = "";          // "" | needs | active | done | closed   (the summary cards)
 const collapsedGroups = new Set();
 
+let viewMode = "list";         // list | cards
+function setViewMode(m){
+  viewMode = m;
+  try{ localStorage.setItem("sl_view_mode", m); }catch(_){}
+  render();
+}
 function setGroupMode(m){
   groupMode = m;
   try{ localStorage.setItem("sl_group_mode", m); }catch(_){}
@@ -602,37 +669,62 @@ function render(){
   updateSortArrows();
 
   const tbody = document.getElementById("tbody");
-  document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
+  const cardsMode = viewMode==="cards";
+  document.getElementById("vtList").classList.toggle("on", !cardsMode);
+  document.getElementById("vtCards").classList.toggle("on", cardsMode);
+  const cardWrap = document.getElementById("cardWrap");
+  cardWrap.style.display = (cardsMode && allReqs.length) ? "grid" : "none";
+  document.getElementById("groupMode").style.display = document.querySelector(".toolbar2 .lbl").style.display = cardsMode ? "none" : "";
+  document.getElementById("reqTable").style.display = (!cardsMode && allReqs.length) ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
   const renderRow = r=>{
-    const isOpen = openRows.has(r.id);
     const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
     const mainRow = `
-      <tr class="req-row" onclick="toggleRow('${r.id}')">
-        <td><span class="chev ${isOpen?'open':''}">›</span></td>
+      <tr class="req-row" data-rid="${r.id}" onclick="goFull('${r.id}')">
         <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
-        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}</td>
+        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}${declineSnippet(r)}</td>
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
       </tr>`;
-    const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
-    return mainRow + detailRow;
+    return mainRow;
+  };
+
+  const renderCard = r=>{
+    const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
+    const detail = "";
+    return `<div class="rcard" data-rid="${r.id}" onclick="goFull('${r.id}')">
+      <div class="rc-top"><span class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></span><span class="rc-total">${fmtMoney(r.grand_total)}</span></div>
+      <div class="rc-proj"><b>${escapeHtml(r.project_name||"-")}</b><span class="muted">${r.project_location?" · "+escapeHtml(r.project_location):""}</span></div>
+      <div class="rc-meta"><span>${escapeHtml(r.request_by||"-")}</span><span>${fmtDMY(r.form_date)||"-"}</span></div>
+      ${chips?`<div class="chips">${chips}</div>`:""}
+      ${declineSnippet(r)}
+      <div>${renderProgressCell(r)}</div>
+      ${detail}</div>`;
   };
 
   const groups = buildGroups(filtered, needIds);
+  if(cardsMode){
+    if(!allReqs.length){ return; }
+    cardWrap.style.gridTemplateColumns = STAGES.map(st=>filtered.some(r=>r.status===st) ? "minmax(210px,1fr)" : "44px").join(" ");
+    cardWrap.innerHTML = STAGES.map(st=>{
+      const rows = filtered.filter(r=>r.status===st);
+      if(!rows.length) return `<div class="kcol kcol-empty" title="${escapeHtml(st)}: none"><span><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)} · 0</span></div>`;
+      return `<div class="kcol"><div class="kcol-h"><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)}<span class="g-count">${rows.length}</span></div>${rows.map(renderCard).join("")}</div>`;
+    }).join("");
+    return;
+  }
   if(!groups.length && allReqs.length){
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:44px 16px"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</td></tr>`;
     return;
   }
   tbody.innerHTML = groups.map(g=>{
     if(g.flat) return g.rows.map(renderRow).join("");
     const collapsed = collapsedGroups.has(g.key);
     const head = `<tr class="group-row ${g.needs&&g.rows.length?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">
-      <td colspan="7"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
+      <td colspan="6"><span class="g-chev">▾</span>${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></td></tr>`;
     return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
 }
@@ -742,6 +834,55 @@ async function copyESignLink(tok){
   catch(_){ window.prompt("Copy this PDF sign link:", url.toString()); }
 }
 
+function itemsPreview(r, n){
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  if(!items.length) return "";
+  const lines = items.slice(0,n).map(it=>`<div class="ip-l"><span>${escapeHtml(it.name||"-")}</span><span>×${it.qty}</span></div>`).join("");
+  return `<div class="ip">${lines}${items.length>n?`<div class="ip-m">+ ${items.length-n} more</div>`:""}</div>`;
+}
+function goFull(id){ location.href = "view.html?id="+id; }
+// ---- hover preview: more info before you click ----
+let hoverT = null;
+function hoverHtml(r){
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const rows = items.slice(0,5).map(it=>`<div class="hp-it"><span>${escapeHtml(it.name||"-")}</span><span>${it.qty} × ${fmtMoney(it.unit_price)}</span></div>`).join("") + (items.length>5?`<div class="hp-more">+ ${items.length-5} more item${items.length-5>1?"s":""}</div>`:"");
+  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order).map(x=>{
+    const ic = x.status==="Signed" ? "✓" : x.status==="Declined" ? "✕" : "○";
+    const cls = x.status==="Signed" ? "ok" : x.status==="Declined" ? "bad" : "";
+    return `<div class="hp-st ${cls}"><span>${ic} ${escapeHtml(STEP_SHORT[x.step_order]||x.stage_name)}</span><span>${escapeHtml(x.assigned_person_name||"—")}${x.signed_at?" · "+fmtDMY(x.signed_at):""}</span></div>`;
+  }).join("");
+  return `<div class="hp-h"><b>${escapeHtml(r.tracking_no||"-")}</b><span>${fmtMoney(r.grand_total)}</span></div>
+    <div class="hp-sub">${escapeHtml(r.project_name||"-")}${r.project_location?" · "+escapeHtml(r.project_location):""}</div>
+    ${declineSnippet(r)}
+    <div class="hp-sec">Materials (${items.length})</div>${rows||'<div class="hp-more">No items</div>'}
+    <div class="hp-sec">Sign-off</div>${steps}
+    <div class="hp-foot">Click to open the full form</div>`;
+}
+function placePop(pop, e){
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = e.clientX + 18, y = e.clientY + 14;
+  if(x + w > innerWidth - 8) x = e.clientX - w - 18;
+  if(y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  pop.style.left = Math.max(8,x)+"px"; pop.style.top = y+"px";
+}
+(function(){
+  if(!window.matchMedia || !matchMedia("(hover:hover)").matches) return;
+  const pop = () => document.getElementById("hoverPop");
+  const hide = ()=>{ clearTimeout(hoverT); const p=pop(); if(p) p.classList.remove("show"); };
+  document.addEventListener("mouseover", e=>{
+    const el = e.target.closest && e.target.closest("[data-rid]");
+    if(!el){ hide(); return; }
+    if(el.contains(e.relatedTarget)) return;
+    clearTimeout(hoverT);
+    hoverT = setTimeout(()=>{
+      const r = allReqs.find(x=>x.id===el.dataset.rid); if(!r) return;
+      const p = pop(); p.innerHTML = hoverHtml(r); p.classList.add("show"); placePop(p, e);
+    }, 280);
+  });
+  document.addEventListener("mousemove", e=>{ const p=pop(); if(p && p.classList.contains("show")) placePop(p,e); });
+  document.addEventListener("scroll", hide, true);
+  document.addEventListener("click", hide, true);
+})();
 function toggleRow(id){
   if(openRows.has(id)) openRows.delete(id); else openRows.add(id);
   render();
@@ -760,13 +901,21 @@ function copyRegenLink(stepId){
   setStatus("New link copied — the old one no longer works.");
 }
 
+function declineReasonOf(r){
+  const st = (r.approval_steps||[]).find(s=>s.status==="Declined");
+  return r.decline_reason || st?.decline_reason || "—";
+}
+function declineSnippet(r){
+  if(r.status!=="Declined") return "";
+  return `<div class="decline-reason-box" title="${escapeHtml(declineReasonOf(r))}"><b>Declined${r.declined_by?" by "+escapeHtml(r.declined_by):""}:</b> ${escapeHtml(declineReasonOf(r))}</div>`;
+}
 function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
   return `
     <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
       <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(r.declined_by||declinedStep?.assigned_person_name||"")}</div>
-      <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
-      <a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Edit &amp; Resubmit in Full Form →</button></a>
+      <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declineReasonOf(r))}</div>
+      ${r.requester_person_id===myId ? `<a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Fix &amp; Resubmit in form →</button></a>` : `<div class="muted">${escapeHtml(r.request_by||"The requester")} needs to fix this and resubmit${iAmAdmin?" — or use Edit in form below":""}.</div>`}
     </div>`;
 }
 
@@ -775,11 +924,11 @@ function renderManageBar(r){
   const closed = ["Purchased","Received","Withdrawn"].includes(r.status);
   const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !closed;
   const canReject = iAmAdmin && r.status!=="Declined" && !closed;
-  const left = iAmAdmin ? `<a href="index.html?adminEdit=${r.id}"><button class="primary" type="button">Edit in form</button></a>` : "";
+  const left = (iAmAdmin ? `<a href="index.html?adminEdit=${r.id}"><button class="primary" type="button">Edit in form</button></a>` : "")
+    + (canReject ? ` <span class="mdz-l"><button class="rej" type="button" onclick="adminReject('${r.id}')">Reject</button></span>` : "");
   const right = [
-    canReject ? `<button type="button" onclick="adminReject('${r.id}')">Reject</button>` : "",
     canWithdraw ? `<button type="button" onclick="withdrawRequisition('${r.id}')">Withdraw</button>` : "",
-    iAmAdmin ? `<button type="button" onclick="adminDelete('${r.id}')">Delete</button>` : ""
+    iAmAdmin ? `<span class="mdz"><button class="del" type="button" onclick="adminDelete('${r.id}')">Delete…</button></span>` : ""
   ].join("");
   if(!left && !right) return "";
   return `<div class="manage-bar" onclick="event.stopPropagation()"><div>${left}</div><div class="manage-danger">${right}</div></div>`;

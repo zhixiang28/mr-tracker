@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Projects</title>
+<style>
+  :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --soft:#f4f6fa; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .wrap{ max-width:1180px; margin:28px auto 80px; padding:0 18px; }
+  button, input, select, textarea{ font:inherit; font-size:13px; color:var(--ink); }
+  button{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; }
+  button:hover{ background:var(--soft); }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover{ background:var(--accent-dark); }
+  button:disabled{ opacity:.5; cursor:default; }
+  button.small{ padding:5px 10px; font-size:12px; }
+  input, textarea, select{ border:1px solid var(--line); border-radius:8px; padding:9px 12px; background:#fff; width:100%; }
+  input:focus, textarea:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
+  .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .toolbar input[type=text]{ flex:1; min-width:220px; width:auto; }
+  .chk{ display:flex; gap:6px; align-items:center; font-size:12.5px; color:var(--muted); }
+  .chk input{ width:auto; }
+  .count{ margin-left:auto; font-size:12px; color:var(--muted); }
+  .sheet{ background:var(--paper); border:1px solid var(--line); border-radius:14px; overflow:clip; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ position:sticky; top:0; text-align:left; background:#fafbfc; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--line); box-shadow:0 1px 0 var(--line); }
+  td{ padding:11px 14px; border-bottom:1px solid #eef0f2; vertical-align:middle; }
+  tr.off td{ color:#9aa3af; }
+  .pill{ font-size:11px; font-weight:700; border-radius:999px; padding:2px 9px; background:#dcfce7; color:#166534; }
+  .pill.off{ background:#e5e7eb; color:#4b5563; }
+  td.act{ text-align:right; white-space:nowrap; }
+  .empty{ padding:50px 16px; text-align:center; color:var(--muted); }
+  .note{ font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  /* dialog */
+  .back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:center; justify-content:center; padding:18px; z-index:200; }
+  .back.on{ display:flex; }
+  .dlg{ background:#fff; border-radius:16px; width:100%; max-width:480px; max-height:94vh; overflow:auto; padding:22px 24px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+  .dlg h3{ margin:0 0 4px; font-size:17px; }
+  .dlg .sub{ font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .dlg label{ display:block; font-size:12px; font-weight:700; margin:14px 0 5px; }
+  .dlg .opt{ font-weight:500; color:var(--muted); }
+  .dlg textarea{ min-height:150px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; }
+  .foot{ display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:18px; }
+  .msg{ margin-right:auto; font-size:12.5px; } .msg.err{ color:var(--danger); } .msg.ok{ color:#15803d; font-weight:600; }
+  .gate{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:40px 20px; text-align:center; color:var(--muted); }
+  .gate a{ color:var(--accent); font-weight:600; text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1>Projects</h1>
+      <div class="sub">The project list everyone picks from on the requisition form. Choosing a project fills in its location, PC no. and PM.</div>
+    </div>
+    <div class="btns">
+      <button type="button" onclick="openImport()">Import from Excel</button>
+      <button type="button" class="primary" onclick="openEdit(null)">+ Add project</button>
+    </div>
+  </div>
+
+  <div id="gate" class="gate" style="display:none"></div>
+
+  <div id="main" style="display:none">
+    <div class="toolbar">
+      <input type="text" id="q" placeholder="Search by project, location, PC no. or PM…" oninput="draw()">
+      <label class="chk"><input type="checkbox" id="showOff" onchange="draw()"> Show archived</label>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="sheet"><div id="view"></div></div>
+    <div class="note">Archiving hides a project from the form without deleting it, so older requisitions keep their details. You can restore it any time.</div>
+  </div>
+</div>
+
+<div class="back" id="editBack" role="dialog" aria-modal="true" aria-labelledby="editTitle" onclick="if(event.target===this) closeDlg('editBack')">
+  <form class="dlg" onsubmit="saveProject(); return false;" novalidate>
+    <h3 id="editTitle">Add project</h3>
+    <div class="sub">Only the project name is required.</div>
+    <label for="fName">Project name</label>
+    <input id="fName" maxlength="200" autocomplete="off">
+    <label for="fLoc">Project location <span class="opt">(optional)</span></label>
+    <input id="fLoc" maxlength="200" autocomplete="off">
+    <label for="fPc">PC no. <span class="opt">(optional)</span></label>
+    <input id="fPc" maxlength="80" autocomplete="off">
+    <label for="fPm">PM in-charge <span class="opt">(optional)</span></label>
+    <input id="fPm" maxlength="120" autocomplete="off">
+    <div class="foot">
+      <span class="msg" id="editMsg" role="status" aria-live="polite"></span>
+      <button type="button" onclick="closeDlg('editBack')">Cancel</button>
+      <button type="submit" class="primary" id="editSave">Save project</button>
+    </div>
+  </form>
+</div>
+
+<div class="back" id="impBack" role="dialog" aria-modal="true" aria-labelledby="impTitle" onclick="if(event.target===this) closeDlg('impBack')">
+  <div class="dlg">
+    <h3 id="impTitle">Import from Excel</h3>
+    <div class="sub">Copy rows from your spreadsheet and paste them below. Columns in this order: <b>Project, Location, PC no., PM</b>. A header row is skipped.</div>
+    <textarea id="impText" placeholder="NLB 4C&#9;Orchard&#9;20731&#9;Jessie Chan&#10;SAFM&#9;Office&#9;20802&#9;Alex Tan" oninput="previewImport()"></textarea>
+    <div class="note" id="impPreview">Nothing pasted yet.</div>
+    <div class="foot">
+      <span class="msg" id="impMsg" role="status" aria-live="polite"></span>
+      <button type="button" onclick="closeDlg('impBack')">Cancel</button>
+      <button type="button" class="primary" id="impGo" onclick="runImport()" disabled>Import</button>
+    </div>
+  </div>
+</div>
+
+<script src="appbar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AppBar.mount("appbar", {active:"projects", client:supabaseClient});
+
+const myId = sessionStorage.getItem("sl_person_id"), myPin = sessionStorage.getItem("sl_pin");
+if(!myId || !myPin){ location.href = "login.html?redirect=projects.html"; }
+
+let LIST = [], editing = null, importRows = [];
+const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const cell = s => s ? esc(s) : '<span style="color:#b6bcc6">—</span>';
+
+async function load(){
+  const {data, error} = await supabaseClient.rpc("admin_list_projects", {p_admin_id: myId, p_admin_pin: myPin});
+  if(error || !data || !data.success){
+    const g = document.getElementById("gate");
+    g.style.display = "block"; document.getElementById("main").style.display = "none";
+    g.innerHTML = (data && /Not authorized/i.test(data.error||"")) ? 'Managing projects is for admin accounts only. <a href="dashboard.html">Back to the dashboard</a>' : esc((data&&data.error)||(error&&error.message)||"Could not load the projects.");
+    document.querySelector(".pagehead .btns").style.display = "none";
+    return;
+  }
+  AppBar.setAdmin(true);
+  LIST = data.projects || [];
+  document.getElementById("main").style.display = "block";
+  draw();
+}
+
+function draw(){
+  const words = document.getElementById("q").value.toLowerCase().split(/\s+/).filter(Boolean);
+  const showOff = document.getElementById("showOff").checked;
+  const rows = LIST.filter(p=>(showOff || p.active) && words.every(w=>[p.name,p.location,p.pc_no,p.pm_incharge].join(" ").toLowerCase().includes(w)));
+  document.getElementById("count").textContent = `${rows.length} project${rows.length===1?"":"s"}`;
+  const v = document.getElementById("view");
+  if(!rows.length){
+    v.innerHTML = `<div class="empty">${LIST.length ? "No project matches your search." : "No projects yet. Click <b>+ Add project</b>, or <b>Import from Excel</b> to paste a whole list."}</div>`;
+    return;
+  }
+  v.innerHTML = `<table><thead><tr><th>Project</th><th>Location</th><th>PC no.</th><th>PM in-charge</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(p=>`
+    <tr class="${p.active?"":"off"}"><td><b>${esc(p.name)}</b></td><td>${cell(p.location)}</td><td>${cell(p.pc_no)}</td><td>${cell(p.pm_incharge)}</td>
+    <td><span class="pill ${p.active?"":"off"}">${p.active?"Active":"Archived"}</span></td>
+    <td class="act"><button class="small" onclick="openEdit('${p.id}')">Edit</button> <button class="small" onclick="toggleActive('${p.id}')">${p.active?"Archive":"Restore"}</button></td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---- add / edit ---- */
+function openDlg(id){ document.getElementById(id).classList.add("on"); document.addEventListener("keydown", escClose); }
+function closeDlg(id){ document.getElementById(id).classList.remove("on"); document.removeEventListener("keydown", escClose); }
+function escClose(e){ if(e.key==="Escape"){ closeDlg("editBack"); closeDlg("impBack"); } }
+function setMsg(id, t, k){ const el=document.getElementById(id); el.textContent=t||""; el.className="msg"+(k?" "+k:""); }
+
+function openEdit(id){
+  editing = id ? LIST.find(p=>p.id===id) : null;
+  document.getElementById("editTitle").textContent = editing ? "Edit project" : "Add project";
+  document.getElementById("fName").value = editing ? editing.name : "";
+  document.getElementById("fLoc").value = editing ? (editing.location||"") : "";
+  document.getElementById("fPc").value = editing ? (editing.pc_no||"") : "";
+  document.getElementById("fPm").value = editing ? (editing.pm_incharge||"") : "";
+  setMsg("editMsg",""); openDlg("editBack");
+  setTimeout(()=>document.getElementById("fName").focus(), 30);
+}
+async function call(row, active){
+  return supabaseClient.rpc("admin_save_project", {p_admin_id: myId, p_admin_pin: myPin, p_id: row.id||null, p_name: row.name, p_location: row.location||"", p_pc_no: row.pc_no||"", p_pm: row.pm_incharge||"", p_active: active});
+}
+async function saveProject(){
+  const row = {id: editing ? editing.id : null, name: document.getElementById("fName").value.trim(), location: document.getElementById("fLoc").value.trim(),
+    pc_no: document.getElementById("fPc").value.trim(), pm_incharge: document.getElementById("fPm").value.trim()};
+  if(!row.name){ setMsg("editMsg","Please enter the project name.","err"); document.getElementById("fName").focus(); return; }
+  const btn = document.getElementById("editSave"); btn.disabled = true; btn.textContent = "Saving…";
+  const {data, error} = await call(row, editing ? editing.active : true);
+  btn.disabled = false; btn.textContent = "Save project";
+  if(error || !data || !data.success){ setMsg("editMsg",(data&&data.error)||(error&&error.message)||"Could not save.","err"); return; }
+  closeDlg("editBack"); await load();
+}
+async function toggleActive(id){
+  const p = LIST.find(x=>x.id===id); if(!p) return;
+  const {data, error} = await call(p, !p.active);
+  if(error || !data || !data.success){ alert((data&&data.error)||(error&&error.message)||"Could not update."); return; }
+  await load();
+}
+
+/* ---- import ---- */
+function openImport(){ document.getElementById("impText").value=""; importRows=[]; previewImport(); setMsg("impMsg",""); openDlg("impBack"); setTimeout(()=>document.getElementById("impText").focus(),30); }
+function parseImport(text){
+  const rows = [];
+  text.split(/\r?\n/).forEach((line,i)=>{
+    if(!line.trim()) return;
+    const c = (line.includes("\t") ? line.split("\t") : line.split(",")).map(x=>x.trim());
+    if(i===0 && /^project/i.test(c[0]||"")) return;               // header row
+    if(c[0]) rows.push({name:c[0], location:c[1]||"", pc_no:c[2]||"", pm_incharge:c[3]||""});
+  });
+  return rows;
+}
+function previewImport(){
+  importRows = parseImport(document.getElementById("impText").value);
+  const have = new Set(LIST.map(p=>(p.name+"|"+(p.pc_no||"")).toLowerCase()));
+  const fresh = importRows.filter(r=>!have.has((r.name+"|"+r.pc_no).toLowerCase()));
+  document.getElementById("impPreview").textContent = importRows.length
+    ? `${importRows.length} row${importRows.length===1?"":"s"} found — ${fresh.length} new, ${importRows.length-fresh.length} already in the list (will be skipped).`
+    : "Nothing pasted yet.";
+  importRows = fresh;
+  document.getElementById("impGo").disabled = !fresh.length || fresh.length>200;
+  if(fresh.length>200) document.getElementById("impPreview").textContent += " Please import at most 200 rows at a time.";
+}
+async function runImport(){
+  const btn = document.getElementById("impGo"); btn.disabled = true;
+  let ok = 0, fail = 0;
+  for(let i=0;i<importRows.length;i++){
+    setMsg("impMsg", `Importing ${i+1} of ${importRows.length}…`);
+    const {data, error} = await call(importRows[i], true);
+    if(error || !data || !data.success) fail++; else ok++;
+  }
+  setMsg("impMsg", `Imported ${ok}${fail?`, ${fail} skipped`:""} ✓`, fail ? "err" : "ok");
+  await load(); previewImport();
+}
+
+if(myId && myPin) load();
+</script>
+</body>
+</html>
