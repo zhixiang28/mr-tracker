@@ -340,7 +340,7 @@ async function loadPeopleForAdmin(){
 }
 
 function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
-  return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
+  return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
 }
 
 const STAGE_HOURS_KEY = {
@@ -367,7 +367,8 @@ function computeStats(){
     }
 
     // Overdue check — only for requisitions I submitted, using my own reminder thresholds
-    if(r.requester_person_id===myId && activeStep && mySettings){
+    // (withdrawn or declined requisitions are no longer waiting on anyone, so no overdue reminder)
+    if(r.requester_person_id===myId && activeStep && mySettings && !["Withdrawn","Declined"].includes(r.status)){
       const settingKey = STAGE_HOURS_KEY[activeStep.stage_name];
       const thresholdHours = settingKey ? mySettings[settingKey] : null;
       if(thresholdHours != null){
@@ -593,7 +594,7 @@ function renderTimelineBlock(r){
     else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
     else metaLine = `Waiting`;
 
-    const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
+    const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
     const actionHtml = (s.status==="Pending" && isActionable) ? `
       <div class="tmeta" style="margin-top:4px">Signs by opening the sign link${s.assigned_person_name ? "" : " (first person to open it claims this step)"}.</div>
