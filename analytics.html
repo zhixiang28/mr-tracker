@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Analytics</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:#eef1f6; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --line:#d7dbe0;
+    --series-1:#2a78d6;      /* the one data hue */
+    --mark-dim:#c3c2b7;      /* de-emphasis gray for "everything else" */
+    --good:#006300; --bad:#d03b3b; --accent:#2f6fed;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --line:#2c2c2a;
+      --series-1:#3987e5; --mark-dim:#4a4a47; --good:#0ca30c; --bad:#e66767; --accent:#6da7ec;
+    }
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page); color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:22px 18px 60px; }
+  .top{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+  .brand{ font-weight:800; font-size:18px; letter-spacing:-.2px; }
+  .brand span{ font-weight:400; color:var(--muted); }
+  a.back, button, select{ font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; text-decoration:none; }
+  a.back:hover, button:hover{ background:var(--page); }
+  .filters{ display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .filters label{ font-size:12px; font-weight:700; color:var(--ink2); }
+  .filters .count{ margin-left:auto; font-size:12px; color:var(--muted); }
+
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px; }
+  .card h2{ margin:0 0 2px; font-size:14px; font-weight:700; }
+  .card .sub{ font-size:12px; color:var(--muted); margin-bottom:14px; }
+
+  /* KPI row */
+  .kpis{ display:grid; grid-template-columns:1.5fr repeat(4, 1fr); gap:14px; margin-bottom:14px; }
+  .tile{ background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .tile .lbl{ font-size:12px; color:var(--ink2); font-weight:600; }
+  .tile .val{ font-size:28px; font-weight:700; margin-top:6px; letter-spacing:-.5px; }
+  .tile .note{ font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .tile.hero .val{ font-size:48px; font-weight:700; letter-spacing:-1.5px; }
+
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .grid .wide{ grid-column:1 / -1; }
+
+  /* horizontal bars */
+  .hbars{ display:flex; flex-direction:column; gap:10px; }
+  .hrow{ display:grid; grid-template-columns:minmax(90px,170px) 1fr; align-items:center; gap:12px; font-size:12.5px; outline:none; }
+  .hrow .name{ color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hrow .track{ display:flex; align-items:center; gap:8px; min-width:0; }
+  .hrow .bar{ height:16px; background:var(--series-1); border-radius:0 4px 4px 0; min-width:2px; transition:filter .12s; }
+  .hrow.dim .bar{ background:var(--mark-dim); }
+  .hrow:hover .bar, .hrow:focus .bar{ filter:brightness(1.12); }
+  .hrow .num{ font-weight:600; font-size:12px; white-space:nowrap; }
+
+  /* columns (svg) */
+  svg text{ font-family:inherit; }
+  .gridline{ stroke:var(--grid); stroke-width:1; }
+  .baseline{ stroke:var(--axis); stroke-width:1; }
+  .tick{ fill:var(--muted); font-size:11px; }
+  .colbar{ fill:var(--series-1); transition:filter .12s; }
+  .colhit:hover + .colbar, .colhit:focus + .colbar{ filter:brightness(1.15); }
+  .colhit{ fill:transparent; outline:none; }
+  .vlabel{ fill:var(--ink); font-size:11.5px; font-weight:600; }
+
+  .empty{ color:var(--muted); font-size:13px; padding:26px 0; text-align:center; }
+  details{ margin-top:12px; font-size:12px; }
+  summary{ cursor:pointer; color:var(--ink2); font-weight:600; }
+  table.data{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+  table.data th{ text-align:left; color:var(--muted); font-weight:600; padding:5px 8px; border-bottom:1px solid var(--line); }
+  table.data td{ padding:5px 8px; border-bottom:1px solid var(--grid); font-variant-numeric:tabular-nums; }
+  table.data td.n, table.data th.n{ text-align:right; }
+
+  #tip{ position:fixed; z-index:50; pointer-events:none; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:7px 10px; box-shadow:0 6px 18px rgba(0,0,0,.14); font-size:12px; display:none; max-width:260px; }
+  #tip .tv{ font-weight:700; font-size:13px; }
+  #tip .tl{ color:var(--ink2); margin-top:1px; }
+
+  @media (max-width:980px){ .kpis{ grid-template-columns:1fr 1fr; } .tile.hero{ grid-column:1 / -1; } .grid{ grid-template-columns:1fr; } }
+  @media (max-width:520px){ .hrow{ grid-template-columns:90px 1fr; } .tile.hero .val{ font-size:40px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">SPACE<span>logic</span> — Analytics</div>
+    <a class="back" href="dashboard.html">← Dashboard</a>
+  </div>
+
+  <div class="filters">
+    <label for="range">Period</label>
+    <select id="range" onchange="draw()">
+      <option value="30">Last 30 days</option>
+      <option value="90">Last 90 days</option>
+      <option value="365" selected>Last 12 months</option>
+      <option value="all">All time</option>
+    </select>
+    <span class="count" id="scopeNote"></span>
+  </div>
+
+  <div id="msg" class="empty" style="display:none"></div>
+  <div id="content" style="display:none">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid">
+      <div class="card wide"><h2 id="t-spend">Value over time</h2><div class="sub" id="s-spend"></div><div id="c-spend"></div><details><summary>View as table</summary><div id="d-spend"></div></details></div>
+      <div class="card"><h2>Requisitions by stage</h2><div class="sub">How many sit at each stage right now</div><div id="c-stage"></div><details><summary>View as table</summary><div id="d-stage"></div></details></div>
+      <div class="card"><h2>Average time per approval step</h2><div class="sub" id="s-time">Time from the previous step to this one — the slowest is highlighted</div><div id="c-time"></div><details><summary>View as table</summary><div id="d-time"></div></details></div>
+      <div class="card"><h2>Value by project</h2><div class="sub">Top projects (excludes declined and withdrawn)</div><div id="c-proj"></div><details><summary>View as table</summary><div id="d-proj"></div></details></div>
+      <div class="card"><h2>Top materials by value</h2><div class="sub">Quantity × price plus delivery, summed across requisitions</div><div id="c-item"></div><details><summary>View as table</summary><div id="d-item"></div></details></div>
+      <div class="card wide" id="card-req" style="display:none"><h2>Requisitions by requester</h2><div class="sub">Number of requisitions each person submitted</div><div id="c-req"></div><details><summary>View as table</summary><div id="d-req"></div></details></div>
+    </div>
+  </div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const myId = sessionStorage.getItem("sl_person_id");
+const myPin = sessionStorage.getItem("sl_pin");
+if(!myId || !myPin){ window.location.href = "login.html?redirect=analytics.html"; }
+
+let ALL = [], IS_ADMIN = false;
+
+const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
+const STEP_NAMES = ["Manager","Procurement","Purchase","Received"];
+const LIVE_EXCLUDED = ["Declined","Withdrawn"];
+
+const money = n => "$ " + Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+const compact = n => { n=Number(n||0); const a=Math.abs(n); if(a>=1e6) return (n/1e6).toFixed(a>=1e7?0:1).replace(/\.0$/,"")+"M"; if(a>=1e3) return (n/1e3).toFixed(a>=1e4?0:1).replace(/\.0$/,"")+"K"; return String(Math.round(n)); };
+const p2 = n => String(n).padStart(2,"0");
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtHours(h){ if(h==null) return "—"; if(h<1) return "< 1 h"; if(h<48) return Math.round(h)+" h"; return (h/24).toFixed(1).replace(/\.0$/,"")+" days"; }
+const when = r => new Date(r.created_at || r.form_date || Date.now());
+const lineValue = it => Number(it.total||0) + Number(it.delivery_tax||0);
+
+/* ---------- tooltip (textContent only: labels are data) ---------- */
+const tip = document.getElementById("tip");
+function showTip(e, value, label){
+  tip.textContent = "";
+  const v = document.createElement("div"); v.className="tv"; v.textContent = value;
+  const l = document.createElement("div"); l.className="tl"; l.textContent = label;
+  tip.append(v,l); tip.style.display="block"; moveTip(e);
+}
+function moveTip(e){
+  const pad=12, r=tip.getBoundingClientRect();
+  let x = (e.clientX!=null ? e.clientX : e.target.getBoundingClientRect().left) + pad;
+  let y = (e.clientY!=null ? e.clientY : e.target.getBoundingClientRect().top) - r.height - pad;
+  if(x + r.width > window.innerWidth - 8) x = window.innerWidth - r.width - 8;
+  if(y < 8) y = (e.clientY||0) + pad;
+  tip.style.left = x+"px"; tip.style.top = y+"px";
+}
+function hideTip(){ tip.style.display="none"; }
+function bindTip(el, value, label){
+  el.addEventListener("pointermove", e=>{ showTip(e,value,label); });
+  el.addEventListener("pointerleave", hideTip);
+  el.addEventListener("focus", e=>{ showTip(e,value,label); });
+  el.addEventListener("blur", hideTip);
+}
+
+/* ---------- chart pieces ---------- */
+function clear(el){ el.textContent = ""; }
+function emptyNote(el, text){ clear(el); const d=document.createElement("div"); d.className="empty"; d.textContent=text||"No data in this period."; el.appendChild(d); }
+
+// Horizontal bars. rows: [{label, value, text, tip}], opts: {dimExceptMax}
+function hbars(el, rows, opts={}){
+  clear(el);
+  if(!rows.length || rows.every(r=>!r.value)){ emptyNote(el); return; }
+  const max = Math.max(...rows.map(r=>r.value)) || 1;
+  const wrap = document.createElement("div"); wrap.className="hbars"; wrap.setAttribute("role","img");
+  wrap.setAttribute("aria-label", rows.map(r=>`${r.label}: ${r.text}`).join("; "));
+  rows.forEach(r=>{
+    const row = document.createElement("div"); row.className="hrow"; row.tabIndex=0;
+    if(opts.dimExceptMax && r.value!==max) row.classList.add("dim");
+    const name = document.createElement("div"); name.className="name"; name.textContent=r.label; name.title=r.label;
+    const track = document.createElement("div"); track.className="track";
+    const bar = document.createElement("div"); bar.className="bar"; bar.style.width = `calc(${(r.value/max*100).toFixed(2)}% * 0.78)`;
+    const num = document.createElement("span"); num.className="num"; num.textContent=r.text;
+    track.append(bar,num); row.append(name,track); wrap.appendChild(row);
+    bindTip(row, r.text, r.tip || r.label);
+  });
+  el.appendChild(wrap);
+}
+
+// Column chart (svg). rows: [{label, value}]
+function columns(el, rows, fmtTick){
+  clear(el);
+  if(!rows.length || rows.every(r=>!r.value)){ emptyNote(el); return; }
+  const W=720, H=250, m={l:46,r:8,t:14,b:30};
+  const iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const max = Math.max(...rows.map(r=>r.value));
+  const step = niceStep(max/4), top = Math.ceil(max/step)*step || step;
+  const NS="http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS,"svg"); svg.setAttribute("viewBox",`0 0 ${W} ${H}`); svg.setAttribute("width","100%"); svg.setAttribute("role","img");
+  svg.setAttribute("aria-label", "Column chart: " + rows.map(r=>`${r.label} ${money(r.value)}`).join(", "));
+  const y = v => m.t + ih - (v/top)*ih;
+  for(let v=0; v<=top+1e-9; v+=step){
+    const ln = document.createElementNS(NS,"line"); ln.setAttribute("x1",m.l); ln.setAttribute("x2",W-m.r); ln.setAttribute("y1",y(v)); ln.setAttribute("y2",y(v));
+    ln.setAttribute("class", v===0?"baseline":"gridline"); svg.appendChild(ln);
+    const t = document.createElementNS(NS,"text"); t.setAttribute("x",m.l-8); t.setAttribute("y",y(v)+4); t.setAttribute("text-anchor","end"); t.setAttribute("class","tick"); t.textContent=fmtTick(v); svg.appendChild(t);
+  }
+  const slot = iw/rows.length, bw = Math.min(24, slot*0.62);
+  const maxIdx = rows.findIndex(r=>r.value===max);
+  const every = Math.ceil(rows.length/ Math.max(1, Math.floor(iw/46)));
+  rows.forEach((r,i)=>{
+    const cx = m.l + slot*i + slot/2, x = cx-bw/2, h = (r.value/top)*ih, yy = m.t+ih-h;
+    if(r.value>0){
+      const rad=Math.min(4,h);
+      const path = document.createElementNS(NS,"path"); path.setAttribute("class","colbar");
+      path.setAttribute("d",`M${x},${m.t+ih} V${yy+rad} Q${x},${yy} ${x+rad},${yy} H${x+bw-rad} Q${x+bw},${yy} ${x+bw},${yy+rad} V${m.t+ih} Z`);
+      const hit = document.createElementNS(NS,"rect"); hit.setAttribute("class","colhit"); hit.setAttribute("x",m.l+slot*i); hit.setAttribute("y",m.t); hit.setAttribute("width",slot); hit.setAttribute("height",ih); hit.setAttribute("tabindex","0");
+      bindTip(hit, money(r.value), r.label + (r.sub ? " · "+r.sub : ""));
+      svg.appendChild(hit); svg.appendChild(path);
+    }
+    if(i%every===0 || i===rows.length-1){
+      const t = document.createElementNS(NS,"text"); t.setAttribute("x",cx); t.setAttribute("y",H-10); t.setAttribute("text-anchor","middle"); t.setAttribute("class","tick"); t.textContent=r.label; svg.appendChild(t);
+    }
+  });
+  // one direct label: the peak
+  const pk = rows[maxIdx], pcx = m.l+slot*maxIdx+slot/2, pyy = m.t+ih-(pk.value/top)*ih;
+  const lab = document.createElementNS(NS,"text"); lab.setAttribute("x",Math.min(Math.max(pcx,m.l+30),W-m.r-30)); lab.setAttribute("y",pyy-6); lab.setAttribute("text-anchor","middle"); lab.setAttribute("class","vlabel"); lab.textContent = "$ "+compact(pk.value);
+  svg.appendChild(lab);
+  el.appendChild(svg);
+}
+function niceStep(raw){ if(raw<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(raw))); const f=raw/p; return (f<=1?1:f<=2?2:f<=5?5:10)*p; }
+
+function dataTable(el, headers, rows){
+  clear(el);
+  if(!rows.length){ return; }
+  const t=document.createElement("table"); t.className="data";
+  const thead=document.createElement("thead"), hr=document.createElement("tr");
+  headers.forEach((h,i)=>{ const th=document.createElement("th"); th.textContent=h; if(i>0) th.className="n"; hr.appendChild(th); });
+  thead.appendChild(hr); t.appendChild(thead);
+  const tb=document.createElement("tbody");
+  rows.forEach(r=>{ const tr=document.createElement("tr"); r.forEach((c,i)=>{ const td=document.createElement("td"); td.textContent=c; if(i>0) td.className="n"; tr.appendChild(td); }); tb.appendChild(tr); });
+  t.appendChild(tb); el.appendChild(t);
+}
+
+/* ---------- data ---------- */
+async function load(){
+  const {data, error} = await supabaseClient.rpc("list_my_requisitions", {p_person_id: myId, p_pin: myPin});
+  const msg = document.getElementById("msg");
+  if(error || !data || !data.success){
+    msg.style.display="block"; msg.textContent = (data&&data.error) || (error&&error.message) || "Could not load data.";
+    return;
+  }
+  IS_ADMIN = !!data.is_admin; ALL = data.requisitions || [];
+  document.getElementById("content").style.display="block";
+  draw();
+}
+
+function inRange(){
+  const v = document.getElementById("range").value;
+  if(v==="all") return ALL.slice();
+  const since = Date.now() - Number(v)*86400000;
+  return ALL.filter(r=>when(r).getTime() >= since);
+}
+
+function draw(){
+  const R = inRange();
+  const live = R.filter(r=>!LIVE_EXCLUDED.includes(r.status));
+  const rangeVal = document.getElementById("range").value;
+  document.getElementById("scopeNote").textContent = `${R.length} requisition${R.length===1?"":"s"} · ${IS_ADMIN ? "all requisitions" : "your requisitions"}`;
+
+  /* KPIs */
+  const totalValue = live.reduce((a,r)=>a+Number(r.grand_total||0),0);
+  const awaiting = R.filter(r=>["Submitted","Manager Approved","Procurement Approved","Purchased"].includes(r.status)).length;
+  const done = R.filter(r=>r.status==="Received" && stepTime(r,4) && r.created_at);
+  const cycleH = done.length ? done.reduce((a,r)=>a+(stepTime(r,4)-new Date(r.created_at))/3600000,0)/done.length : null;
+  const declined = R.filter(r=>r.status==="Declined").length;
+  const declineRate = R.length ? declined/R.length*100 : null;
+  const kp = document.getElementById("kpis"); kp.textContent="";
+  const tile=(cls,lbl,val,note)=>{ const d=document.createElement("div"); d.className="tile "+cls; const a=document.createElement("div"); a.className="lbl"; a.textContent=lbl; const b=document.createElement("div"); b.className="val"; b.textContent=val; const c=document.createElement("div"); c.className="note"; c.textContent=note; d.append(a,b,c); kp.appendChild(d); };
+  tile("hero","Total value", money(totalValue), "Active and completed requisitions");
+  tile("","Requisitions", String(R.length), `${live.length} not declined or withdrawn`);
+  tile("","Awaiting approval", String(awaiting), "Not yet received");
+  tile("","Average cycle time", fmtHours(cycleH), done.length ? `Submit to received · ${done.length} completed` : "No completed requisitions yet");
+  tile("","Decline rate", declineRate==null ? "—" : declineRate.toFixed(0)+"%", `${declined} declined`);
+
+  /* value over time: weeks for short ranges, months otherwise */
+  const weekly = rangeVal==="30" || rangeVal==="90";
+  const buckets = new Map();
+  live.forEach(r=>{
+    const d = when(r); let key, label, sort;
+    if(weekly){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); sort=x.getTime(); key="w"+sort; label=`${p2(x.getDate())}/${p2(x.getMonth()+1)}`; }
+    else { sort=new Date(d.getFullYear(),d.getMonth(),1).getTime(); key="m"+sort; label=MONTHS[d.getMonth()]+" "+String(d.getFullYear()).slice(2); }
+    const b = buckets.get(key) || {label, sort, value:0, n:0}; b.value += Number(r.grand_total||0); b.n++; buckets.set(key,b);
+  });
+  const timeRows = [...buckets.values()].sort((a,b)=>a.sort-b.sort).map(b=>({label:b.label, value:b.value, sub:`${b.n} requisition${b.n===1?"":"s"}`}));
+  document.getElementById("t-spend").textContent = weekly ? "Value by week" : "Value by month";
+  document.getElementById("s-spend").textContent = weekly ? "Total value submitted each week (week starting Monday)" : "Total value submitted each month";
+  columns(document.getElementById("c-spend"), timeRows, v=>"$"+compact(v));
+  dataTable(document.getElementById("d-spend"), [weekly?"Week of":"Month","Requisitions","Value"], timeRows.map(r=>[r.label, r.sub.split(" ")[0], money(r.value)]));
+
+  /* by stage */
+  const stageRows = STAGES.map(s=>({label:s, value:R.filter(r=>r.status===s).length}));
+  stageRows.forEach(r=>{ r.text=String(r.value); r.tip=`${r.label} · ${r.value} requisition${r.value===1?"":"s"}`; });
+  hbars(document.getElementById("c-stage"), stageRows);
+  dataTable(document.getElementById("d-stage"), ["Stage","Requisitions"], stageRows.map(r=>[r.label, r.text]));
+
+  /* time per step */
+  const sums=[0,0,0,0], cnt=[0,0,0,0];
+  R.forEach(r=>{
+    const created = r.created_at ? new Date(r.created_at) : null;
+    let prev = created;
+    for(let i=1;i<=4;i++){
+      const t = stepTime(r,i);
+      if(t && prev){ const h=(t-prev)/3600000; if(h>=0){ sums[i-1]+=h; cnt[i-1]++; } }
+      if(t) prev = t; else break;
+    }
+  });
+  const timeStepRows = STEP_NAMES.map((n,i)=>{ const h = cnt[i] ? sums[i]/cnt[i] : null; return {label:n, value:h||0, text:fmtHours(h), tip:`${n} · average over ${cnt[i]} requisition${cnt[i]===1?"":"s"}`}; });
+  hbars(document.getElementById("c-time"), timeStepRows, {dimExceptMax:true});
+  dataTable(document.getElementById("d-time"), ["Step","Average","Based on"], timeStepRows.map((r,i)=>[r.label, r.text, cnt[i]+" requisitions"]));
+
+  /* by project */
+  const byProj = groupSum(live, r=>r.project_name||"(no project)", r=>Number(r.grand_total||0));
+  const projRows = topN(byProj, 8).map(([k,v])=>({label:k, value:v.value, text:money(v.value), tip:`${k} · ${v.n} requisition${v.n===1?"":"s"}`}));
+  hbars(document.getElementById("c-proj"), projRows);
+  dataTable(document.getElementById("d-proj"), ["Project","Requisitions","Value"], projRows.map(r=>[r.label, r.tip.split("·")[1].trim().split(" ")[0], r.text]));
+
+  /* top materials */
+  const items = new Map();
+  live.forEach(r=>(r.requisition_items||[]).forEach(it=>{
+    const raw = (it.name||"").trim(); if(!raw) return; const key = raw.toLowerCase();
+    const e = items.get(key) || {name:raw, value:0, qty:0}; e.value += lineValue(it); e.qty += Number(it.qty||0); items.set(key,e);
+  }));
+  const itemRows = [...items.values()].sort((a,b)=>b.value-a.value).slice(0,8).map(e=>({label:e.name, value:e.value, text:money(e.value), tip:`${e.name} · qty ${e.qty}`}));
+  hbars(document.getElementById("c-item"), itemRows);
+  dataTable(document.getElementById("d-item"), ["Material","Quantity","Value"], itemRows.map(r=>[r.label, r.tip.split("qty ")[1], r.text]));
+
+  /* by requester — only meaningful when you can see other people's requisitions */
+  const reqCard = document.getElementById("card-req");
+  reqCard.style.display = IS_ADMIN ? "block" : "none";
+  if(IS_ADMIN){
+    const byReq = groupSum(R, r=>r.request_by||"(unknown)", ()=>1);
+    const reqRows = topN(byReq, 8).map(([k,v])=>({label:k, value:v.n, text:String(v.n), tip:`${k} · ${v.n} requisition${v.n===1?"":"s"}`}));
+    hbars(document.getElementById("c-req"), reqRows);
+    dataTable(document.getElementById("d-req"), ["Requester","Requisitions"], reqRows.map(r=>[r.label, r.text]));
+  }
+}
+
+function stepTime(r, order){
+  const s = (r.approval_steps||[]).find(x=>x.step_order===order && x.status==="Signed" && x.signed_at);
+  return s ? new Date(s.signed_at) : null;
+}
+function groupSum(list, keyFn, valFn){
+  const m = new Map();
+  list.forEach(r=>{ const k = keyFn(r); const e = m.get(k) || {value:0, n:0}; e.value += valFn(r); e.n++; m.set(k,e); });
+  return m;
+}
+function topN(map, n){ return [...map.entries()].sort((a,b)=>b[1].value-a[1].value).slice(0,n); }
+
+if(myId && myPin) load();
+</script>
+</body>
+</html>

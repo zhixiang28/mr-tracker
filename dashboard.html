@@ -95,15 +95,24 @@
   .toolbar2 input[type=text]{ flex:1; min-width:200px; }
   .count-note{ font-size:12px; color:var(--muted); margin-left:auto; }
 
-  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; }
+  .sheet{ background:var(--paper); border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:visible; overflow:clip; }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
-  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfc; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:700; padding:12px 14px; border-bottom:1px solid var(--line); background:#fafbfc; position:sticky; top:0; z-index:3; box-shadow:0 1px 0 var(--line); }
+  thead th:first-child{ border-top-left-radius:14px; } thead th:last-child{ border-top-right-radius:14px; }
   tbody td{ padding:12px 14px; border-bottom:1px solid #eef0f2; vertical-align:middle; }
   tbody tr.req-row:hover{ background:#fafcff; cursor:pointer; }
   .tracking{ font-weight:700; color:var(--accent-dark); }
-  .open-cell{ text-align:right; white-space:nowrap; }
-  .open-btn{ display:inline-block; font-size:12px; font-weight:600; color:var(--accent); text-decoration:none; border:1px solid #c7d7fb; background:#fff; border-radius:7px; padding:6px 11px; }
-  .open-btn:hover{ background:#eef4ff; border-color:var(--accent); }
+  .trk-link{ display:inline-flex; align-items:center; gap:6px; color:inherit; text-decoration:none; border-radius:5px; padding:2px 0; }
+  .trk-link .trk-ico{ opacity:.55; flex:none; transition:opacity .12s, transform .12s; }
+  .trk-link:hover{ text-decoration:underline; }
+  .trk-link:hover .trk-ico, .trk-link:focus-visible .trk-ico{ opacity:1; transform:translate(1px,-1px); }
+  tr.group-row td{ padding:10px 14px; background:#f4f6fa; border-bottom:1px solid var(--line); font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); cursor:pointer; user-select:none; }
+  tr.group-row:hover td{ background:#eef2f8; }
+  tr.group-row .g-count{ margin-left:6px; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  tr.group-row.needs td{ background:#fff7e6; color:#92400e; border-left:3px solid #f59e0b; }
+  tr.group-row.needs .g-count{ background:#fde7b0; color:#92400e; }
+  tr.group-row .g-chev{ display:inline-block; width:14px; transition:transform .15s; }
+  tr.group-row.closed-grp .g-chev{ transform:rotate(-90deg); }
   .proj{ font-weight:600; }
   .muted{ color:var(--muted); font-size:12px; }
   .pill{ display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:999px; font-size:11.5px; font-weight:700; color:#fff; white-space:nowrap; }
@@ -148,7 +157,11 @@
   .link-tools button{ font-size:10.5px; padding:4px 8px; }
   .link-copy-box{ display:flex; gap:6px; margin-top:6px; background:#f4f6f8; border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
   .link-copy-box input{ flex:1; border:0; background:transparent; font-size:11px; padding:0; }
-  .view-form-link{ font-size:11px; margin-top:6px; }
+  .manage-bar{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .manage-bar button{ padding:7px 11px; font-size:12px; }
+  .manage-danger{ display:flex; gap:6px; }
+  .manage-danger button{ color:var(--declined); border-color:#fecaca; background:#fff; }
+  .manage-danger button:hover{ background:#fef2f2; }
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
@@ -161,10 +174,11 @@
     <div class="header-actions">
       <span class="mode-badge personal" id="modeBadge">Loading...</span>
       <button class="header-icon-btn" onclick="loadData()">↻ Refresh</button>
-      <a href="admin.html"><button type="button" class="header-btn">⚙ Admin Settings</button></a>
+      <a href="analytics.html"><button type="button" class="header-btn">Analytics</button></a>
+      <a href="admin.html" id="adminSettingsLink" style="display:none"><button type="button" class="header-btn">Admin Settings</button></a>
       <div class="header-divider"></div>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">📘 Manual</button>
-      <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">❓ FAQ</button>
+      <button type="button" class="header-nav-link" onclick="window.open('manual.html','_blank')">Manual</button>
+      <button type="button" class="header-nav-link" onclick="window.open('manual.html#faq','_blank')">FAQ</button>
       <div class="header-divider"></div>
       <span class="whoami-text" id="whoami"></span>
       <button class="logout-link" onclick="logout()">Log out</button>
@@ -174,10 +188,10 @@
   <div id="attnPanel"></div>
 
   <div class="quick-actions">
-    <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
-    <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
-    <button type="button" onclick="openProfileModal()">👤 My Profile</button>
-    <button type="button" onclick="openReminderModal()">⏰ Reminder Settings</button>
+    <a href="index.html"><button class="primary" type="button">+ New Requisition</button></a>
+    <a href="index.html?drafts=1"><button type="button">My Drafts</button></a>
+    <button type="button" onclick="openProfileModal()">My Profile</button>
+    <button type="button" onclick="openReminderModal()">Reminder Settings</button>
     <span class="caught-up" id="caughtUp" style="display:none" title="Nothing is waiting on you"><i></i>All caught up</span>
   </div>
 
@@ -209,7 +223,6 @@
           <th class="sortable" data-sort="form_date" onclick="setSort('form_date')">Date <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="grand_total" onclick="setSort('grand_total')">Grand Total <span class="sort-arrow"></span></th>
           <th class="sortable" data-sort="status" onclick="setSort('status')">Stage <span class="sort-arrow"></span></th>
-          <th style="width:96px"></th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -485,10 +498,11 @@ async function loadData(){
   allReqs = data.requisitions || [];
   const badge = document.getElementById("modeBadge");
   if(iAmAdmin){
-    badge.className = "mode-badge admin"; badge.textContent = "🛠 Admin Mode — Editable";
+    badge.className = "mode-badge admin"; badge.textContent = "Admin — all requisitions";
   } else {
-    badge.className = "mode-badge personal"; badge.textContent = "👤 Your requisitions only";
+    badge.className = "mode-badge personal"; badge.textContent = "Your requisitions";
   }
+  document.getElementById("adminSettingsLink").style.display = iAmAdmin ? "" : "none";
   document.getElementById("emptyStateText").textContent = iAmAdmin
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";
@@ -540,25 +554,49 @@ function render(){
   document.getElementById("reqTable").style.display = allReqs.length ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
-  tbody.innerHTML = filtered.map(r=>{
+  const needIds = new Set(computeStats().attention.map(x=>x.r.id));
+  const GROUPS = [
+    {key:"needs",   label:"Needs action", test:r=>needIds.has(r.id)},
+    {key:"active",  label:"In progress",  test:r=>["Submitted","Manager Approved","Procurement Approved","Purchased"].includes(r.status)},
+    {key:"done",    label:"Completed",    test:r=>r.status==="Received"},
+    {key:"closed",  label:"Declined / withdrawn", test:r=>["Declined","Withdrawn"].includes(r.status)}
+  ];
+  const placed = new Set();
+  const grouped = GROUPS.map(g=>{
+    const rows = filtered.filter(r=>!placed.has(r.id) && g.test(r));
+    rows.forEach(r=>placed.add(r.id));
+    return {...g, rows};
+  }).filter(g=>g.rows.length);
+
+  const renderRow = r=>{
     const isOpen = openRows.has(r.id);
     const mainRow = `
       <tr class="req-row" onclick="toggleRow('${r.id}')">
         <td><span class="chev ${isOpen?'open':''}">›</span></td>
-        <td class="tracking">${r.tracking_no||"-"}</td>
+        <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
         <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div></td>
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
-        <td class="open-cell"><a class="open-btn" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">Open form</a></td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !["Purchased","Received","Withdrawn"].includes(r.status);
-    const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
-    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="8"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
+    const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
+  };
+
+  tbody.innerHTML = grouped.map(g=>{
+    const collapsed = collapsedGroups.has(g.key);
+    const head = `<tr class="group-row ${g.key==="needs"?"needs":""} ${collapsed?"closed-grp":""}" onclick="toggleGroup('${g.key}')">
+      <td colspan="7"><span class="g-chev">▾</span>${g.label}<span class="g-count">${g.rows.length}</span></td></tr>`;
+    return head + (collapsed ? "" : g.rows.map(renderRow).join(""));
   }).join("");
+}
+
+const collapsedGroups = new Set();
+function toggleGroup(key){
+  if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
+  render();
 }
 
 const STEP_SHORT = {1:"Manager", 2:"Approve", 3:"Purchase", 4:"Received"};
@@ -625,7 +663,7 @@ function renderTimelineBlock(r){
     const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
     const actionHtml = (s.status==="Pending" && isActionable) ? `
-      <div class="tmeta" style="margin-top:4px">Signs by opening the sign link${s.assigned_person_name ? "" : " (first person to open it claims this step)"}.</div>
+      <div class="tmeta" style="margin-top:4px">Signs via the sign link.</div>
       <details class="more-tools" onclick="event.stopPropagation()"><summary>Link problem?</summary>
         <div class="link-tools"><button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button></div>
         <div id="regenbox-${s.id}"></div>
@@ -694,17 +732,19 @@ function renderResubmitPanel(r){
     </div>`;
 }
 
-function renderAdminPanel(r){
-  return `
-    <div class="admin-panel" onclick="event.stopPropagation()">
-      <div class="admin-panel-title">Admin</div>
-      <div class="row" style="display:flex;gap:6px">
-        <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">Edit in form</button></a>
-        ${["Declined","Purchased","Received","Withdrawn"].includes(r.status) ? "" : `<button class="danger" onclick="adminReject('${r.id}')">Reject</button>`}
-        <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
-      </div>
-      <div class="sign-error" id="admin-err-${r.id}"></div>
-    </div>`;
+// One tidy row of record actions: edit on the left, risky ones (red) on the right
+function renderManageBar(r){
+  const closed = ["Purchased","Received","Withdrawn"].includes(r.status);
+  const canWithdraw = (r.requester_person_id===myId || iAmAdmin) && !closed;
+  const canReject = iAmAdmin && r.status!=="Declined" && !closed;
+  const left = iAmAdmin ? `<a href="index.html?adminEdit=${r.id}"><button class="primary" type="button">Edit in form</button></a>` : "";
+  const right = [
+    canReject ? `<button type="button" onclick="adminReject('${r.id}')">Reject</button>` : "",
+    canWithdraw ? `<button type="button" onclick="withdrawRequisition('${r.id}')">Withdraw</button>` : "",
+    iAmAdmin ? `<button type="button" onclick="adminDelete('${r.id}')">Delete</button>` : ""
+  ].join("");
+  if(!left && !right) return "";
+  return `<div class="manage-bar" onclick="event.stopPropagation()"><div>${left}</div><div class="manage-danger">${right}</div></div>`;
 }
 
 
