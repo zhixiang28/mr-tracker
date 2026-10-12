@@ -57,7 +57,7 @@
       <div class="sub">The project list everyone picks from on the requisition form. Choosing a project fills in its location, PC no. and PM.</div>
     </div>
     <div class="btns">
-      <button type="button" onclick="openImport()">Import from Excel</button>
+      <button type="button" id="impBtn" onclick="openImport()">Import from Excel</button>
       <button type="button" class="primary" onclick="openEdit(null)">+ Add project</button>
     </div>
   </div>
@@ -67,11 +67,12 @@
   <div id="main" style="display:none">
     <div class="toolbar">
       <input type="text" id="q" placeholder="Search by project, location, PC no. or PM…" oninput="draw()">
-      <label class="chk"><input type="checkbox" id="showOff" onchange="draw()"> Show archived</label>
+      <label class="chk" id="offLbl"><input type="checkbox" id="showOff" onchange="draw()"> Show archived</label>
       <span class="count" id="count"></span>
     </div>
     <div class="sheet"><div id="view"></div></div>
-    <div class="note">Archiving hides a project from the form without deleting it, so older requisitions keep their details. You can restore it any time.</div>
+    <div class="note" id="userNote" style="display:none">Everyone can add a project here, and it shows up for everyone as they type on the requisition form. Ask an admin if a project needs to be corrected or removed.</div>
+    <div class="note" id="adminNote">Archiving hides a project from the form without deleting it, so older requisitions keep their details. You can restore it any time.</div>
   </div>
 </div>
 
@@ -120,20 +121,29 @@ AppBar.mount("appbar", {active:"projects", client:supabaseClient});
 const myId = sessionStorage.getItem("sl_person_id"), myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ location.href = "login.html?redirect=projects.html"; }
 
-let LIST = [], editing = null, importRows = [];
+let LIST = [], editing = null, importRows = [], isAdm = false;
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const cell = s => s ? esc(s) : '<span style="color:#b6bcc6">—</span>';
 
 async function load(){
-  const {data, error} = await supabaseClient.rpc("admin_list_projects", {p_admin_id: myId, p_admin_pin: myPin});
+  let {data, error} = await supabaseClient.rpc("admin_list_projects", {p_admin_id: myId, p_admin_pin: myPin});
+  isAdm = !!(data && data.success);
+  if(!isAdm){
+    ({data, error} = await supabaseClient.rpc("list_projects", {p_person_id: myId, p_pin: myPin}));
+    if(data && data.success) data.projects = (data.projects||[]).map(p=>({...p, active:true}));
+  }
   if(error || !data || !data.success){
     const g = document.getElementById("gate");
     g.style.display = "block"; document.getElementById("main").style.display = "none";
-    g.innerHTML = (data && /Not authorized/i.test(data.error||"")) ? 'Managing projects is for admin accounts only. <a href="dashboard.html">Back to the dashboard</a>' : esc((data&&data.error)||(error&&error.message)||"Could not load the projects.");
+    g.innerHTML = esc((data&&data.error)||(error&&error.message)||"Could not load the projects.");
     document.querySelector(".pagehead .btns").style.display = "none";
     return;
   }
-  AppBar.setAdmin(true);
+  AppBar.setAdmin(isAdm);
+  document.getElementById("impBtn").style.display = isAdm ? "" : "none";
+  document.getElementById("offLbl").style.display = isAdm ? "" : "none";
+  document.getElementById("adminNote").style.display = isAdm ? "" : "none";
+  document.getElementById("userNote").style.display = isAdm ? "none" : "";
   LIST = data.projects || [];
   document.getElementById("main").style.display = "block";
   draw();
@@ -149,10 +159,10 @@ function draw(){
     v.innerHTML = `<div class="empty">${LIST.length ? "No project matches your search." : "No projects yet. Click <b>+ Add project</b>, or <b>Import from Excel</b> to paste a whole list."}</div>`;
     return;
   }
-  v.innerHTML = `<table><thead><tr><th>Project</th><th>Location</th><th>PC no.</th><th>PM in-charge</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(p=>`
+  v.innerHTML = `<table><thead><tr><th>Project</th><th>Location</th><th>PC no.</th><th>PM in-charge</th>${isAdm?"<th>Status</th><th></th>":""}</tr></thead><tbody>${rows.map(p=>`
     <tr class="${p.active?"":"off"}"><td><b>${esc(p.name)}</b></td><td>${cell(p.location)}</td><td>${cell(p.pc_no)}</td><td>${cell(p.pm_incharge)}</td>
-    <td><span class="pill ${p.active?"":"off"}">${p.active?"Active":"Archived"}</span></td>
-    <td class="act"><button class="small" onclick="openEdit('${p.id}')">Edit</button> <button class="small" onclick="toggleActive('${p.id}')">${p.active?"Archive":"Restore"}</button></td></tr>`).join("")}</tbody></table>`;
+    ${isAdm?`<td><span class="pill ${p.active?"":"off"}">${p.active?"Active":"Archived"}</span></td>
+    <td class="act"><button class="small" onclick="openEdit('${p.id}')">Edit</button> <button class="small" onclick="toggleActive('${p.id}')">${p.active?"Archive":"Restore"}</button></td>`:""}</tr>`).join("")}</tbody></table>`;
 }
 
 /* ---- add / edit ---- */
@@ -179,7 +189,8 @@ async function saveProject(){
     pc_no: document.getElementById("fPc").value.trim(), pm_incharge: document.getElementById("fPm").value.trim()};
   if(!row.name){ setMsg("editMsg","Please enter the project name.","err"); document.getElementById("fName").focus(); return; }
   const btn = document.getElementById("editSave"); btn.disabled = true; btn.textContent = "Saving…";
-  const {data, error} = await call(row, editing ? editing.active : true);
+  const {data, error} = editing ? await call(row, editing.active)
+    : await supabaseClient.rpc("add_project", {p_person_id: myId, p_pin: myPin, p_name: row.name, p_location: row.location, p_pc_no: row.pc_no, p_pm: row.pm_incharge});
   btn.disabled = false; btn.textContent = "Save project";
   if(error || !data || !data.success){ setMsg("editMsg",(data&&data.error)||(error&&error.message)||"Could not save.","err"); return; }
   closeDlg("editBack"); await load();

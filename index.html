@@ -461,6 +461,7 @@
           <div class="dmy-wrap"><input id="formDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('formDate')" title="Pick a date"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></button><input type="date" id="formDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('formDate')"></div></div>
         <div class="field"><label>PC NO. :</label><input id="pcNo" autocomplete="off"></div>
         <div class="field"><label>PM Incharge :</label><input id="pmIncharge"></div>
+        <div class="field no-print" id="saveProjRow" style="display:none"><label></label><button type="button" class="tool-btn" id="saveProjBtn" onclick="saveSharedProject()" title="Add this project to the shared list so everyone can pick it">Save this project for everyone</button></div>
       </div>
     </div>
 
@@ -1052,6 +1053,28 @@ async function loadSharedProjects(){
   }catch(_){ SHARED_PROJECTS = []; }
   return SHARED_PROJECTS;
 }
+// Offer to save a project that is not in the shared list yet (any signed-in person can add)
+function projIsNew(){
+  const n = (document.getElementById("projectName").value||"").trim().toLowerCase();
+  const pc = (document.getElementById("pcNo").value||"").trim().toLowerCase();
+  if(!n) return false;
+  return !(SHARED_PROJECTS||[]).some(p=>p.name.toLowerCase()===n && (p.pc_no||"").toLowerCase()===pc);
+}
+async function refreshSaveProj(){
+  const row = document.getElementById("saveProjRow"); if(!row) return;
+  await loadSharedProjects();
+  row.style.display = projIsNew() ? "" : "none";
+}
+async function saveSharedProject(){
+  const v = id=>(document.getElementById(id).value||"").trim();
+  const btn = document.getElementById("saveProjBtn"); btn.disabled = true;
+  const {data, error} = await supabaseClient.rpc("add_project", {p_person_id: requesterId, p_pin: requesterPin, p_name: v("projectName"), p_location: v("projectLocation"), p_pc_no: v("pcNo"), p_pm: v("pmIncharge")});
+  btn.disabled = false;
+  if(error || !data || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not save the project."); return; }
+  SHARED_PROJECTS = null; await loadSharedProjects(); refreshSaveProj();
+  setStatus("Saved — everyone can now pick this project from the list.");
+}
+["projectName","pcNo","projectLocation","pmIncharge"].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("input", refreshSaveProj); });
 (function initProjectSuggest(){
   const menu = document.createElement("div");
   menu.className = "hs-menu"; menu.setAttribute("role","listbox"); menu.style.display = "none";
@@ -1086,7 +1109,7 @@ async function loadSharedProjects(){
     } else if(typed.length>=2){
       html += `<div class="hs-none">No project like “${e2(typed)}” in the list — you can still type it yourself.</div>`;
     } else { menu.style.display="none"; return; }
-    html += `<div class="hs-foot">↑↓ to choose, Enter to select · ${isAdminUser() ? '<a href="projects.html" target="_blank" rel="noopener">Manage projects</a>' : "Missing a project? Ask an admin to add it."}</div>`;
+    html += `<div class="hs-foot">↑↓ to choose, Enter to select · ${isAdminUser() ? '<a href="projects.html" target="_blank" rel="noopener">Manage projects</a>' : "Not here? Fill in the details and use “Save this project for everyone”."}</div>`;
     menu.innerHTML = html; menu.style.display = "block"; position();
   }
   async function open(input){ active = input; await loadSharedProjects(); if(active!==input) return; update(); }
@@ -1098,7 +1121,7 @@ async function loadSharedProjects(){
     document.getElementById("projectLocation").value = p.location || "";
     document.getElementById("pcNo").value = p.pc_no || "";
     document.getElementById("pmIncharge").value = p.pm_incharge || "";
-    close();
+    close(); refreshSaveProj();
     setStatus(`Filled in the details for “${p.name}”.`);
   }
   const isMine = el => el && (el.id==="projectName" || el.id==="pcNo");
