@@ -52,3 +52,14 @@ You already have a repo and Pages site running the earlier version. To push this
 - Self-service PIN reset.
 - Email/WhatsApp send button instead of copy-paste (you chose copy-paste for now, but this is a small addition later).
 - An admin view of the people directory for editing/removing signers without touching Supabase directly.
+
+## Hybrid mode: drawn-signature PDF page (`esign.html`)
+
+For a transition period where approvers sign on the PDF form instead of using PINs, while the record still lives in the tracker:
+
+1. On the form, click **✍ Copy E-Sign Link**. The MRF is saved to the tracker (same record and tracking number as Submit) and a link to `esign.html` is copied. You can also copy it again from any requisition's expanded row on the dashboard.
+2. Whoever opens the link sees the MRF laid out like the SPACElogic PDF form. The next slot in order (Team Manager, Approve, Purchase, Received) shows a **Tap to sign** box: they type their name and draw their signature with finger or mouse.
+3. Each signature is stored against the requisition, advances its stage on the dashboard, and appears there as a "drawn signature" with a thumbnail.
+4. Anyone with the link can **Export PDF** (with the signatures so far) and keep their own copy.
+
+Notes: there is no PIN on this page, so anyone holding the link can sign the next open slot. Only share it with the intended signers. Signing is strictly in order. The database part is in `esign-pdf-upgrade.sql` (already applied to the live project).

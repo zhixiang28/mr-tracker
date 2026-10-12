@@ -584,7 +584,8 @@ function renderTimelineBlock(r){
     if(s.status==="Declined"){ dotCls="declined"; dotChar="✕"; }
 
     let metaLine="";
-    if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.signed_at).toLocaleString()}`;
+    if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.signed_at).toLocaleString()}` +
+      (s.signed_via==="esign" ? ` · ✍ drawn signature${s.signature_data?` <img src="${escapeHtml(s.signature_data)}" alt="signature" style="height:22px;vertical-align:middle;margin-left:6px;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}` : "");
     else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${new Date(s.declined_at).toLocaleString()}`;
     else if(s.assigned_person_name) metaLine = `Assigned to ${escapeHtml(s.assigned_person_name)} — pending`;
     else metaLine = `Not yet claimed — waiting for someone to sign`;
@@ -630,7 +631,16 @@ function renderTimelineBlock(r){
       </div>`;
   }).join("");
 
-  return `<div><div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Approval Chain</div><div class="timeline">${rowsHtml}</div></div>`;
+  const eSignTok = steps.length ? steps[0].token : null;
+  const eSignBtn = eSignTok ? `<div style="margin-top:10px"><button onclick="event.stopPropagation();copyESignLink('${eSignTok}')">✍ Copy e-sign PDF link</button></div>` : "";
+  return `<div><div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Approval Chain</div><div class="timeline">${rowsHtml}</div>${eSignBtn}</div>`;
+}
+
+async function copyESignLink(tok){
+  const url = new URL("esign.html", window.location.href);
+  url.searchParams.set("token", tok);
+  try{ await navigator.clipboard.writeText(url.toString()); setStatus("E-sign link copied."); }
+  catch(_){ window.prompt("Copy this e-sign link:", url.toString()); }
 }
 
 function toggleRow(id){

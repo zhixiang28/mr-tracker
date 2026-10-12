@@ -428,6 +428,10 @@
     </div>
     <div class="divider"></div>
     <div class="btn-group">
+      <button onclick="copyESignLink()" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ Copy E-Sign Link</button>
+    </div>
+    <div class="divider"></div>
+    <div class="btn-group">
       <button onclick="openCurrencyModal()">💱 Currency Converter</button>
     </div>
     <div class="divider"></div>
@@ -1037,6 +1041,65 @@ async function submitToDashboard(){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
     btn.disabled=false; btn.textContent = editRequisitionId ? "Revise & Resubmit" : "Submit";
+  }
+}
+
+// Hybrid mode: save the MRF in the tracker, but collect signatures on the drawn-signature PDF page (esign.html)
+async function copyESignLink(){
+  if(!supabaseClient){ setStatus("Supabase isn't configured yet."); return; }
+  if(!requesterId || !requesterPin){
+    setStatus("Your session expired — please log in again.");
+    window.location.href = "login.html?redirect=index.html";
+    return;
+  }
+  const {meta, rows} = collect();
+  if(!meta.projectName){ setStatus("Please enter a Project Name first."); return; }
+  const realRows = rows.filter(r=>r[0] || r[1]);
+  if(realRows.length===0){ setStatus("Add at least one material line first."); return; }
+  if(editRequisitionId){ setStatus("This form is a revision of a declined requisition — use Revise & Resubmit."); return; }
+
+  try{
+    setStatus("Saving to the tracker...");
+    const header = {
+      project_name: meta.projectName || null, project_location: meta.projectLocation || null,
+      request_by: meta.requestBy || null, supply_date: meta.supplyDate || null, form_date: meta.formDate || null,
+      pc_no: meta.pcNo || null, pm_incharge: meta.pmIncharge || null,
+      materials_subtotal: parseFloat(document.getElementById("itemsTotal").textContent)||0,
+      delivery_tax_subtotal: parseFloat(document.getElementById("deliveryTaxTotal").textContent)||0,
+      grand_total: parseFloat(document.getElementById("grandTotal").textContent)||0
+    };
+    const items = realRows.map((r,i)=>({
+      sn:i+1, name:r[0]||"", description:r[1]||"",
+      qty:Number(r[2]||0), unit_price:Number(r[3]||0), delivery_tax:Number(r[4]||0), link:r[5]||""
+    }));
+    const {data, error} = await supabaseClient.rpc("create_requisition", {
+      p_header: header, p_items: items, p_requester_person_id: requesterId
+    });
+    if(error) throw error;
+    if(!data.success) throw new Error(data.error || "Unknown error");
+
+    const link = new URL("esign.html", window.location.href);
+    link.searchParams.set("token", data.first_token);
+    let copied = false;
+    try{ await navigator.clipboard.writeText(link.toString()); copied = true; }catch(_){}
+
+    document.getElementById("submitResultTitle").textContent = `Saved — ${data.tracking_no}`;
+    document.getElementById("submitResultBody").innerHTML = `
+      <p>${copied ? "The e-sign link has been copied." : "Copy the e-sign link below."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
+      <div class="link-copy-box">
+        <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
+        <button type="button" onclick="copySignLink()">Copy</button>
+      </div>
+      <p class="muted" style="font-size:12px">Signing order: Team Manager → Approve → Purchase → Received. Each signature shows up on the <a href="dashboard.html" target="_blank">dashboard</a> under this tracking number. You can get this link again from the dashboard row.</p>`;
+    document.getElementById("submitResultModal").style.display="flex";
+    if(currentDraftId){
+      supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
+    }
+    resetFormForNext();
+    setStatus(`Saved — tracking no. ${data.tracking_no}.`);
+  }catch(e){
+    console.error(e);
+    setStatus("Could not save: "+(e.message||e));
   }
 }
 
