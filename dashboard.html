@@ -136,6 +136,7 @@
   .tstage{ font-weight:700; font-size:12.5px; }
   .tmeta{ font-size:11.5px; color:var(--muted); }
   .sign-error{ color:var(--declined); font-size:11.5px; margin-top:4px; }
+  .rcard .decline-reason-box{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin:0; }
   .decline-reason-box{ font-size:11.5px; color:var(--declined); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:4px; }
   .link-tools{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
   .link-tools button{ font-size:10.5px; padding:4px 8px; }
@@ -681,13 +682,13 @@ function render(){
       <tr class="req-row" onclick="toggleRow('${r.id}')">
         <td><span class="chev ${isOpen?'open':''}">›</span></td>
         <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
-        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}</td>
+        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}${declineSnippet(r)}</td>
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
         <td>${renderProgressCell(r)}</td>
       </tr>`;
-    const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
+    const showResubmitPanel = r.status==="Declined";
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
   };
@@ -701,6 +702,7 @@ function render(){
       <div><b>${escapeHtml(r.project_name||"-")}</b><div class="muted">${escapeHtml(r.project_location||"")}</div></div>
       <div class="rc-meta"><span>${escapeHtml(r.request_by||"-")}</span><span>${fmtDMY(r.form_date)||"-"}</span></div>
       ${chips?`<div class="chips">${chips}</div>`:""}
+      ${declineSnippet(r)}
       <div>${renderProgressCell(r)}</div>
       ${detail}</div>`;
   };
@@ -844,7 +846,7 @@ function renderDrawer(list){
   if(!r){ back.classList.remove("show"); box.classList.remove("show"); return; }
   document.getElementById("drawerTitle").innerHTML = `<b>${escapeHtml(r.tracking_no||"-")}</b> <span class="muted">· ${escapeHtml(r.project_name||"-")}</span>`;
   document.getElementById("drawerLink").href = "view.html?id="+r.id;
-  document.getElementById("drawerBody").innerHTML = `<div style="margin-bottom:12px">${renderProgressCell(r)}</div><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}${r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin ? renderResubmitPanel(r) : ""}</div></div>`;
+  document.getElementById("drawerBody").innerHTML = `${r.status==="Declined" ? renderResubmitPanel(r) : ""}<div style="margin:12px 0">${renderProgressCell(r)}</div><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}${renderManageBar(r)}</div></div>`;
   back.classList.add("show"); box.classList.add("show");
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape" && drawerId) closeDrawer(); });
@@ -866,13 +868,21 @@ function copyRegenLink(stepId){
   setStatus("New link copied — the old one no longer works.");
 }
 
+function declineReasonOf(r){
+  const st = (r.approval_steps||[]).find(s=>s.status==="Declined");
+  return r.decline_reason || st?.decline_reason || "—";
+}
+function declineSnippet(r){
+  if(r.status!=="Declined") return "";
+  return `<div class="decline-reason-box" title="${escapeHtml(declineReasonOf(r))}"><b>Declined${r.declined_by?" by "+escapeHtml(r.declined_by):""}:</b> ${escapeHtml(declineReasonOf(r))}</div>`;
+}
 function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
   return `
     <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
       <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(r.declined_by||declinedStep?.assigned_person_name||"")}</div>
-      <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
-      <a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Edit &amp; Resubmit in Full Form →</button></a>
+      <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declineReasonOf(r))}</div>
+      ${r.requester_person_id===myId ? `<a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Fix &amp; Resubmit in form →</button></a>` : `<div class="muted">${escapeHtml(r.request_by||"The requester")} needs to fix this and resubmit${iAmAdmin?" — or use Edit in form below":""}.</div>`}
     </div>`;
 }
 
