@@ -1107,7 +1107,7 @@ function exportCSV(){
   const head=["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"];
   const csv=[head,...rows.map((r,i)=>[i+1,...r,(Number(r[2]||0)*Number(r[3]||0)).toFixed(2)])]
     .map(row=>row.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
   a.download=`${filenameBase()}.csv`;
