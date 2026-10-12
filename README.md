@@ -4,7 +4,7 @@ Three pages backed by one Supabase database (already fully set up — see "Datab
 
 - **`index.html`** — the requisition form. Manager / Approved By / Purchased By / Received By are now dropdowns pulled from a shared people directory (with a "+ Add new person" option to register someone new with a 4-digit PIN). Submitting creates the requisition and a 4-step approval chain, then shows you a link to send to the first signer (the Manager).
 - **`sign.html`** — the e-signature page. Whoever gets a link opens it, sees the requisition summary, and enters their name's PIN to **Approve** or **Decline** (with a reason). Only the person assigned to that step can sign it, and steps must be signed in order. Once someone signs, the page shows the next link to copy and send along.
-- **`dashboard.html`** — view-only for anyone with the link. Shows every requisition, its current stage, and — click a row — the full approval timeline (who signed, when, or why it was declined). The person whose turn it currently is can also sign/decline right there, after entering their name's PIN.
+- **`dashboard.html`** — view-only for anyone with the link. Shows every requisition, its current stage, and — click a row — the full approval timeline (who signed, when, or why it was declined). Signing is done only through the sign link (PIN) or the PDF e-sign link; the dashboard has buttons to copy both.
 
 ## How the chain works
 
@@ -42,7 +42,7 @@ You already have a repo and Pages site running the earlier version. To push this
 ## Day-to-day use
 
 - **Registering people**: do it inline from the form's dropdown ("+ Add new person") the first time you need someone. Anyone filling out the form can register a new signer — there's no separate admin step.
-- **Forgot to send a link / lost it**: open the dashboard, expand the requisition, and the "Sign / Decline as [name]" button for whoever's turn it currently is will be right there — no need to dig up the original link.
+- **Forgot to send a link / lost it**: open the dashboard, expand the requisition, and use **Copy PIN sign link** or **Copy PDF e-sign link** to get the link again.
 - **A step was declined by mistake**: there's no "un-decline" button by design — start a fresh requisition. If you'd like a resubmit/reopen flow later, that's a reasonable next upgrade.
 - **Someone forgot their PIN**: there's no self-service reset yet. For now, open the Supabase dashboard's Table Editor → `people` table, delete their row, and have them re-register from the form's dropdown with a new PIN. (Happy to build a proper reset flow if this comes up often.)
 

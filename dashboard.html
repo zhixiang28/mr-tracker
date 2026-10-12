@@ -126,10 +126,6 @@
   .tdot.declined{ background:var(--declined); }
   .tstage{ font-weight:700; font-size:12.5px; }
   .tmeta{ font-size:11.5px; color:var(--muted); }
-  .sign-box{ margin-top:8px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; }
-  .sign-box input{ width:100%; margin-bottom:6px; }
-  .sign-box .row{ display:flex; gap:6px; }
-  .sign-box .row button{ flex:1; }
   .sign-error{ color:var(--declined); font-size:11.5px; margin-top:4px; }
   .decline-reason-box{ font-size:11.5px; color:var(--declined); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:4px; }
   .link-tools{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
@@ -140,11 +136,6 @@
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
-  .edit-field{ margin-bottom:6px; }
-  .edit-field label{ display:block; font-size:10.5px; font-weight:700; color:var(--muted); margin-bottom:2px; }
-  .edit-field input{ width:100%; font-size:12px; padding:6px 8px; }
-  .edit-item-row{ display:grid; grid-template-columns:1fr 1fr 45px 60px 60px 1fr 24px; gap:4px; margin-bottom:4px; }
-  .edit-item-row input{ font-size:11px; padding:4px 6px; }
   .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
 </head>
@@ -301,20 +292,6 @@ async function sendEmail(to, subject, html){
     const result = await resp.json();
     return result.success === true;
   }catch(e){ return false; }
-}
-
-async function sendNotification(callerId, callerPin, requisitionId, event){
-  try{
-    const {data: target} = await supabaseClient.rpc("get_notification_target", {
-      p_caller_person_id: callerId, p_caller_pin: callerPin, p_requisition_id: requisitionId, p_event: event
-    });
-    if(!target || !target.success) return;
-    await fetch(SEND_EMAIL_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({to: target.to, subject: target.subject, html: target.html})
-    });
-  }catch(e){ console.error("Notification email failed:", e); }
 }
 
 const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
@@ -618,34 +595,12 @@ function renderTimelineBlock(r){
 
     const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
-    const isUnclaimed = !s.assigned_person_id;
-
-    const identityHtml = isUnclaimed ? `
-        <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off" oninput="toggleConfirmPin('${s.id}')">
-        <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>
-        <input type="email" placeholder="Company email (new signers only)" id="newemail-${s.id}" style="display:none">` : "";
-
-    const actionHtml = (s.status==="Pending") ? `
-      ${isActionable ? `<div class="link-tools">
-        <button onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>
-      </div>
+    const actionHtml = (s.status==="Pending" && isActionable) ? `
+      <div class="tmeta" style="margin-top:4px">Signs by opening the sign link${s.assigned_person_name ? "" : " (first person to open it claims this step)"}.</div>
       <details class="more-tools" onclick="event.stopPropagation()"><summary>Link problem?</summary>
         <div class="link-tools"><button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button></div>
         <div id="regenbox-${s.id}"></div>
-      </details>` : ""}
-      ${isActionable ? `
-      <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
-        ${identityHtml}
-        <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
-        <input type="password" inputmode="numeric" maxlength="4" placeholder="Confirm new PIN" id="confirmpin-${s.id}" style="display:none">
-        <input type="text" placeholder="Verification code (check email)" id="regcode-${s.id}" maxlength="6" inputmode="numeric" style="display:none">
-        <input type="text" placeholder="Reason (only needed to decline)" id="reason-${s.id}">
-        <div class="row">
-          <button class="primary" onclick="dashApprove('${s.token}','${s.id}',${isUnclaimed})">Approve</button>
-          <button onclick="dashDecline('${s.token}','${s.id}',${isUnclaimed})">Decline</button>
-        </div>
-        <div class="sign-error" id="signerr-${s.id}"></div>
-      </div>` : ""}` : "";
+      </details>` : "";
 
     return `
       <div class="tstep">
@@ -686,11 +641,6 @@ function toggleRow(id){
   if(openRows.has(id)) openRows.delete(id); else openRows.add(id);
   render();
 }
-function toggleSignBox(stepId){
-  const box=document.getElementById("signbox-"+stepId);
-  box.style.display = box.style.display==="block" ? "none" : "block";
-}
-
 async function regenLink(stepId, reqId){
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   const box = document.getElementById("regenbox-"+stepId);
@@ -705,102 +655,6 @@ function copyRegenLink(stepId){
   setStatus("New link copied — the old one no longer works.");
 }
 
-function toggleConfirmPin(stepId){
-  const nameInput = document.getElementById("name-"+stepId);
-  const confirmInput = document.getElementById("confirmpin-"+stepId);
-  const emailInput = document.getElementById("newemail-"+stepId);
-  const name = nameInput.value.trim().toLowerCase();
-  const isNew = name && !peopleForAdmin.some(p=>p.name.toLowerCase()===name);
-  confirmInput.style.display = isNew ? "block" : "none";
-  if(emailInput) emailInput.style.display = isNew ? "block" : "none";
-}
-
-let awaitingCodeForStep = {}; // stepId -> email, set once a code has been sent for that step's box
-
-async function dashEnsureClaimed(token, stepId, pin, errEl){
-  const nameInput = document.getElementById("name-"+stepId);
-  if(!nameInput) return true;
-
-  if(awaitingCodeForStep[stepId]){
-    const code = document.getElementById("regcode-"+stepId).value.trim();
-    if(!/^\d{6}$/.test(code)){ errEl.textContent="Enter the 6-digit code from your email."; return false; }
-    const {data: vData, error: vErr} = await supabaseClient.rpc("verify_registration", {p_email: awaitingCodeForStep[stepId], p_code: code});
-    if(vErr || !vData.success){ errEl.textContent = (vData&&vData.error)||"Could not verify."; return false; }
-    const personId = vData.id;
-    delete awaitingCodeForStep[stepId];
-    await loadPeopleForAdmin();
-    const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
-    if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
-    return true;
-  }
-
-  const name = nameInput.value.trim();
-  if(!name){ errEl.textContent="Enter your name."; return false; }
-
-  const existing = peopleForAdmin.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  let personId = existing ? existing.id : null;
-
-  if(!personId){
-    const confirmPin = document.getElementById("confirmpin-"+stepId).value.trim();
-    const email = document.getElementById("newemail-"+stepId).value.trim();
-    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.textContent="Enter your @spacelogic.com.sg company email."; return false; }
-    if(!/^\d{4}$/.test(pin)){ errEl.textContent="Choose a 4-digit PIN."; return false; }
-    if(pin !== confirmPin){ errEl.textContent="PINs don't match — re-enter both."; return false; }
-
-    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
-    if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not start registration."; return false; }
-    const sent = await sendEmail(regData.email, regData.subject, regData.html);
-    if(!sent){ errEl.textContent = "Could not send the verification email — try again."; return false; }
-
-    awaitingCodeForStep[stepId] = regData.email;
-    document.getElementById("regcode-"+stepId).style.display = "block";
-    errEl.style.color = "var(--received)";
-    errEl.textContent = `Code sent to ${email}. Enter it above, then click Approve/Decline again.`;
-    return false;
-  }
-
-  const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
-  if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
-  return true;
-}
-
-async function dashApprove(token, stepId, isUnclaimed){
-  const pin=document.getElementById("pin-"+stepId).value.trim();
-  const errEl=document.getElementById("signerr-"+stepId);
-  if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
-  if(isUnclaimed){
-    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
-    if(!claimed) return;
-  }
-  const {data, error} = await supabaseClient.rpc("sign_step", {p_token: token, p_pin: pin});
-  if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
-  if(data.stage === "Purchase"){
-    sendNotification(data.signed_by_id, pin, data.requisition_id, "purchased");
-  } else if(!data.next_stage){
-    sendNotification(data.signed_by_id, pin, data.requisition_id, "received");
-  }
-  setStatus(data.next_stage
-    ? `Signed off by ${data.signed_by} on ${data.stage}. Next: someone from ${data.next_stage} needs to sign.`
-    : `Signed off by ${data.signed_by} on ${data.stage}. This requisition is now fully Received.`);
-  await loadData();
-}
-async function dashDecline(token, stepId, isUnclaimed){
-  const pin=document.getElementById("pin-"+stepId).value.trim();
-  const reason=document.getElementById("reason-"+stepId).value.trim();
-  const errEl=document.getElementById("signerr-"+stepId);
-  if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
-  if(!reason){ errEl.textContent="Enter a reason to decline."; return; }
-  if(isUnclaimed){
-    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
-    if(!claimed) return;
-  }
-  const {data, error} = await supabaseClient.rpc("decline_step", {p_token: token, p_pin: pin, p_reason: reason});
-  if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
-  sendNotification(data.declined_by_id, pin, data.requisition_id, "declined");
-  setStatus(`Declined by ${data.declined_by} at ${data.stage}.`);
-  await loadData();
-}
-
 function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
   return `
@@ -812,18 +666,6 @@ function renderResubmitPanel(r){
 }
 
 function renderAdminPanel(r){
-  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-  const itemRows = items.map((it,i)=>`
-    <div class="edit-item-row" data-idx="${i}">
-      <input placeholder="Name" class="ei-name" value="${escapeHtml(it.name)}">
-      <input placeholder="Description" class="ei-desc" value="${escapeHtml(it.description||"")}">
-      <input placeholder="Qty" class="ei-qty" value="${it.qty}">
-      <input placeholder="Unit" class="ei-price" value="${it.unit_price}">
-      <input placeholder="Delv/Tax" class="ei-dtax" value="${it.delivery_tax}">
-      <input placeholder="Link" class="ei-link" value="${escapeHtml(it.link||"")}">
-      <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
-    </div>`).join("");
-
   const stageOptionsForReassign = (steps)=>steps.map(s=>`
     <div class="reassign-row">
       <select id="reassign-person-${s.id}" style="flex:1">
@@ -835,15 +677,9 @@ function renderAdminPanel(r){
 
   return `
     <div class="admin-panel" onclick="event.stopPropagation()">
-      <div class="admin-panel-title">🛠 Admin: Edit this requisition</div>
-      <div class="edit-field"><label>Project name</label><input id="edit-project-${r.id}" value="${escapeHtml(r.project_name||"")}"></div>
-      <div class="edit-field"><label>Location</label><input id="edit-location-${r.id}" value="${escapeHtml(r.project_location||"")}"></div>
-      <div class="edit-field"><label>Requested by</label><input id="edit-requestby-${r.id}" value="${escapeHtml(r.request_by||"")}"></div>
-      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Line items</div>
-      <div id="edit-items-${r.id}">${itemRows}</div>
-      <button onclick="event.stopPropagation();addEditItemRow('${r.id}')" style="font-size:11px;margin-bottom:8px">+ Add item</button>
+      <div class="admin-panel-title">🛠 Admin</div>
       <div class="row" style="display:flex;gap:6px">
-        <button class="primary" onclick="adminSave('${r.id}')">Save Changes</button>
+        <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">✏ Edit in form</button></a>
         <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
       </div>
       <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:12px 0 4px">Reassign a step's signer</div>
@@ -852,55 +688,6 @@ function renderAdminPanel(r){
     </div>`;
 }
 
-function addEditItemRow(reqId){
-  const container = document.getElementById("edit-items-"+reqId);
-  const div = document.createElement("div");
-  div.className = "edit-item-row";
-  div.innerHTML = `
-    <input placeholder="Name" class="ei-name">
-    <input placeholder="Description" class="ei-desc">
-    <input placeholder="Qty" class="ei-qty">
-    <input placeholder="Unit" class="ei-price">
-    <input placeholder="Delv/Tax" class="ei-dtax">
-    <input placeholder="Link" class="ei-link">
-    <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
-  container.appendChild(div);
-}
-
-async function adminSave(reqId){
-  const errEl = document.getElementById("admin-err-"+reqId);
-  const header = {
-    project_name: document.getElementById("edit-project-"+reqId).value,
-    project_location: document.getElementById("edit-location-"+reqId).value,
-    request_by: document.getElementById("edit-requestby-"+reqId).value
-  };
-  const rows = [...document.querySelectorAll(`#edit-items-${reqId} .edit-item-row`)];
-  const items = rows.map((row,i)=>({
-    sn: i+1,
-    name: row.querySelector(".ei-name").value,
-    description: row.querySelector(".ei-desc").value,
-    qty: Number(row.querySelector(".ei-qty").value||0),
-    unit_price: Number(row.querySelector(".ei-price").value||0),
-    delivery_tax: Number(row.querySelector(".ei-dtax").value||0),
-    link: row.querySelector(".ei-link").value
-  }));
-
-  const {data: d1, error: e1} = await supabaseClient.rpc("admin_update_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_header: header});
-  if(e1 || !d1.success){ errEl.textContent = (d1&&d1.error)||(e1&&e1.message)||"Failed to save header."; return; }
-  const {data: d2, error: e2} = await supabaseClient.rpc("admin_replace_items", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_items: items});
-  if(e2 || !d2.success){ errEl.textContent = (d2&&d2.error)||(e2&&e2.message)||"Failed to save items."; return; }
-
-  setStatus("Requisition updated.");
-  await loadData();
-}
-
-async function withdrawRequisition(reqId){
-  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
-  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
-  setStatus("Requisition withdrawn.");
-  await loadData();
-}
 
 async function adminDelete(reqId){
   if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
