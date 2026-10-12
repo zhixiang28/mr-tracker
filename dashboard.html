@@ -694,8 +694,8 @@ async function withdrawRequisition(reqId){
   if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
   const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
-  setStatus("Requisition withdrawn.");
   await loadData();
+  setStatus("Requisition withdrawn.");
 }
 
 async function adminDelete(reqId){
