@@ -22,6 +22,8 @@
   .appbar .ab-menu button:hover, .appbar .ab-menu a:hover{ background:var(--hover,#f4f6fa); }
   .appbar .ab-menu hr{ border:0; border-top:1px solid var(--line,#d7dbe0); margin:6px 4px; }
   .appbar .ab-menu .ab-out{ color:#dc2626; }
+  .appbar .ab-menu .ab-ver{ display:block; width:100%; border-width:1px 0 0; border-radius:0; text-align:center; font-size:11px; color:var(--muted,#6b7280); padding:7px 12px 3px; border-top:1px solid var(--line,#d7dbe0); margin-top:4px; background:none; }
+  .appbar .ab-menu .ab-ver:hover{ color:var(--ink,#1f2933); background:none; }
   /* page heading: title left, actions right — same on every page */
   .pagehead{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:0 0 16px; }
   .pagehead h1{ margin:0; font-size:24px; letter-spacing:-.4px; color:inherit; }
@@ -31,9 +33,11 @@
   /* "what's new" notice */
   .wn-back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; padding:18px; z-index:1000; font-family:inherit; }
   .wn-box{ background:var(--surface,#fff); color:var(--ink,#1f2933); border-radius:16px; max-width:520px; width:100%; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.3); }
-  .wn-body{ overflow:auto; padding:24px 26px 6px; }
+  .wn-head{ flex:none; padding:22px 26px 12px; border-bottom:1px solid var(--line,#d7dbe0); background:var(--surface,#fff); }
+  .wn-ver{ font-size:11px; font-weight:700; color:var(--muted,#6b7280); border:1px solid var(--line,#d7dbe0); border-radius:999px; padding:2px 8px; vertical-align:middle; margin-left:6px; }
+  .wn-body{ overflow:auto; padding:6px 26px 6px; }
   .wn-box h2{ margin:0 0 4px; font-size:20px; letter-spacing:-.3px; }
-  .wn-box .wn-sub{ color:var(--muted,#6b7280); font-size:13px; margin-bottom:14px; }
+  .wn-box .wn-sub{ color:var(--muted,#6b7280); font-size:13px; }
   .wn-box ul{ list-style:none; margin:0 0 16px; padding:0; }
   .wn-box li{ display:flex; gap:12px; padding:9px 0; border-top:1px solid var(--line,#d7dbe0); font-size:13.5px; line-height:1.45; }
   .wn-box li:first-child{ border-top:0; }
@@ -83,6 +87,7 @@
             <a href="manual.html#faq" target="_blank" rel="noopener">FAQ</a>
             <hr>
             <button class="ab-out" data-act="logout">Log out</button>
+            <button class="ab-ver" data-act="whatsnew" title="See what's new">Version ${esc(VERSION)}</button>
           </div>
         </div>
       </div>
@@ -102,6 +107,7 @@
       if(act==="menu"){ e.stopPropagation(); document.getElementById("abMenu").classList.toggle("open"); return; }
       document.getElementById("abMenu").classList.remove("open");
       if(act==="logout") logout();
+      else if(act==="whatsnew") showNotice(true);
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="profile") (o.onProfile || (()=>go("dashboard.html?open=profile", o.newTab)))();
       else if(act==="pin") (o.onPin || (()=>go("dashboard.html?open=pin", o.newTab)))();
@@ -115,27 +121,27 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const NOTICE_ID = "upgrade-2026-10c";
+  const VERSION = "2026.10.12";
+  const NOTICE_ID = "upgrade-2026-10d";
   const NOTICE = [
-    ["Same layout on every page", "One header with Dashboard, Purchase History and Analytics, and your name menu at the top right. Buttons that belong together now sit together on every page."],
-    ["Pick items you've bought before", "On the requisition form, click the Item box and choose from past purchases. The price and product link are filled in for you, and you can see the cheapest price paid before."],
-    ["Projects shared with everyone", "Start typing a project name or PC no. on the form and pick it from the list. The location, PC no. and PM fill in automatically. Anyone can add a project from the Projects page, or with “Save this project for everyone” on the form; admins can edit or archive them."],
-    ["Purchase History (new)", "Search for an item and see what we paid, which supplier, and when. Tick items to add them to a new requisition. Similar item names are matched automatically, and you can combine or separate them."],
-    ["Dashboard: organise it your way", "Group requisitions by status, stage, project, requester or month. The headings stay in view as you scroll, and the blue REQ number opens the full form."],
-    ["One link to sign", "PIN Sign and the new PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form, and you can track it on the dashboard."],
-    ["Analytics (new)", "Spending, approval speed and price insights. You see your own requisitions; admins see everything."],
-    ["Account settings", "My Profile and Change PIN are now one tidy window under your name, with live checks so you can't mistype a PIN."],
-    ["Smaller improvements", "The Currency Converter fetches live exchange rates, the duplicate and delete icons on item rows have room again, dates show as dd/mm/yyyy, and CSV exports open correctly in Excel with Chinese text."]
+    ["Dashboard: List or Cards", "Switch the layout at the top of the list. Cards puts the requisitions in one column per stage, in the same order as the stage boxes. Click a column title to fold it away."],
+    ["Point to see more, click to open", "Rest your mouse on any row or card to preview the items and who has signed. Click it to open the full form."],
+    ["See why it was declined", "The reason and who declined it now show right on the list and cards. If it is yours, press “Fix & Resubmit in form”."],
+    ["Safer buttons", "Reject now sits next to Edit, while Withdraw and Delete are kept apart on the other side, so a delete is harder to click by mistake."],
+    ["Projects: everyone can add", "The Projects page is open to everyone. You can also press “Save this project for everyone” on the form when your project is not in the list yet. Admins can edit or archive projects."],
+    ["Pick items you've bought before", "Click the Item box on the form to choose from past purchases. The price and link are filled in, and Purchase History shows what we paid and to whom."],
+    ["One link to sign", "PIN Sign and PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form."],
+    ["Analytics and account settings", "Analytics shows your spending and approval speed (admins see everything). My Profile and Change PIN are one tidy window under your name."],
+    ["Version number", "The version now shows under Log out. Click it any time to read this list again."]
   ];
-  function showNotice(){
-    try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){}
+  function showNotice(force){
+    if(!force){ try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){} }
     if(document.getElementById("wnBack")) return;
     const back = document.createElement("div"); back.className="wn-back"; back.id="wnBack";
     back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","What's new");
     back.innerHTML = `<div class="wn-box">
+      <div class="wn-head"><h2>The system has been upgraded <span class="wn-ver">${esc(VERSION)}</span></h2><div class="wn-sub">Here's what's new for you:</div></div>
       <div class="wn-body">
-        <h2>The system has been upgraded</h2>
-        <div class="wn-sub">Here's what's new for you:</div>
         <ul>${NOTICE.map(n=>`<li><span class="wn-dot"></span><div><b>${esc(n[0])}</b><span class="t">${esc(n[1])}</span></div></li>`).join("")}</ul>
       </div>
       <div class="wn-foot"><label><input type="checkbox" id="wnDont" checked> Don't show this again</label><button type="button" id="wnOk">Got it</button></div>

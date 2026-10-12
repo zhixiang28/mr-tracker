@@ -96,3 +96,6 @@ Header: Purchase History · Analytics · (Admin Settings) · refresh · your nam
 
 - **Projects** (`projects.html`, admins only; `projects.sql`): add, edit, archive/restore projects (name, location, PC no., PM in-charge) or paste a whole list from Excel. Everyone picks from the same list on the form: typing in *Project name* or *PC no.* filters it, and choosing one fills in location, PC no. and PM. Archived projects disappear from the form but are never deleted.
 - **Currency converter** now fetches a live rate when opened or when the currencies change (European Central Bank via frankfurter.dev, then open.er-api.com, then jsDelivr currency-api as fallbacks), shows where/when the rate is from, has a Refresh button, and still lets you type your own rate if the services can't be reached.
+
+## Version & "What's new"
+The version number (`VERSION` in `appbar.js`) shows under **Log out** in the name menu; clicking it reopens the "What's new" list. When shipping a change, bump `VERSION` and `NOTICE_ID` and edit the `NOTICE` list so everyone sees the notice once.
