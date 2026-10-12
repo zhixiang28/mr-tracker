@@ -211,7 +211,9 @@ function signCard(step){
   let statusHtml, metaHtml="", declineHtml="", overrideHtml="";
   if(step.status==="Signed"){
     statusHtml = `<span class="sign-status signed">✓ Signed</span>`;
-    metaHtml = `<div class="sign-meta">${new Date(step.signed_at).toLocaleString()}</div>`;
+    metaHtml = `<div class="sign-meta">${new Date(step.signed_at).toLocaleString()}</div>` +
+      (step.signature_data && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(step.signature_data)
+        ? `<img src="${step.signature_data}" alt="signature" style="display:block;max-height:46px;max-width:100%;margin-top:6px">` : "");
     if(step.is_override) overrideHtml = `<div class="override-tag">Fast-forwarded by admin (${escHtml(step.override_by)})</div>`;
   } else if(step.status==="Declined"){
     statusHtml = `<span class="sign-status declined">✕ Declined</span>`;

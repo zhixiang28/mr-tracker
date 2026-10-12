@@ -63,3 +63,5 @@ For a transition period where approvers sign on the PDF form instead of using PI
 4. Anyone with the link can **Export PDF** (with the signatures so far) and keep their own copy.
 
 Notes: there is no PIN on this page, so anyone holding the link can sign the next open slot. Only share it with the intended signers. Signing is strictly in order. The database part is in `esign-pdf-upgrade.sql` (already applied to the live project).
+
+`esign-hardening.sql` (run after `esign-pdf-upgrade.sql`) tightens `sign_step`, `decline_step` and `requester_resubmit`: a withdrawn/declined requisition can't be signed through an already-claimed link, and resubmitting clears drawn signatures and typed-only names.

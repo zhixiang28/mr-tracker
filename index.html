@@ -1131,6 +1131,9 @@ async function copyESignLink(){
   if(realRows.length===0){ setStatus("Add at least one material line first."); return; }
   if(editRequisitionId){ setStatus("This form is a revision of a declined requisition — use Revise & Resubmit."); return; }
 
+  const eBtn = document.getElementById("eSignBtn");
+  if(eBtn.disabled) return;
+  eBtn.disabled = true; const eBtnText = eBtn.textContent; eBtn.textContent = "Saving...";
   try{
     setStatus("Saving to the tracker...");
     const header = {
@@ -1162,6 +1165,11 @@ async function copyESignLink(){
         <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
         <button type="button" onclick="copySignLink()">Copy</button>
       </div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <input type="email" id="emailLinkInput" list="loginPeopleList" placeholder="Or type an email to send it instead" style="flex:1">
+        <button type="button" onclick="emailTheLink('${link.toString().replace(/'/g,"\\'")}', 'Team Manager', 'emailLinkInput', 'emailLinkStatus')">Send</button>
+      </div>
+      <div class="muted" id="emailLinkStatus" style="font-size:11.5px;margin-top:4px"></div>
       <p class="muted" style="font-size:12px">Signing order: Team Manager → Approve → Purchase → Received. Each signature shows up on the <a href="dashboard.html" target="_blank">dashboard</a> under this tracking number. You can get this link again from the dashboard row.</p>`;
     document.getElementById("submitResultModal").style.display="flex";
     if(currentDraftId){
@@ -1172,6 +1180,8 @@ async function copyESignLink(){
   }catch(e){
     console.error(e);
     setStatus("Could not save: "+(e.message||e));
+  }finally{
+    eBtn.disabled = false; eBtn.textContent = eBtnText;
   }
 }
 

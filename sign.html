@@ -152,8 +152,9 @@ function renderCard(step, req, allSteps){
       `This requisition was declined at the <b>${escHtml(step.stage_name)}</b> step. Reason: "${escHtml(step.decline_reason||"—")}"`);
     return;
   }
-  if(req.status==="Declined"){
-    card.innerHTML = statusOnlyView(step, req, "error", `This requisition was declined earlier in the chain and can't proceed.`);
+  if(req.status==="Declined" || req.status==="Withdrawn"){
+    card.innerHTML = statusOnlyView(step, req, "error",
+      req.status==="Withdrawn" ? `This requisition was withdrawn by the requester and can't be signed.` : `This requisition was declined earlier in the chain and can't proceed.`);
     return;
   }
   if(prevIncomplete){
