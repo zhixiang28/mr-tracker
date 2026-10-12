@@ -74,15 +74,15 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top">
-    <div class="brand">SPACE<span>logic</span> — Purchase History</div>
-    <div style="display:flex;gap:8px">
-      <button type="button" onclick="exportCSV()">Export CSV</button>
-      <a class="btn" href="dashboard.html">← Dashboard</a>
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1>Purchase History</h1>
+      <div class="sub">Find what we've bought before — the price, the supplier and when. Tick an item and press <b>Add to a new requisition</b> to reorder it.</div>
     </div>
+    <div class="btns"><button type="button" onclick="exportCSV()">Export CSV</button></div>
   </div>
 
-  <div class="intro">Find what we've bought before — the price, the supplier and when. Tick an item and press <b>Add to a new requisition</b> to reorder it.</div>
   <div class="tabs">
     <button class="tab on" id="tab-items" onclick="setTab('items')">Items</button>
     <button class="tab" id="tab-sup" onclick="setTab('sup')">Suppliers</button>
@@ -122,6 +122,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="supplier.js"></script>
 <script src="itemmatch.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -130,6 +131,7 @@ const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+AppBar.mount("appbar", {active:"items", client:supabaseClient});
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=items.html"; }

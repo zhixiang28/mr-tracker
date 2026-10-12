@@ -58,30 +58,6 @@
   .login-gate button{ width:100%; margin-top:16px; padding:11px; }
   .login-err{ color:var(--declined); font-size:12px; margin-top:8px; min-height:16px; }
 
-  /* ---- top bar ---- */
-  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:22px; }
-  .nav{ display:flex; align-items:center; gap:4px; }
-  .nav a, .nav button.navbtn{ font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; padding:8px 12px; border-radius:8px; border:0; background:none; cursor:pointer; font-family:inherit; }
-  .nav a:hover, .nav button.navbtn:hover{ background:#e6eaf1; color:var(--ink); }
-  .nav .iconbtn{ padding:8px 10px; }
-  .usermenu{ position:relative; }
-  .userbtn{ display:flex; align-items:center; gap:8px; padding:6px 10px 6px 6px; border:1px solid var(--line); background:#fff; border-radius:999px; font-size:13px; font-weight:600; }
-  .avatar{ width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
-  .role{ font-size:10.5px; font-weight:800; color:#fff; background:var(--admin); border-radius:999px; padding:1px 7px; }
-  .menu{ position:absolute; right:0; top:calc(100% + 6px); min-width:200px; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 30px rgba(15,23,42,.14); padding:6px; display:none; z-index:50; }
-  .menu.open{ display:block; }
-  .menu button, .menu a{ display:block; width:100%; text-align:left; border:0; background:none; padding:9px 12px; border-radius:8px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:none; cursor:pointer; }
-  .menu button:hover, .menu a:hover{ background:#f4f6fa; }
-  .menu hr{ border:0; border-top:1px solid var(--line); margin:6px 4px; }
-  .menu .out{ color:var(--declined); }
-
-  /* ---- page heading ---- */
-  .pagehead{ display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
-  .pagehead h1{ margin:0; font-size:24px; letter-spacing:-.4px; }
-  .pagehead .sub{ color:var(--muted); font-size:13px; margin-top:3px; }
-  .pagehead .btns{ display:flex; gap:8px; }
-  .pagehead .btns button{ padding:10px 16px; }
-
   .pipeline{ display:grid; grid-template-columns:repeat(7,1fr); gap:0; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.07); overflow:hidden; margin-bottom:22px; }
   .stage-cell{ padding:16px 10px; position:relative; border-right:1px solid var(--line); cursor:pointer; transition:background .15s ease; }
   .stage-cell:last-child{ border-right:0; }
@@ -177,27 +153,7 @@
 </head>
 <body>
 <div class="app" id="app" style="display:none">
-  <div class="topbar">
-    <div class="brand">SPACE<span>logic</span> — MR Tracker</div>
-    <div class="nav">
-      <a href="items.html">Purchase History</a>
-      <a href="analytics.html">Analytics</a>
-      <a href="admin.html" id="adminSettingsLink" style="display:none">Admin Settings</a>
-      <button class="navbtn iconbtn" onclick="loadData()" title="Reload the list" aria-label="Refresh">↻</button>
-      <div class="usermenu" id="userMenu">
-        <button class="userbtn" onclick="toggleUserMenu(event)" aria-haspopup="true"><span class="avatar" id="avatar">?</span><span id="whoami"></span><span class="role" id="roleTag" style="display:none">Admin</span> ▾</button>
-        <div class="menu" id="userMenuList">
-          <button onclick="openProfileModal()">My Profile</button>
-          <button onclick="openReminderModal()">Reminder Settings</button>
-          <hr>
-          <button onclick="window.open('manual.html','_blank')">Manual</button>
-          <button onclick="window.open('manual.html#faq','_blank')">FAQ</button>
-          <hr>
-          <button class="out" onclick="logout()">Log out</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div id="appbar"></div>
 
   <div class="pagehead">
     <div>
@@ -330,6 +286,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -377,12 +334,13 @@ function logout(){
 
 async function showApp(){
   document.getElementById("app").style.display="block";
-  document.getElementById("whoami").textContent = myName || "";
-  document.getElementById("avatar").textContent = (myName||"?").trim().charAt(0).toUpperCase();
+  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:openProfileModal, onReminders:openReminderModal});
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadPeopleForAdmin();
   await loadMySettings();
   await loadData();
+  const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
+  if(open==="profile") openProfileModal(); else if(open==="reminders") openReminderModal();
 }
 
 async function loadMySettings(){
@@ -487,9 +445,8 @@ async function loadData(){
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not load data."); return; }
   iAmAdmin = !!data.is_admin;
   allReqs = data.requisitions || [];
-  document.getElementById("roleTag").style.display = iAmAdmin ? "" : "none";
   document.getElementById("pageSub").textContent = iAmAdmin ? "Every requisition in the system" : "Everything you submitted or are asked to sign";
-  document.getElementById("adminSettingsLink").style.display = iAmAdmin ? "" : "none";
+  AppBar.setAdmin(iAmAdmin);
   document.getElementById("emptyStateText").textContent = iAmAdmin
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";
@@ -535,8 +492,6 @@ function toggleGroup(key){
   if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
   render();
 }
-function toggleUserMenu(e){ e.stopPropagation(); document.getElementById("userMenuList").classList.toggle("open"); }
-document.addEventListener("click", ()=>{ const m=document.getElementById("userMenuList"); if(m) m.classList.remove("open"); });
 
 const STATUS_GROUPS = [
   {key:"needs",  label:"Needs action"},

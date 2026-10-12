@@ -81,3 +81,7 @@ Search everything bought before (company-wide, excluding declined/withdrawn; "In
 ## Dashboard layout
 
 Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (My Profile, Reminder Settings, Manual, FAQ, Log out). Below: the seven stage boxes (click one to filter), a search box with a **Needs action** shortcut, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).
+
+## Same layout on every page
+
+`appbar.js` draws one header on every signed-in page — brand, **Dashboard · Purchase History · Analytics · (Admin Settings)**, and your-name menu (My Profile, Reminder Settings, Manual, FAQ, Log out) — followed by a page heading with the title on the left and that page's actions on the right (dashboard: My Drafts + New requisition; form: My Drafts + Save Draft; full view: Print + Export PDF; Purchase History: Export CSV; Analytics: period). The form's header links open in a new tab so an unsaved form isn't lost. The sign pages (`sign.html`, `esign.html`), login and the manual are separate on purpose.

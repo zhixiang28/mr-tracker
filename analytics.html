@@ -100,20 +100,20 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="top">
-    <div class="brand">SPACE<span>logic</span> — Analytics</div>
-    <a class="back" href="dashboard.html">← Dashboard</a>
-  </div>
-
-  <div class="filters">
-    <label for="range">Period</label>
-    <select id="range" onchange="draw()">
-      <option value="30">Last 30 days</option>
-      <option value="90">Last 90 days</option>
-      <option value="365" selected>Last 12 months</option>
-      <option value="all">All time</option>
-    </select>
-    <span class="count" id="scopeNote"></span>
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1>Analytics</h1>
+      <div class="sub" id="scopeNote">Spending, approval speed and price insights</div>
+    </div>
+    <div class="btns">
+      <select id="range" onchange="draw()" aria-label="Period">
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="365" selected>Last 12 months</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
   </div>
 
   <div id="msg" class="empty" style="display:none"></div>
@@ -141,6 +141,7 @@
 <div id="tip" role="tooltip"></div>
 
 <script src="dates.js"></script>
+<script src="appbar.js"></script>
 <script src="supplier.js"></script>
 <script src="itemmatch.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -149,6 +150,7 @@ const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+AppBar.mount("appbar", {active:"analytics", client:supabaseClient});
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=analytics.html"; }
