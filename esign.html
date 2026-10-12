@@ -111,7 +111,7 @@ async function loadDoc(){
   if(!token){ setBanner("err","No signing link provided. Ask whoever sent this for the full link."); return; }
   const {data, error} = await supabaseClient.rpc("get_esign_doc", {p_token: token});
   if(error || !data || !data.success){
-    setBanner("err","This link isn't valid. Ask whoever sent it to copy the e-sign link again.");
+    setBanner("err","This link isn't valid. Ask whoever sent it to copy the PDF sign link again.");
     return;
   }
   doc = data;
@@ -159,7 +159,7 @@ function render(){
               <div class="who">${esc(s.assigned_person_name||"")}<br>${esc(fmtStamp(s.signed_at))}</div>`;
     }
     if(o===activeOrder){
-      return `<div class="slot"><button class="sign-btn" onclick="openModal(${o})">✍ Tap to sign</button></div>`;
+      return `<div class="slot"><button class="sign-btn" onclick="openModal(${o})">Tap to sign</button></div>`;
     }
     return `<div class="slot"><span class="locked">${activeOrder? "Waiting for earlier signature":"—"}</span></div>`;
   };
