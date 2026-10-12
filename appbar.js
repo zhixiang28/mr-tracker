@@ -50,6 +50,7 @@
     {id:"dashboard", label:"Dashboard",        href:"dashboard.html"},
     {id:"items",     label:"Purchase History", href:"items.html"},
     {id:"analytics", label:"Analytics",        href:"analytics.html"},
+    {id:"projects",  label:"Projects",         href:"projects.html", admin:true},
     {id:"admin",     label:"Admin Settings",   href:"admin.html", admin:true}
   ];
   const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -114,16 +115,17 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const NOTICE_ID = "upgrade-2026-10b";
+  const NOTICE_ID = "upgrade-2026-10c";
   const NOTICE = [
     ["Same layout on every page", "One header with Dashboard, Purchase History and Analytics, and your name menu at the top right. Buttons that belong together now sit together on every page."],
     ["Pick items you've bought before", "On the requisition form, click the Item box and choose from past purchases. The price and product link are filled in for you, and you can see the cheapest price paid before."],
+    ["Projects shared with everyone", "Start typing a project name or PC no. on the form and pick it from the list. The location, PC no. and PM fill in automatically. Admins keep the list up to date on the new Projects page."],
     ["Purchase History (new)", "Search for an item and see what we paid, which supplier, and when. Tick items to add them to a new requisition. Similar item names are matched automatically, and you can combine or separate them."],
     ["Dashboard: organise it your way", "Group requisitions by status, stage, project, requester or month. The headings stay in view as you scroll, and the blue REQ number opens the full form."],
     ["One link to sign", "PIN Sign and the new PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form, and you can track it on the dashboard."],
     ["Analytics (new)", "Spending, approval speed and price insights. You see your own requisitions; admins see everything."],
     ["Account settings", "My Profile and Change PIN are now one tidy window under your name, with live checks so you can't mistype a PIN."],
-    ["Smaller improvements", "Dates show as dd/mm/yyyy, the form can remember your projects, and CSV exports open correctly in Excel with Chinese text."]
+    ["Smaller improvements", "The Currency Converter fetches live exchange rates, the duplicate and delete icons on item rows have room again, dates show as dd/mm/yyyy, and CSV exports open correctly in Excel with Chinese text."]
   ];
   function showNotice(){
     try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){}
