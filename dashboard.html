@@ -515,7 +515,7 @@ function render(){
         <td>${renderProgressCell(r)}</td>
       </tr>`;
     const showResubmitPanel = r.status==="Declined" && r.requester_person_id===myId && !iAmAdmin;
-    const canWithdraw = r.requester_person_id===myId && !["Received","Withdrawn"].includes(r.status);
+    const canWithdraw = r.requester_person_id===myId && !["Purchased","Received","Withdrawn"].includes(r.status);
     const withdrawHtml = canWithdraw ? `<button onclick="event.stopPropagation();withdrawRequisition('${r.id}')" style="font-size:11px;margin-top:6px;color:var(--declined);border-color:#fecaca">Withdraw this requisition</button>` : "";
     const detailRow = isOpen ? `<tr class="items-panel"><td colspan="7"><div class="items-inner">${renderItemsBlock(r)}<div>${renderTimelineBlock(r)}<div class="view-form-link"><a href="view.html?id=${r.id}">Open full form view →</a></div>${withdrawHtml}${iAmAdmin ? renderAdminPanel(r) : ""}${showResubmitPanel ? renderResubmitPanel(r) : ""}</div></div></td></tr>` : "";
     return mainRow + detailRow;
@@ -689,6 +689,14 @@ function renderAdminPanel(r){
     </div>`;
 }
 
+
+async function withdrawRequisition(reqId){
+  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
+  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
+  setStatus("Requisition withdrawn.");
+  await loadData();
+}
 
 async function adminDelete(reqId){
   if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
