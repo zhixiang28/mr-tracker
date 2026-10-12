@@ -232,6 +232,7 @@ function renderActions(req, steps){
   if(viewIsAdmin) btns.push(`<a class="btn btn-primary" href="index.html?adminEdit=${req.id}">Edit in form</a>`);
   if(isRequester && req.status==="Declined") btns.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
   if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
+  if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
   if(viewIsAdmin) btns.push(`<button class="btn-danger" onclick="deleteReq('${req.id}')">Delete</button>`);
   if(!btns.length && !viewIsAdmin) return "";
 
@@ -261,6 +262,14 @@ async function withdrawReq(id){
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition withdrawn.");
+}
+async function rejectReq(id){
+  const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
+  if(!reason) return;
+  const {data, error} = await supabaseClient.rpc("admin_reject_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id, p_reason: reason});
+  if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
+  await loadRequisition(id);
+  actionsMsg("Requisition rejected.");
 }
 async function deleteReq(id){
   if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;

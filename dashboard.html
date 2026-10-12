@@ -589,7 +589,7 @@ function renderTimelineBlock(r){
     let metaLine="";
     if(s.status==="Signed") metaLine = `Signed by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.signed_at)}` +
       (s.signed_via==="esign" ? ` · PDF signature${s.signature_data?` <img src="${escapeHtml(s.signature_data)}" alt="signature" style="height:22px;vertical-align:middle;margin-left:6px;border:1px solid var(--line);border-radius:4px;background:#fff">`:""}` : "");
-    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(s.assigned_person_name)} · ${fmtDateTime(s.declined_at)}`;
+    else if(s.status==="Declined") metaLine = `Declined by ${escapeHtml(r.declined_by||s.assigned_person_name)} · ${fmtDateTime(s.declined_at)}`;
     else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
     else metaLine = `Waiting`;
 
@@ -659,7 +659,7 @@ function renderResubmitPanel(r){
   const declinedStep = (r.approval_steps||[]).find(s=>s.status==="Declined");
   return `
     <div class="admin-panel" style="border-top-color:var(--declined)" onclick="event.stopPropagation()">
-      <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(declinedStep?.assigned_person_name||"")}</div>
+      <div class="admin-panel-title" style="color:var(--declined)">✕ Declined at ${escapeHtml(declinedStep?.stage_name||"")} by ${escapeHtml(r.declined_by||declinedStep?.assigned_person_name||"")}</div>
       <div class="decline-reason-box" style="margin-bottom:10px">Reason: ${escapeHtml(declinedStep?.decline_reason||"—")}</div>
       <a href="index.html?editRequisition=${r.id}"><button class="primary" type="button">Edit &amp; Resubmit in Full Form →</button></a>
     </div>`;
@@ -671,6 +671,7 @@ function renderAdminPanel(r){
       <div class="admin-panel-title">Admin</div>
       <div class="row" style="display:flex;gap:6px">
         <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">Edit in form</button></a>
+        ${["Declined","Purchased","Received","Withdrawn"].includes(r.status) ? "" : `<button class="danger" onclick="adminReject('${r.id}')">Reject</button>`}
         <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
       </div>
       <div class="sign-error" id="admin-err-${r.id}"></div>
@@ -688,6 +689,15 @@ async function withdrawRequisition(reqId){
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadData();
   setStatus("Requisition withdrawn.");
+}
+
+async function adminReject(reqId){
+  const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
+  if(!reason) return;
+  const {data, error} = await supabaseClient.rpc("admin_reject_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_reason: reason});
+  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
+  await loadData();
+  setStatus("Requisition rejected.");
 }
 
 async function adminDelete(reqId){
