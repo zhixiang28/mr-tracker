@@ -175,14 +175,26 @@
   .view-toggle button{ border:0; border-radius:0; background:#fff; padding:6px 11px; font-size:12px; color:var(--muted); }
   .view-toggle button+button{ border-left:1px solid var(--line); }
   .view-toggle button.on{ background:#eaf0fb; color:var(--ink); font-weight:700; }
-  .cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; padding:12px; }
-  .cards-grp{ grid-column:1/-1; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); cursor:pointer; user-select:none; padding:6px 2px 0; }
-  .cards-grp.needs{ color:#92400e; }
-  .cards-grp .g-count{ margin-left:6px; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  .cards{ display:grid; grid-template-columns:repeat(7,minmax(250px,1fr)); gap:10px; padding:12px; overflow-x:auto; align-items:start; }
+  .kcol{ background:#f4f6fa; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:8px; min-width:0; }
+  .kcol-h{ display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:var(--muted); padding:2px 4px 4px; }
+  .kcol-h i{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .kcol-h .g-count{ margin-left:auto; background:#e3e8f0; color:var(--ink); border-radius:999px; padding:1px 8px; font-size:11px; }
+  .kcol-empty{ font-size:12px; color:var(--muted); text-align:center; padding:14px 4px; }
   .cards-empty{ grid-column:1/-1; text-align:center; color:var(--muted); padding:36px 16px; }
   .rcard{ border:1px solid var(--line); border-radius:12px; padding:13px 14px; background:#fff; cursor:pointer; display:flex; flex-direction:column; gap:7px; }
   .rcard:hover{ border-color:#b9c6dd; box-shadow:0 2px 8px rgba(15,23,42,.06); }
-  .rcard.open{ grid-column:1/-1; cursor:default; }
+  .rcard.open{ cursor:default; }
+  .rcard{ min-width:0; overflow:hidden; }
+  .rcard .items-inner>*{ min-width:0; }
+  .rcard .manage-bar{ flex-direction:column; align-items:flex-start; }
+  .rcard .manage-danger{ flex-wrap:wrap; }
+  .rcard .manage-danger .mdz{ margin-left:6px; padding-left:8px; }
+  .rcard .item-row>div:nth-child(2),.rcard .item-row>div:nth-child(3),.rcard .item-row>div:nth-child(5){ white-space:nowrap; }
+  .rcard .item-row{ grid-template-columns:minmax(0,1fr) 30px 58px 64px; gap:6px; font-size:12px; }
+  .rcard .items-inner{ grid-template-columns:1fr; padding:0; gap:16px; }
+  .rcard .item-row{ grid-template-columns:1fr 34px 62px 62px; }
+  .rcard .item-row>div:nth-child(4){ display:none; }
   .rcard .rc-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .rcard .rc-meta{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
   .rcard .rc-total{ font-weight:800; color:var(--ink); }
@@ -635,6 +647,7 @@ function render(){
   document.getElementById("vtCards").classList.toggle("on", cardsMode);
   const cardWrap = document.getElementById("cardWrap");
   cardWrap.style.display = (cardsMode && allReqs.length) ? "grid" : "none";
+  document.getElementById("groupMode").style.display = document.querySelector(".toolbar2 .lbl").style.display = cardsMode ? "none" : "";
   document.getElementById("reqTable").style.display = (!cardsMode && allReqs.length) ? "table" : "none";
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
@@ -671,11 +684,11 @@ function render(){
 
   const groups = buildGroups(filtered, needIds);
   if(cardsMode){
-    if(!groups.length && allReqs.length){ cardWrap.innerHTML = `<div class="cards-empty"><b style="color:var(--ink)">No requisitions match.</b><br>Try a different search or clear the filters above.</div>`; return; }
-    cardWrap.innerHTML = groups.map(g=>{
-      if(g.flat) return g.rows.map(renderCard).join("");
-      const collapsed = collapsedGroups.has(g.key);
-      return `<div class="cards-grp ${g.needs&&g.rows.length?"needs":""}" onclick="toggleGroup('${escapeHtml(g.key).replace(/'/g,"&#39;")}')">${collapsed?"▸":"▾"} ${escapeHtml(g.label)}<span class="g-count">${g.rows.length}</span></div>` + (collapsed ? "" : g.rows.map(renderCard).join(""));
+    if(!allReqs.length){ return; }
+    cardWrap.style.gridTemplateColumns = STAGES.map(st=>filtered.some(r=>r.status===st) ? "minmax(250px,1fr)" : "minmax(130px,.5fr)").join(" ");
+    cardWrap.innerHTML = STAGES.map(st=>{
+      const rows = filtered.filter(r=>r.status===st);
+      return `<div class="kcol"><div class="kcol-h"><i style="background:var(${STAGE_VARS[st]})"></i>${escapeHtml(st)}<span class="g-count">${rows.length}</span></div>${rows.length ? rows.map(renderCard).join("") : '<div class="kcol-empty">None</div>'}</div>`;
     }).join("");
     return;
   }
