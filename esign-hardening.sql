@@ -1,3 +1,5 @@
+-- STATUS: sign_step and decline_step (part 1) are applied to the live project. requester_resubmit (part 2, contains a DELETE)
+-- timed out through the tool and still needs to be run once in the Supabase SQL editor.
 -- ============================================================
 -- SPACElogic MR Tracker — hardening for the PIN + PDF e-sign flows
 -- Run AFTER esign-pdf-upgrade.sql. Replaces three existing functions
