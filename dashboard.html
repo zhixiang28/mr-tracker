@@ -126,10 +126,6 @@
   .tdot.declined{ background:var(--declined); }
   .tstage{ font-weight:700; font-size:12.5px; }
   .tmeta{ font-size:11.5px; color:var(--muted); }
-  .sign-box{ margin-top:8px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; }
-  .sign-box input{ width:100%; margin-bottom:6px; }
-  .sign-box .row{ display:flex; gap:6px; }
-  .sign-box .row button{ flex:1; }
   .sign-error{ color:var(--declined); font-size:11.5px; margin-top:4px; }
   .decline-reason-box{ font-size:11.5px; color:var(--declined); background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:6px 8px; margin-top:4px; }
   .link-tools{ display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
@@ -301,20 +297,6 @@ async function sendEmail(to, subject, html){
     const result = await resp.json();
     return result.success === true;
   }catch(e){ return false; }
-}
-
-async function sendNotification(callerId, callerPin, requisitionId, event){
-  try{
-    const {data: target} = await supabaseClient.rpc("get_notification_target", {
-      p_caller_person_id: callerId, p_caller_pin: callerPin, p_requisition_id: requisitionId, p_event: event
-    });
-    if(!target || !target.success) return;
-    await fetch(SEND_EMAIL_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({to: target.to, subject: target.subject, html: target.html})
-    });
-  }catch(e){ console.error("Notification email failed:", e); }
 }
 
 const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
@@ -618,34 +600,12 @@ function renderTimelineBlock(r){
 
     const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
-    const isUnclaimed = !s.assigned_person_id;
-
-    const identityHtml = isUnclaimed ? `
-        <input type="text" placeholder="Your name" list="peopleDatalist-${s.id}" id="name-${s.id}" autocomplete="off" oninput="toggleConfirmPin('${s.id}')">
-        <datalist id="peopleDatalist-${s.id}">${peopleForAdmin.map(p=>`<option value="${escapeHtml(p.name)}">`).join("")}</datalist>
-        <input type="email" placeholder="Company email (new signers only)" id="newemail-${s.id}" style="display:none">` : "";
-
-    const actionHtml = (s.status==="Pending") ? `
-      ${isActionable ? `<div class="link-tools">
-        <button onclick="event.stopPropagation();toggleSignBox('${s.id}')">${isUnclaimed ? "Claim &amp; sign" : `Sign / Decline as ${escapeHtml(s.assigned_person_name)}`}</button>
-      </div>
+    const actionHtml = (s.status==="Pending" && isActionable) ? `
+      <div class="tmeta" style="margin-top:4px">Signs by opening the sign link${s.assigned_person_name ? "" : " (first person to open it claims this step)"}.</div>
       <details class="more-tools" onclick="event.stopPropagation()"><summary>Link problem?</summary>
         <div class="link-tools"><button onclick="event.stopPropagation();regenLink('${s.id}','${r.id}')">Regenerate link</button></div>
         <div id="regenbox-${s.id}"></div>
-      </details>` : ""}
-      ${isActionable ? `
-      <div class="sign-box" id="signbox-${s.id}" style="display:none" onclick="event.stopPropagation()">
-        ${identityHtml}
-        <input type="password" inputmode="numeric" maxlength="4" placeholder="${isUnclaimed ? 'Existing PIN, or choose a new one' : '4-digit PIN'}" id="pin-${s.id}">
-        <input type="password" inputmode="numeric" maxlength="4" placeholder="Confirm new PIN" id="confirmpin-${s.id}" style="display:none">
-        <input type="text" placeholder="Verification code (check email)" id="regcode-${s.id}" maxlength="6" inputmode="numeric" style="display:none">
-        <input type="text" placeholder="Reason (only needed to decline)" id="reason-${s.id}">
-        <div class="row">
-          <button class="primary" onclick="dashApprove('${s.token}','${s.id}',${isUnclaimed})">Approve</button>
-          <button onclick="dashDecline('${s.token}','${s.id}',${isUnclaimed})">Decline</button>
-        </div>
-        <div class="sign-error" id="signerr-${s.id}"></div>
-      </div>` : ""}` : "";
+      </details>` : "";
 
     return `
       <div class="tstep">
@@ -686,11 +646,6 @@ function toggleRow(id){
   if(openRows.has(id)) openRows.delete(id); else openRows.add(id);
   render();
 }
-function toggleSignBox(stepId){
-  const box=document.getElementById("signbox-"+stepId);
-  box.style.display = box.style.display==="block" ? "none" : "block";
-}
-
 async function regenLink(stepId, reqId){
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   const box = document.getElementById("regenbox-"+stepId);
@@ -703,102 +658,6 @@ function copyRegenLink(stepId){
   const inp = document.getElementById("newlink-"+stepId);
   inp.select(); document.execCommand("copy");
   setStatus("New link copied — the old one no longer works.");
-}
-
-function toggleConfirmPin(stepId){
-  const nameInput = document.getElementById("name-"+stepId);
-  const confirmInput = document.getElementById("confirmpin-"+stepId);
-  const emailInput = document.getElementById("newemail-"+stepId);
-  const name = nameInput.value.trim().toLowerCase();
-  const isNew = name && !peopleForAdmin.some(p=>p.name.toLowerCase()===name);
-  confirmInput.style.display = isNew ? "block" : "none";
-  if(emailInput) emailInput.style.display = isNew ? "block" : "none";
-}
-
-let awaitingCodeForStep = {}; // stepId -> email, set once a code has been sent for that step's box
-
-async function dashEnsureClaimed(token, stepId, pin, errEl){
-  const nameInput = document.getElementById("name-"+stepId);
-  if(!nameInput) return true;
-
-  if(awaitingCodeForStep[stepId]){
-    const code = document.getElementById("regcode-"+stepId).value.trim();
-    if(!/^\d{6}$/.test(code)){ errEl.textContent="Enter the 6-digit code from your email."; return false; }
-    const {data: vData, error: vErr} = await supabaseClient.rpc("verify_registration", {p_email: awaitingCodeForStep[stepId], p_code: code});
-    if(vErr || !vData.success){ errEl.textContent = (vData&&vData.error)||"Could not verify."; return false; }
-    const personId = vData.id;
-    delete awaitingCodeForStep[stepId];
-    await loadPeopleForAdmin();
-    const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
-    if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
-    return true;
-  }
-
-  const name = nameInput.value.trim();
-  if(!name){ errEl.textContent="Enter your name."; return false; }
-
-  const existing = peopleForAdmin.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  let personId = existing ? existing.id : null;
-
-  if(!personId){
-    const confirmPin = document.getElementById("confirmpin-"+stepId).value.trim();
-    const email = document.getElementById("newemail-"+stepId).value.trim();
-    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.textContent="Enter your @spacelogic.com.sg company email."; return false; }
-    if(!/^\d{4}$/.test(pin)){ errEl.textContent="Choose a 4-digit PIN."; return false; }
-    if(pin !== confirmPin){ errEl.textContent="PINs don't match — re-enter both."; return false; }
-
-    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
-    if(regErr || !regData.success){ errEl.textContent = (regData&&regData.error) || (regErr&&regErr.message) || "Could not start registration."; return false; }
-    const sent = await sendEmail(regData.email, regData.subject, regData.html);
-    if(!sent){ errEl.textContent = "Could not send the verification email — try again."; return false; }
-
-    awaitingCodeForStep[stepId] = regData.email;
-    document.getElementById("regcode-"+stepId).style.display = "block";
-    errEl.style.color = "var(--received)";
-    errEl.textContent = `Code sent to ${email}. Enter it above, then click Approve/Decline again.`;
-    return false;
-  }
-
-  const {data: claimData, error: claimErr} = await supabaseClient.rpc("claim_step", {p_token: token, p_person_id: personId, p_pin: pin});
-  if(claimErr || !claimData.success){ errEl.textContent = (claimData&&claimData.error) || (claimErr&&claimErr.message) || "Could not claim this step."; return false; }
-  return true;
-}
-
-async function dashApprove(token, stepId, isUnclaimed){
-  const pin=document.getElementById("pin-"+stepId).value.trim();
-  const errEl=document.getElementById("signerr-"+stepId);
-  if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
-  if(isUnclaimed){
-    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
-    if(!claimed) return;
-  }
-  const {data, error} = await supabaseClient.rpc("sign_step", {p_token: token, p_pin: pin});
-  if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
-  if(data.stage === "Purchase"){
-    sendNotification(data.signed_by_id, pin, data.requisition_id, "purchased");
-  } else if(!data.next_stage){
-    sendNotification(data.signed_by_id, pin, data.requisition_id, "received");
-  }
-  setStatus(data.next_stage
-    ? `Signed off by ${data.signed_by} on ${data.stage}. Next: someone from ${data.next_stage} needs to sign.`
-    : `Signed off by ${data.signed_by} on ${data.stage}. This requisition is now fully Received.`);
-  await loadData();
-}
-async function dashDecline(token, stepId, isUnclaimed){
-  const pin=document.getElementById("pin-"+stepId).value.trim();
-  const reason=document.getElementById("reason-"+stepId).value.trim();
-  const errEl=document.getElementById("signerr-"+stepId);
-  if(!/^\d{4}$/.test(pin)){ errEl.textContent="Enter a 4-digit PIN."; return; }
-  if(!reason){ errEl.textContent="Enter a reason to decline."; return; }
-  if(isUnclaimed){
-    const claimed = await dashEnsureClaimed(token, stepId, pin, errEl);
-    if(!claimed) return;
-  }
-  const {data, error} = await supabaseClient.rpc("decline_step", {p_token: token, p_pin: pin, p_reason: reason});
-  if(error || !data.success){ errEl.textContent = (data&&data.error) || (error&&error.message) || "Failed."; return; }
-  sendNotification(data.declined_by_id, pin, data.requisition_id, "declined");
-  setStatus(`Declined by ${data.declined_by} at ${data.stage}.`);
-  await loadData();
 }
 
 function renderResubmitPanel(r){
