@@ -110,6 +110,8 @@
       <li><a href="#drafts">Saving drafts</a></li>
       <li><a href="#declined">If it's declined</a></li>
       <li><a href="#withdraw">Withdrawing a request</a></li>
+      <li><a href="#projects">Projects</a></li>
+      <li><a href="#history">Purchase History</a></li>
     </ul>
     <h4>Approvers</h4>
     <ul>
@@ -118,6 +120,7 @@
     <h4>Everyone</h4>
     <ul>
       <li><a href="#dashboard">Using the dashboard</a></li>
+      <li><a href="#analytics">Analytics</a></li>
       <li><a href="#reminders">Reminder settings</a></li>
       <li><a href="#export">Exporting &amp; printing</a></li>
       <li><a href="#profile">Your profile &amp; PIN</a></li>
@@ -170,8 +173,9 @@
     <div class="sec" id="submit">
       <h2>Submitting a requisition</h2>
       <ol class="steps">
-        <li>From the dashboard, click <b>+ New Requisition</b>. This opens the full form.</li>
-        <li>Fill in the project details — name, location, supply date — and add each material line by line: name, description, quantity, unit price, and any delivery/tax cost.</li>
+        <li>From the dashboard, click <b>+ New requisition</b>. This opens the full form.</li>
+        <li>Fill in the project details — start typing the project name or PC no. and pick it from the list to fill in the location, PC no. and PM. Then add each material line by line: name, description, quantity, unit price, and any delivery/tax cost. Click the <b>Item</b> box to pick something you have bought before; its price and link fill in for you.</li>
+        <li>If your item is priced in another currency, use <b>Currency converter</b> above the materials table. It fetches a live rate (and tells you if it could not, so you can type one in).</li>
         <li>If an item has a supplier or product page, paste the URL into the <b>Link</b> field — it becomes clickable in the exported PDF later.</li>
         <li>At the bottom of the form, choose how people will sign: <b>PIN Sign</b> (each approver enters their PIN) or <b>PDF Sign</b> (each approver draws their signature on the PDF form). Both save the requisition and give you one link to send.</li>
       </ol>
@@ -187,19 +191,19 @@
 
     <div class="sec" id="declined">
       <h2>If your requisition is declined</h2>
-      <p>You'll see it flagged on your dashboard with the reason it was declined. Click into it, then <b>Edit &amp; Resubmit in Full Form</b> — this reopens the complete form (not a cramped popup) with everything you already entered, ready to fix.</p>
+      <p>It is flagged on your dashboard, and the reason and the person who declined it show right on the row or card. Click it to open the full form, then press <b>Fix &amp; Resubmit in form</b> — this reopens the complete form with everything you already entered, ready to fix.</p>
       <div class="callout"><b>Good to know:</b> resubmitting restarts the whole approval chain from the Team Manager, even if the decline happened later at Procurement or Purchase. This ensures everyone re-confirms the revised request.</div>
     </div>
 
     <div class="sec" id="withdraw">
       <h2>Withdrawing a request</h2>
-      <p>Changed your mind, or the request is no longer needed? Open the requisition on your dashboard and click <b>Withdraw this requisition</b>. This is only available to you as the original requester, and only before it's been purchased.</p>
+      <p>Changed your mind, or the request is no longer needed? Click the requisition on your dashboard to open it, then press <b>Withdraw</b>. This is available to you as the original requester (and to admins), and only before it's been purchased. <b>Withdraw</b> and <b>Delete</b> are kept apart from the other buttons so they are hard to press by mistake.</p>
       <div class="callout"><b>Cutoff:</b> once a requisition reaches the <b>Purchased</b> stage, it can no longer be withdrawn — the money's already been spent. If something's wrong at that point, contact your admin.</div>
     </div>
 
     <div class="sec" id="signing">
       <h2>Approving or declining a requisition</h2>
-      <p>When it's your turn to review, you'll get a link — either sent to you directly, or claimed from the dashboard by whoever's next.</p>
+      <p>When it's your turn to review, you'll get a link from the requester.</p>
       <ol class="steps">
         <li>Open the link. If this is your first time on this specific step, type your name and a 4-digit PIN (existing accounts just enter their usual PIN).</li>
         <li>Review the project details and line items shown.</li>
@@ -214,12 +218,33 @@
       <p>The dashboard is where everything lives: your own submissions, anything waiting on your signature, and — if you're an admin — every requisition in the system.</p>
       <figure><img src="images/manual-dashboard.png" alt="The dashboard, showing the full pipeline"><figcaption>The dashboard — every stage, every requisition, at a glance</figcaption></figure>
       <ul>
-        <li><b>Pipeline row</b> — shows counts by stage, and doubles as a filter. Click any stage to see just those requisitions.</li>
-        <li><b>Action banner</b> — appears only when something needs your attention (awaiting your signature, or declined and needs fixing).</li>
+        <li><b>Stage boxes</b> — show counts by stage, and double as a filter. Click any stage to see just those requisitions.</li>
+        <li><b>Needs action</b> — shows only the requisitions waiting on you, such as a declined one to fix.</li>
         <li><b>Search</b> — find anything by tracking number, project name, or requester.</li>
-        <li><b>Click a row</b> to expand it — see line items, the full approval chain with signature timestamps, and available actions.</li>
+        <li><b>List or Cards</b> — switch the layout with the buttons at the top of the list. <b>List</b> is a table you can group by status, stage, project, requester or month. <b>Cards</b> shows one column per stage, in the same order as the stage boxes; click a column title to fold it away.</li>
+        <li><b>Point to preview</b> — rest your mouse on a row or card to see its items and who has signed.</li>
+        <li><b>Click to open</b> — click a row or card (or the blue REQ number) to open the full form, where the approval chain and all the buttons are.</li>
       </ul>
-      <figure><img src="images/manual-approval-chain.png" alt="Expanded approval chain view"><figcaption>Expanding a row shows exactly who's signed, and who's next</figcaption></figure>
+      <figure><img src="images/manual-approval-chain.png" alt="Approval chain view"><figcaption>The full form shows exactly who's signed, and who's next</figcaption></figure>
+    </div>
+
+    <div class="sec" id="projects">
+      <h2>Projects</h2>
+      <p>The <b>Projects</b> page is the list everyone picks from on the requisition form. Choosing a project fills in its location, PC no. and PM.</p>
+      <ul>
+        <li><b>Add a project</b> — anyone can. Press <b>+ Add project</b> on the Projects page, or press <b>Save this project for everyone</b> on the form after typing a project that is not in the list yet.</li>
+        <li><b>Correct or remove one</b> — admins can edit, archive or restore a project, or paste a whole list from Excel. Archiving hides a project without deleting it, so older requisitions keep their details.</li>
+      </ul>
+    </div>
+
+    <div class="sec" id="history">
+      <h2>Purchase History</h2>
+      <p>Search for an item to see what we paid, which supplier, and when. Tick items to add them to a new requisition. Similar item names are matched automatically; you can combine or separate them. Search looks only at the item name and description.</p>
+    </div>
+
+    <div class="sec" id="analytics">
+      <h2>Analytics</h2>
+      <p>Spending, approval speed and price insights. You see your own requisitions; admins see everyone's.</p>
     </div>
 
     <div class="sec" id="reminders">
@@ -229,13 +254,14 @@
 
     <div class="sec" id="export">
       <h2>Exporting &amp; printing</h2>
-      <p>Open the full form view of any requisition (<b>Open full form view →</b> from the dashboard) to <b>Print</b> or <b>Export PDF</b> — a complete, formatted record including every signature and timestamp, suitable for filing or sharing outside the system.</p>
+      <p>Open the full form of any requisition (click it on the dashboard) to <b>Print</b> or <b>Export PDF</b> — a complete, formatted record including every signature and timestamp, suitable for filing or sharing outside the system.</p>
       <figure><img src="images/manual-completed.png" alt="A completed, fully-signed requisition record"><figcaption>A fully signed requisition — the permanent record, once received</figcaption></figure>
     </div>
 
     <div class="sec" id="profile">
       <h2>Your profile &amp; PIN</h2>
-      <p>Click <b>My Profile</b> to update your position, department, or company email. In the same window, use <b>Change PIN</b> to update your PIN — you'll need your current PIN to confirm the change.</p>
+      <p>Click your name at the top right, then <b>My Profile</b> to update your position, department, or company email. In the same window, use <b>Change PIN</b> to update your PIN — you'll need your current PIN to confirm the change.</p>
+      <p>The <b>version number</b> is shown at the bottom of that menu, under Log out. Click it to read the list of what's new again.</p>
     </div>
 
     <div class="sec" id="admin">
@@ -247,7 +273,7 @@
         <li><b>Make/Remove admin</b> — grant or revoke admin access. There must always be at least one admin.</li>
       </ul>
       <figure><img src="images/manual-admin.png" alt="Admin people directory"><figcaption>The admin panel — every account, in one place</figcaption></figure>
-      <p>Admins can expand any requisition on the dashboard (or open its full view) and click <b>Edit in form</b> — the changes are made in the form itself, not on the dashboard. Admins can also <b>reject</b> a requisition with a reason (the requester can then revise and resubmit it), <b>withdraw</b> it, or delete it. Reject and withdraw are available until it's purchased.</p>
+      <p>Admins can open any requisition and click <b>Edit in form</b> — the changes are made in the form itself. Next to it is <b>Reject</b>, which sends it back with a reason so the requester can fix and resubmit. <b>Withdraw</b> and <b>Delete</b> are on the other side, kept apart. Reject and withdraw are available until it's purchased. Admins can also manage the <b>Projects</b> list.</p>
     </div>
 
     <div class="sec" id="faq">
@@ -279,17 +305,17 @@
 
       <details>
         <summary>Can I edit a requisition after submitting it?</summary>
-        <p>Not directly, unless it gets declined. If you need changes before anyone has approved it, ask that person to decline it with a reason, then use <b>Edit &amp; Resubmit</b> to fix and resend it.</p>
+        <p>Not directly, unless it gets declined. If you need changes before anyone has approved it, ask that person to decline it with a reason, then use <b>Fix &amp; Resubmit in form</b> to fix and resend it.</p>
       </details>
 
       <details>
         <summary>What happens when a requisition is declined?</summary>
-        <p>It's flagged on your dashboard with the reason. Open it, click <b>Edit &amp; Resubmit in Full Form</b>, fix what was flagged, and resubmit. This restarts the entire approval chain from the Team Manager — even if it was declined later at Procurement or Purchase — so everyone re-confirms the revised request.</p>
+        <p>It's flagged on your dashboard with the reason. Open it, click <b>Fix &amp; Resubmit in form</b>, fix what was flagged, and resubmit. This restarts the entire approval chain from the Team Manager — even if it was declined later at Procurement or Purchase — so everyone re-confirms the revised request.</p>
       </details>
 
       <details>
         <summary>Can I withdraw a requisition after submitting it?</summary>
-        <p>Yes, any time before it's been purchased — at Submitted, Manager Approved, or Procurement Approved stages, or if it was declined. Open it on your dashboard and click <b>Withdraw this requisition</b>. Only the original requester can do this. Once it reaches the <b>Purchased</b> stage, withdrawal is no longer available.</p>
+        <p>Yes, any time before it's been purchased — at Submitted, Manager Approved, or Procurement Approved stages, or if it was declined. Open it from your dashboard and click <b>Withdraw</b>. The original requester (or an admin) can do this. Once it reaches the <b>Purchased</b> stage, withdrawal is no longer available.</p>
       </details>
 
       <details>
@@ -300,6 +326,28 @@
       <details>
         <summary>What if I lose the sign-off link that was sent to me?</summary>
         <p>Ask the requester to open the requisition on their dashboard and click <b>Regenerate link</b> — this invalidates the old link and gives you a fresh one.</p>
+      </details>
+
+      <div class="cat">Dashboard &amp; projects</div>
+
+      <details>
+        <summary>How do I change the dashboard to cards?</summary>
+        <p>Use the <b>List / Cards</b> buttons at the top of the list. Cards shows one column per stage; click a column title to fold it away. Your choice is remembered on that browser.</p>
+      </details>
+
+      <details>
+        <summary>Why does a box pop up when I point at a row?</summary>
+        <p>It is a quick preview of the items and who has signed, so you do not have to open every requisition. Click the row or card to open the full form.</p>
+      </details>
+
+      <details>
+        <summary>My project isn't in the list. What do I do?</summary>
+        <p>Type its name, location, PC no. and PM in the form, then press <b>Save this project for everyone</b>. Or add it on the <b>Projects</b> page. Admins can correct or archive projects.</p>
+      </details>
+
+      <details>
+        <summary>Where do I see the version number?</summary>
+        <p>Click your name at the top right. The version is under <b>Log out</b>; click it to read the list of what's new.</p>
       </details>
 
       <div class="cat">Notifications</div>
