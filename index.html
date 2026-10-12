@@ -81,6 +81,9 @@
   button:active{transform:translateY(1px)}
   .primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .primary:hover{background:var(--accent-dark)}
+  .btn-outline{background:#fff;border-color:var(--accent);color:var(--accent)}
+  .btn-outline:hover{background:#eef4ff}
+  .sign-choice{padding:14px 0;font-size:14px;min-width:160px;margin:0 5px}
   .icon-btn{width:36px;padding:0;text-align:center;font-size:14px}
   .sheet{
     background:var(--paper);
@@ -151,7 +154,8 @@
   .field label{font-weight:600;font-size:11.5px;color:#4b5563;letter-spacing:.2px}
   .dmy-wrap{position:relative;display:flex;align-items:center}
   .dmy-wrap .dmy{flex:1;padding-right:34px}
-  .dmy-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:15px;padding:2px 6px}
+  .dmy-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;color:#6b7280;padding:4px 6px;display:flex;align-items:center;line-height:0}
+  .dmy-btn:hover{background:transparent;color:var(--accent)}
   .dmy-picker{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
   input,textarea,select{
     width:100%;
@@ -452,8 +456,8 @@
     <div class="no-print" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">
       <label for="presetSelect" style="font-weight:600;color:#4b5563">Saved projects:</label>
       <select id="presetSelect" onchange="applyPreset()" style="padding:6px 8px;border:1px solid #d7dbe0;border-radius:6px;font:inherit;max-width:320px"></select>
-      <button type="button" onclick="savePreset()" title="Remember the project name, location, PC no. and PM for next time on this device">💾 Save project details</button>
-      <button type="button" onclick="deletePreset()" title="Remove the selected saved project">🗑 Remove</button>
+      <button type="button" onclick="savePreset()" title="Remember the project name, location, PC no. and PM for next time on this device">Save project details</button>
+      <button type="button" onclick="deletePreset()" title="Remove the selected saved project">Remove</button>
     </div>
     <div class="meta">
       <div class="meta-col">
@@ -461,11 +465,11 @@
         <div class="field"><label>PROJECT LOCATION :</label><input id="projectLocation"></div>
         <div class="field"><label>REQUEST BY :</label><input id="requestBy"></div>
         <div class="field"><label>SUPPLY DATE :</label>
-          <div class="dmy-wrap"><input id="supplyDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('supplyDate')" title="Pick a date">📅</button><input type="date" id="supplyDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('supplyDate')"></div></div>
+          <div class="dmy-wrap"><input id="supplyDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('supplyDate')" title="Pick a date"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></button><input type="date" id="supplyDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('supplyDate')"></div></div>
       </div>
       <div class="meta-col">
         <div class="field"><label>DATE :</label>
-          <div class="dmy-wrap"><input id="formDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('formDate')" title="Pick a date">📅</button><input type="date" id="formDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('formDate')"></div></div>
+          <div class="dmy-wrap"><input id="formDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('formDate')" title="Pick a date"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></button><input type="date" id="formDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('formDate')"></div></div>
         <div class="field"><label>PC NO. :</label><input id="pcNo"></div>
         <div class="field"><label>PM Incharge :</label><input id="pmIncharge"></div>
       </div>
@@ -518,8 +522,8 @@
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:24px">
-        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px" title="Save this MRF to the tracker and get one link where approvers sign with their PIN">PIN Sign</button>
-        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF Sign</button>
+        <button class="primary sign-choice" id="submitBtn" onclick="submitToDashboard()" title="Save this MRF to the tracker and get one link where approvers sign with their PIN">PIN Sign</button>
+        <button class="btn-outline sign-choice" id="eSignBtn" onclick="copyESignLink()" title="Save this MRF to the tracker and get one link where approvers draw their signature on the PDF form">PDF Sign</button>
       </div>
       <div class="status" id="status"></div>
     </div>
@@ -1252,7 +1256,7 @@ async function copyESignLink(){
 
     document.getElementById("submitResultTitle").textContent = `Saved — ${data.tracking_no}`;
     document.getElementById("submitResultBody").innerHTML = `
-      <p>${copied ? "The e-sign link has been copied to your clipboard." : "Tap <b>Copy</b> to copy the e-sign link."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
+      <p>${copied ? "The PDF sign link has been copied to your clipboard." : "Tap <b>Copy</b> to copy the PDF sign link."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
       <div class="link-copy-box">
         <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
         <button type="button" onclick="copySignLink()">Copy</button>
