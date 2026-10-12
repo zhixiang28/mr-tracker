@@ -522,7 +522,10 @@ function render(){
   activeStageFilter = stageSel;
   let filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel));
   if(actionFilterOn){
-    filtered = filtered.filter(r=>needsMyAttention(r));
+    // same list as the "Needs your attention" panel (declined, awaiting my signature, overdue)
+    const ids = new Set(computeStats().attention.map(x=>x.r.id));
+    if(ids.size === 0) actionFilterOn = false;   // nothing left to filter on — show everything again
+    else filtered = filtered.filter(r=>ids.has(r.id));
   }
   filtered = applySort(filtered);
   document.getElementById("countNote").textContent = `${filtered.length} of ${allReqs.length} requisitions`;
@@ -570,17 +573,6 @@ function renderProgressCell(r){
   else note = `Next: ${STEP_SHORT[next.step_order]||next.stage_name}` + (next.assigned_person_name?` (${next.assigned_person_name})`:"");
   return `<span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span>
     <div class="pdots">${dots}</div><div class="muted" style="margin-top:2px">${escapeHtml(note)}</div>`;
-}
-
-function needsMyAttention(r){
-  if(r.status==="Declined" && r.requester_person_id===myId) return true;
-  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
-  let prevSignedUpTo=0;
-  while(prevSignedUpTo<steps.length && steps[prevSignedUpTo].status==="Signed") prevSignedUpTo++;
-  const activeStep = steps[prevSignedUpTo];
-  if(!activeStep || !isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)) return false;
-  if(activeStep.assigned_person_id===myId) return true;
-  return false;
 }
 
 function renderItemsBlock(r){
