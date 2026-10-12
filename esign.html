@@ -57,6 +57,7 @@
 <div class="bar">
   <div class="title" id="barTitle">Materials Requisition Form</div>
   <button onclick="loadDoc()" title="Reload to see the latest signatures">↻ Refresh</button>
+  <button id="csvBtn" onclick="exportCSV()" disabled>Export CSV</button>
   <button class="primary" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
 </div>
 <div id="banner"></div>
@@ -134,6 +135,7 @@ function render(){
   const total = items.reduce((a,it)=>a+lineTotal(it),0);
   document.getElementById("barTitle").textContent = `${r.tracking_no||""} — ${r.project_name||"MRF"}`;
   document.getElementById("pdfBtn").disabled = false;
+  document.getElementById("csvBtn").disabled = false;
 
   const rowCount = Math.max(10, items.length);
   let rows = "";
@@ -453,6 +455,29 @@ async function exportPDF(){
     setBanner("err", "Could not create the PDF: " + esc(e.message||e));
   }
   btn.disabled = false;
+}
+
+function exportCSV(){
+  const r = doc.requisition;
+  const items = r.requisition_items||[];
+  const rows = [
+    ["Tracking No.", r.tracking_no||""], ["Project Name", r.project_name||""], ["Project Location", r.project_location||""],
+    ["Request By", r.request_by||""], ["Date", fmtDate(r.form_date)], ["Supply Date", fmtDate(r.supply_date)],
+    ["PC No.", r.pc_no||""], ["PM Incharge", r.pm_incharge||""], [],
+    ["S/N","Name","Description","Qty","Unit Price","Delivery","Link","Total"],
+    ...items.map((it,i)=>[i+1, it.name||"", it.description||"", num(it.qty), fmt(it.unit_price), fmt(it.delivery_tax), it.link||"", fmt(lineTotal(it))]),
+    ["","","","","","","Grand Total", fmt(items.reduce((a,it)=>a+lineTotal(it),0))], [],
+    ["Sign-off","Signed by","Signed at"],
+    ...SLOTS.map(sl=>{ const st = doc.steps.find(x=>x.step_order===sl.order)||{};
+      return [sl.label.replace(/ :$/,""), st.status==="Signed"?(st.assigned_person_name||""):"", st.status==="Signed"?fmtStamp(st.signed_at):""]; })
+  ];
+  const csv = rows.map(row=>row.map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"}); // BOM so Excel shows Chinese correctly
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `MRF_${slug(r.project_name)||"form"}_${yymmdd(r.form_date)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 loadDoc();
