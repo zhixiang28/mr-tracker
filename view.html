@@ -38,12 +38,17 @@
   td.num, th.num{ text-align:right; }
   tfoot td{ font-weight:700; border-bottom:none; padding-top:8px; }
 
-  .actions-panel{ margin-top:22px; border-top:1px dashed var(--line); padding-top:14px; }
-  .actions-panel h4{ margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
-  .actions-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
-  .actions-row .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .actions-row .btn-danger{ color:var(--danger); border-color:#fecaca; }
-  .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin-top:6px; }
+  .action-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; padding:10px 12px; margin:0 0 20px; background:#f8fafc; border:1px solid var(--line); border-radius:10px; }
+  .ab-group{ display:flex; flex-wrap:wrap; gap:6px; }
+  .ab-sep{ width:1px; height:24px; background:var(--line); margin:0 4px; }
+  .ab-spacer{ flex:1; }
+  .action-bar button, .action-bar a.btn{ padding:7px 12px; }
+  .action-bar .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .action-bar .btn-primary:hover{ background:#2050bd; }
+  .action-bar .btn-danger{ color:var(--danger); border-color:#fecaca; background:#fff; }
+  .action-bar .btn-danger:hover{ background:#fef2f2; }
+  .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin:-12px 0 12px; }
+  @media(max-width:640px){ .ab-sep{ display:none; } .ab-spacer{ display:none; } }
   .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .sign-card{ border:1.5px solid var(--line); border-radius:10px; padding:14px; }
   .sign-role{ font-size:11px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; margin-bottom:8px; }
@@ -59,7 +64,7 @@
   @media(max-width:640px){ .meta-grid,.sign-grid{ grid-template-columns:1fr; } }
   @media print{
     body{ background:#fff; }
-    .toolbar,.actions-panel{ display:none!important; }
+    .toolbar,.action-bar,.actions-msg{ display:none!important; }
     .wrap{ max-width:none; margin:0; padding:0; }
     .sheet{ box-shadow:none; border-radius:0; padding:0; }
   }
@@ -68,12 +73,14 @@
 <body>
 <div class="wrap">
   <div class="toolbar">
-    <div class="brand">SPACE<span>logic</span></div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:12px;align-items:center">
+      <a class="btn" href="dashboard.html">← Dashboard</a>
+      <div class="brand">SPACE<span>logic</span></div>
       <span class="view-tag">Full form view</span>
-      <button class="btn" onclick="window.print()">🖨 Print</button>
-      <button class="btn" onclick="exportPDF()">⬇ Export PDF</button>
-      <a class="btn" href="dashboard.html">← Back to Dashboard</a>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn" onclick="window.print()">Print</button>
+      <button class="btn" onclick="exportPDF()">Export PDF</button>
     </div>
   </div>
   <div class="sheet" id="content"><div class="center-note">Loading...</div></div>
@@ -224,27 +231,33 @@ function renderActions(req, steps){
   const closed = ["Declined","Withdrawn","Received"].includes(req.status);
   const shareTok = steps.length ? steps[0].token : null;
   const nextStep = steps.find(x=>x.status!=="Signed");
-  const btns = [];
-  if(shareTok && !closed){
-    btns.push(`<button onclick="copyLink('sign.html','${shareTok}','PIN sign link')">Copy PIN sign link</button>`);
-    btns.push(`<button onclick="copyLink('esign.html','${shareTok}','PDF sign link')">Copy PDF sign link</button>`);
-  }
-  if(viewIsAdmin) btns.push(`<a class="btn btn-primary" href="index.html?adminEdit=${req.id}">Edit in form</a>`);
-  if(isRequester && req.status==="Declined") btns.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
-  if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
-  if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) btns.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
-  if(viewIsAdmin) btns.push(`<button class="btn-danger" onclick="deleteReq('${req.id}')">Delete</button>`);
-  if(!btns.length && !viewIsAdmin) return "";
+  const edit = [], share = [], danger = [];
 
-  const regen = (viewIsAdmin || isRequester) && nextStep && !closed
-    ? `<div class="actions-row"><button onclick="regenLink('${nextStep.id}')">Regenerate link (${escHtml(nextStep.stage_name)})</button></div>` : "";
+  if(viewIsAdmin) edit.push(`<a class="btn btn-primary" href="index.html?adminEdit=${req.id}">Edit in form</a>`);
+  if(isRequester && req.status==="Declined") edit.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
+
+  if(shareTok && !closed){
+    share.push(`<button onclick="copyLink('sign.html','${shareTok}','PIN sign link')">Copy PIN sign link</button>`);
+    share.push(`<button onclick="copyLink('esign.html','${shareTok}','PDF sign link')">Copy PDF sign link</button>`);
+    if((viewIsAdmin || isRequester) && nextStep) share.push(`<button onclick="regenLink('${nextStep.id}')" title="Make the current link stop working and copy a new one (${escHtml(nextStep.stage_name)})">Regenerate link</button>`);
+  }
+
+  if(viewIsAdmin && !["Declined","Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="rejectReq('${req.id}')">Reject</button>`);
+  if((isRequester || viewIsAdmin) && !["Purchased","Received","Withdrawn"].includes(req.status)) danger.push(`<button class="btn-danger" onclick="withdrawReq('${req.id}')">Withdraw</button>`);
+  if(viewIsAdmin) danger.push(`<button class="btn-danger" onclick="deleteReq('${req.id}')">Delete</button>`);
+
+  if(!edit.length && !share.length && !danger.length) return "";
+  const groups = [];
+  if(edit.length) groups.push(`<div class="ab-group">${edit.join("")}</div>`);
+  if(share.length) groups.push(`<div class="ab-group">${share.join("")}</div>`);
+  const left = groups.join('<div class="ab-sep"></div>');
   return `
-    <div class="actions-panel">
-      <h4>Actions</h4>
-      <div class="actions-row">${btns.join("")}</div>
-      ${regen}
-      <div class="actions-msg" id="actionsMsg"></div>
-    </div>`;
+    <div class="action-bar">
+      ${left}
+      <div class="ab-spacer"></div>
+      ${danger.length ? `<div class="ab-group">${danger.join("")}</div>` : ""}
+    </div>
+    <div class="actions-msg" id="actionsMsg"></div>`;
 }
 function actionsMsg(t){ const el=document.getElementById("actionsMsg"); if(el) el.textContent=t; }
 async function copyLink(page, tok, label){
@@ -344,6 +357,8 @@ function render(req){
 
     ${req.status==="Declined" ? `<div class="decline-box" style="margin-bottom:16px">Declined by ${escHtml(req.declined_by)} on ${req.declined_at?fmtDateTime(req.declined_at):""} — Reason: ${escHtml(req.decline_reason||"—")}</div>` : ""}
 
+    ${renderActions(req, steps)}
+
     <div class="meta-grid">
       <div class="meta-row"><span class="k">Project Location</span><span class="v">${escHtml(req.project_location||"-")}</span></div>
       <div class="meta-row"><span class="k">Requested By</span><span class="v">${escHtml(req.request_by||"-")}</span></div>
@@ -369,7 +384,6 @@ function render(req){
       ${signCard(byOrder[3])}
       ${signCard(byOrder[4])}
     </div>
-    ${renderActions(req, steps)}
   `;
 }
 
