@@ -75,6 +75,7 @@
   <div class="center-note" id="loadingNote">Loading requisition...</div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -144,7 +145,7 @@ function renderCard(step, req, allSteps){
 
   if(step.status==="Signed"){
     card.innerHTML = statusOnlyView(step, req, "success",
-      `All steps are signed — this requisition is fully <b>${escHtml(req.status)}</b>. The last sign-off was <b>${escHtml(step.stage_name)}</b> by ${escHtml(step.assigned_person_name)} on ${new Date(step.signed_at).toLocaleString()}.`);
+      `All steps are signed — this requisition is fully <b>${escHtml(req.status)}</b>. The last sign-off was <b>${escHtml(step.stage_name)}</b> by ${escHtml(step.assigned_person_name)} on ${fmtDateTime(step.signed_at)}.`);
     return;
   }
   if(step.status==="Declined"){
@@ -206,8 +207,8 @@ function renderCard(step, req, allSteps){
     <div class="meta-line"><span>Project</span><b>${escHtml(req.project_name||"-")}</b></div>
     <div class="meta-line"><span>Location</span><b>${escHtml(req.project_location||"-")}</b></div>
     <div class="meta-line"><span>Requested by</span><b>${escHtml(req.request_by||"-")}</b></div>
-    <div class="meta-line"><span>Form date</span><b>${escHtml(req.form_date||"-")}</b></div>
-    <div class="meta-line"><span>Supply date needed</span><b>${escHtml(req.supply_date||"-")}</b></div>
+    <div class="meta-line"><span>Form date</span><b>${escHtml(fmtDMY(req.form_date)||"-")}</b></div>
+    <div class="meta-line"><span>Supply date needed</span><b>${escHtml(fmtDMY(req.supply_date)||"-")}</b></div>
     <table class="items-table">
       <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Delv/Tax</th><th class="num">Total</th></tr></thead>
       <tbody>${itemRows || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>

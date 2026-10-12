@@ -149,6 +149,10 @@
     gap:8px;
   }
   .field label{font-weight:600;font-size:11.5px;color:#4b5563;letter-spacing:.2px}
+  .dmy-wrap{position:relative;display:flex;align-items:center}
+  .dmy-wrap .dmy{flex:1;padding-right:34px}
+  .dmy-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:15px;padding:2px 6px}
+  .dmy-picker{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
   input,textarea,select{
     width:100%;
     border:0;
@@ -456,10 +460,12 @@
         <div class="field"><label>PROJECT NAME :</label><input id="projectName"></div>
         <div class="field"><label>PROJECT LOCATION :</label><input id="projectLocation"></div>
         <div class="field"><label>REQUEST BY :</label><input id="requestBy"></div>
-        <div class="field"><label>SUPPLY DATE :</label><input id="supplyDate" type="date"></div>
+        <div class="field"><label>SUPPLY DATE :</label>
+          <div class="dmy-wrap"><input id="supplyDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('supplyDate')" title="Pick a date">📅</button><input type="date" id="supplyDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('supplyDate')"></div></div>
       </div>
       <div class="meta-col">
-        <div class="field"><label>DATE :</label><input id="formDate" type="date"></div>
+        <div class="field"><label>DATE :</label>
+          <div class="dmy-wrap"><input id="formDate" class="dmy" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" oninput="maskDMY(this)"><button type="button" class="dmy-btn" onclick="openDatePicker('formDate')" title="Pick a date">📅</button><input type="date" id="formDate_picker" class="dmy-picker" tabindex="-1" aria-hidden="true" onchange="pickerChanged('formDate')"></div></div>
         <div class="field"><label>PC NO. :</label><input id="pcNo"></div>
         <div class="field"><label>PM Incharge :</label><input id="pmIncharge"></div>
       </div>
@@ -512,8 +518,8 @@
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:24px">
-        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px">Submit</button>
-        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF E-Sign Link</button>
+        <button class="primary" id="submitBtn" onclick="submitToDashboard()" style="padding:14px 40px;font-size:14px" title="Save this MRF to the tracker and get one link where approvers sign with their PIN">PIN Sign</button>
+        <button id="eSignBtn" onclick="copyESignLink()" style="padding:14px 28px;font-size:14px;margin-left:10px" title="Save this MRF to the tracker and copy a link where people draw their signature on the PDF form">✍ PDF Sign</button>
       </div>
       <div class="status" id="status"></div>
     </div>
@@ -578,6 +584,7 @@
   </div>
 </div>
 
+<script src="dates.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -677,7 +684,7 @@ function duplicateForm(){
   document.getElementById("declineReviseBanner")?.remove();
   const btn = document.getElementById("submitBtn");
   btn.disabled = false;
-  btn.textContent = "Submit";
+  btn.textContent = "PIN Sign";
   setStatus("Duplicated — this is now a new, unsubmitted copy. Review the details and submit when ready.");
 }
 
@@ -770,7 +777,7 @@ function collect(){
   return {
     meta:{
       projectName:val("projectName"), projectLocation:val("projectLocation"),
-      requestBy:val("requestBy"), supplyDate:val("supplyDate"), formDate:val("formDate"),
+      requestBy:val("requestBy"), supplyDate:getDateField("supplyDate")||"", formDate:getDateField("formDate")||"",
       pcNo:val("pcNo"), pmIncharge:val("pmIncharge")
     },
     rows:[...document.querySelectorAll("#itemsBody tr")].map(tr=>[
@@ -781,6 +788,29 @@ function collect(){
 }
 
 function val(id){return document.getElementById(id).value}
+
+// ---- dd/mm/yyyy date fields (stored/sent as ISO yyyy-mm-dd) ----
+function maskDMY(el){
+  const d = el.value.replace(/\D/g,"").slice(0,8);
+  let out = d;
+  if(d.length>4) out = d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4);
+  else if(d.length>2) out = d.slice(0,2)+"/"+d.slice(2);
+  el.value = out;
+}
+function getDateField(id){ return parseDMY(document.getElementById(id).value); } // ISO, "" if blank, null if invalid
+function setDateField(id, iso){ document.getElementById(id).value = fmtDMY(iso); }
+function openDatePicker(id){
+  const pk = document.getElementById(id+"_picker");
+  pk.value = getDateField(id) || "";
+  try{ pk.showPicker(); }catch(_){ pk.focus(); pk.click(); }
+}
+function pickerChanged(id){ setDateField(id, document.getElementById(id+"_picker").value); }
+function datesAreValid(){
+  for(const [id,label] of [["formDate","Date"],["supplyDate","Supply date"]]){
+    if(getDateField(id)===null){ setStatus(`${label} must be a real date written as dd/mm/yyyy.`); return false; }
+  }
+  return true;
+}
 function valEl(el,sel){return el.querySelector(sel).value}
 
 function apply(data){
@@ -788,7 +818,9 @@ function apply(data){
   const m=data.meta||{};
   Object.keys(m).forEach(k=>{
     const el=document.getElementById(k);
-    if(el) el.value=m[k];
+    if(!el) return;
+    if(k==="formDate" || k==="supplyDate") setDateField(k, m[k]);
+    else el.value=m[k];
   });
   document.getElementById("itemsBody").innerHTML="";
   (data.rows||[]).forEach(r=>addRow(r));
@@ -801,7 +833,7 @@ let adminEditId = null; // set when an admin opened an existing requisition from
 
 async function saveForm(){
   const data=collect();
-  const label = data.meta.projectName || `Draft ${new Date().toLocaleDateString()}`;
+  const label = data.meta.projectName || `Draft ${fmtDMY(new Date())}`;
   const {data: res, error} = await supabaseClient.rpc("save_draft", {
     p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
     p_label: label, p_header: data.meta, p_items: data.rows
@@ -826,7 +858,7 @@ async function openDraftsModal(){
     <div class="draft-row">
       <div class="draft-info">
         <div class="draft-title">${escHtml(d.label || d.header?.projectName || "Untitled draft")}</div>
-        <div class="draft-meta">Last saved ${new Date(d.updated_at).toLocaleString()}</div>
+        <div class="draft-meta">Last saved ${fmtDateTime(d.updated_at)}</div>
       </div>
       <div class="draft-actions">
         <button class="primary" onclick="continueDraft('${d.id}')">Continue</button>
@@ -1013,8 +1045,8 @@ renderPresets();
 function newForm(){
   if(!confirm("Start a new requisition? Unsaved changes will be cleared."))return;
   document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
-  document.getElementById("formDate").value=todayISO();
-  document.getElementById("supplyDate").value="";
+  setDateField("formDate", todayISO());
+  setDateField("supplyDate", "");
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   currentRequisitionId=null;
@@ -1066,7 +1098,7 @@ async function loadForAdminEdit(requisitionId){
 function updateSubmitBtnLabel(){
   const btn=document.getElementById("submitBtn");
   btn.disabled = false;
-  btn.textContent = "Submit";
+  btn.textContent = "PIN Sign";
 }
 
 function escHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -1082,6 +1114,7 @@ async function submitToDashboard(){
     window.location.href = "login.html?redirect=dashboard.html";
     return;
   }
+  if(!datesAreValid()) return;
   const {meta, rows} = collect();
   if(!meta.projectName){ setStatus("Please enter a Project Name before submitting."); return; }
 
@@ -1089,7 +1122,7 @@ async function submitToDashboard(){
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
 
   const btn=document.getElementById("submitBtn");
-  btn.disabled=true; btn.textContent="Submitting...";
+  btn.disabled=true; btn.textContent="Saving...";
 
   try{
     const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
@@ -1158,7 +1191,7 @@ async function submitToDashboard(){
   }catch(e){
     console.error(e);
     setStatus("Could not submit: "+(e.message||e));
-    btn.disabled=false; btn.textContent = adminEditId ? "Save Changes" : editRequisitionId ? "Revise & Resubmit" : "Submit";
+    btn.disabled=false; btn.textContent = adminEditId ? "Save Changes" : editRequisitionId ? "Revise & Resubmit" : "PIN Sign";
   }
 }
 
@@ -1183,6 +1216,7 @@ async function copyESignLink(){
     window.location.href = "login.html?redirect=index.html";
     return;
   }
+  if(!datesAreValid()) return;
   const {meta, rows} = collect();
   if(!meta.projectName){ setStatus("Please enter a Project Name first."); return; }
   const realRows = rows.filter(r=>r[0] || r[1]);
@@ -1245,8 +1279,8 @@ async function copyESignLink(){
 
 function resetFormForNext(){
   document.querySelectorAll(".meta input").forEach(i=>{if(i.type!=="date")i.value=""});
-  document.getElementById("formDate").value=todayISO();
-  document.getElementById("supplyDate").value="";
+  setDateField("formDate", todayISO());
+  setDateField("supplyDate", "");
   document.getElementById("itemsBody").innerHTML="";
   addRow();
   recalc();
@@ -1427,10 +1461,10 @@ function buildPDF(){
     ["PROJECT NAME", meta.projectName||"-"],
     ["PROJECT LOCATION", meta.projectLocation||"-"],
     ["REQUEST BY", meta.requestBy||"-"],
-    ["SUPPLY DATE", meta.supplyDate||"-"]
+    ["SUPPLY DATE", fmtDMY(meta.supplyDate)||"-"]
   ];
   const metaRowsRight = [
-    ["DATE", meta.formDate||"-"],
+    ["DATE", fmtDMY(meta.formDate)||"-"],
     ["PC NO.", meta.pcNo||"-"],
     ["PM IN-CHARGE", meta.pmIncharge||"-"],
     ["", ""]
@@ -1664,7 +1698,7 @@ async function shareFile(){
   }
 }
 
-document.getElementById("formDate").value=todayISO();
+setDateField("formDate", todayISO());
 addRow();
 recalc();
 loadRequesterPeopleList();
