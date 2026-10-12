@@ -43,18 +43,31 @@
   .mode-badge.personal{ color:var(--muted); background:#eef1f6; border:1px solid var(--line); }
   .mode-badge.admin{ color:#fff; background:var(--admin); }
 
-  .action-banner{ display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin-bottom:16px; cursor:pointer; transition:background .15s; }
-  .action-banner:hover{ background:#f8fafc; }
-  .action-banner.has-items{ border-color:#fbbf24; background:#fffbeb; }
-  .action-banner.all-clear{ cursor:default; }
-  .action-banner .icon{ font-size:20px; }
-  .action-banner .text{ flex:1; font-size:13px; font-weight:600; }
-  .action-banner .text .count{ font-weight:800; color:var(--accent-dark); }
-  .action-banner.has-items .text .count{ color:#b45309; }
+  .attn{ background:#fff; border:1px solid var(--line); border-left:4px solid #f59e0b; border-radius:12px; margin-bottom:16px; overflow:hidden; }
+  .attn-head{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid #f0f2f5; }
+  .attn-title{ font-weight:800; font-size:13.5px; }
+  .attn-count{ background:#fef3c7; color:#92400e; font-weight:800; font-size:11.5px; border-radius:999px; padding:2px 9px; }
+  .attn-tools{ margin-left:auto; font-size:12px; font-weight:600; color:var(--accent); cursor:pointer; user-select:none; }
+  .attn-tools:hover{ text-decoration:underline; }
+  .attn-row{ display:grid; grid-template-columns:270px 100px 1fr 130px 14px; align-items:center; gap:12px; padding:11px 18px; border-bottom:1px solid #f4f5f7; color:inherit; text-decoration:none; font-size:13px; transition:background .12s; }
+  .attn-row:last-child{ border-bottom:0; }
+  .attn-row:hover{ background:#f8fafc; }
+  .attn-chips{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{ font-size:11px; font-weight:700; border-radius:999px; padding:3px 10px; white-space:nowrap; }
+  .chip.warn{ background:#fef3c7; color:#92400e; }
+  .chip.late{ background:#ffedd5; color:#c2410c; }
+  .chip.bad{ background:#fee2e2; color:#b91c1c; }
+  .attn-no{ font-weight:700; color:var(--accent-dark); }
+  .attn-proj{ font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .attn-meta{ color:var(--muted); font-size:12px; white-space:nowrap; text-align:right; }
+  .attn-go{ color:var(--muted); font-size:18px; line-height:1; }
+  @media(max-width:800px){ .attn-row{ grid-template-columns:1fr auto; } .attn-no{ grid-column:1; } .attn-chips{ grid-column:1 / -1; } .attn-proj{ grid-column:1 / -1; white-space:normal; } .attn-meta{ grid-column:1; } .attn-go{ display:none; } }
   @media(max-width:800px){ }
 
   .quick-actions{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
   .quick-actions button{ padding:10px 16px; }
+  .caught-up{ margin-left:auto; align-self:center; display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:#15803d; padding-right:4px; }
+  .caught-up i{ width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block; }
   #actionFilterBtn.active{ background:var(--admin); border-color:var(--admin); color:#fff; }
 
   th.sortable{ cursor:pointer; user-select:none; }
@@ -155,14 +168,14 @@
     </div>
   </div>
 
-  <div class="action-banner" id="actionBanner" onclick="toggleActionFilter()"></div>
-  <div class="action-banner has-items" id="overdueBanner" style="display:none;background:#fff7ed;border-color:#fdba74;cursor:default"></div>
+  <div id="attnPanel"></div>
 
   <div class="quick-actions">
     <a href="index.html"><button class="primary" type="button">＋ New Requisition</button></a>
     <a href="index.html?drafts=1"><button type="button">📄 My Drafts</button></a>
     <button type="button" onclick="openProfileModal()">👤 My Profile</button>
     <button type="button" onclick="openReminderModal()">⏰ Reminder Settings</button>
+    <span class="caught-up" id="caughtUp" style="display:none" title="Nothing is waiting on you"><i></i>All caught up</span>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -340,7 +353,7 @@ async function loadPeopleForAdmin(){
 }
 
 function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
-  return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
+  return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
 }
 
 const STAGE_HOURS_KEY = {
@@ -353,21 +366,34 @@ const STAGE_HOURS_KEY = {
 function computeStats(){
   let mySubmissions=0, awaitingMySignature=0, completed=0, declinedNeedsFix=0;
   const overdueList = [];
+  const attention = []; // one entry per requisition that needs me: {r, chips, meta}
+  const flag = (r, chip, meta)=>{
+    let e = attention.find(x=>x.r.id===r.id);
+    if(!e){ e = {r, chips:[], meta:""}; attention.push(e); }
+    e.chips.push(chip); if(meta && !e.meta) e.meta = meta;
+  };
   allReqs.forEach(r=>{
     if(r.requester_person_id===myId) mySubmissions++;
     if(r.status==="Received") completed++;
-    if(r.status==="Declined" && r.requester_person_id===myId) declinedNeedsFix++;
+    if(r.status==="Declined" && r.requester_person_id===myId){
+      declinedNeedsFix++;
+      flag(r, {cls:"bad", text:"Declined — needs your fix"}, r.declined_by ? `by ${r.declined_by}` : "");
+    }
 
     const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
     let prevSignedUpTo=0;
     while(prevSignedUpTo<steps.length && steps[prevSignedUpTo].status==="Signed") prevSignedUpTo++;
     const activeStep = steps[prevSignedUpTo];
     if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
-      if(activeStep.assigned_person_id===myId) awaitingMySignature++;
+      if(activeStep.assigned_person_id===myId){
+        awaitingMySignature++;
+        flag(r, {cls:"warn", text:"Awaiting your signature"}, activeStep.stage_name);
+      }
     }
 
     // Overdue check — only for requisitions I submitted, using my own reminder thresholds
-    if(r.requester_person_id===myId && activeStep && mySettings){
+    // (withdrawn or declined requisitions are no longer waiting on anyone, so no overdue reminder)
+    if(r.requester_person_id===myId && activeStep && mySettings && !["Withdrawn","Declined"].includes(r.status)){
       const settingKey = STAGE_HOURS_KEY[activeStep.stage_name];
       const thresholdHours = settingKey ? mySettings[settingKey] : null;
       if(thresholdHours != null){
@@ -376,44 +402,50 @@ function computeStats(){
           const elapsedHours = (Date.now() - new Date(referenceTime).getTime()) / 3600000;
           if(elapsedHours > thresholdHours){
             overdueList.push({tracking_no: r.tracking_no, stage: activeStep.stage_name, hours: Math.floor(elapsedHours)});
+            const h = Math.floor(elapsedHours);
+            flag(r, {cls:"late", text:`Overdue ${h>=48 ? Math.floor(h/24)+"d" : h+"h"}`}, activeStep.stage_name);
           }
         }
       }
     }
   });
-  return {mySubmissions, awaitingMySignature, completed, declinedNeedsFix, overdueList, total: allReqs.length};
+  return {mySubmissions, awaitingMySignature, completed, declinedNeedsFix, overdueList, attention, total: allReqs.length};
 }
 
 function renderStats(){
   const s = computeStats();
-  const totalNeeding = s.awaitingMySignature + s.declinedNeedsFix;
-  const banner = document.getElementById("actionBanner");
-
-  if(totalNeeding === 0){
-    banner.className = "action-banner all-clear";
-    banner.innerHTML = `<span class="icon">✓</span><span class="text">You're all caught up. ${s.mySubmissions} submitted, ${s.completed} completed.</span>`;
-  } else {
-    const parts = [];
-    if(s.awaitingMySignature>0) parts.push(`<span class="count">${s.awaitingMySignature}</span> awaiting your signature`);
-    if(s.declinedNeedsFix>0) parts.push(`<span class="count">${s.declinedNeedsFix}</span> declined — need your fix`);
-    banner.className = "action-banner has-items";
-    banner.innerHTML = `<span class="icon">⚠</span><span class="text">${parts.join(" · ")} — click to filter</span>`;
+  const panel = document.getElementById("attnPanel");
+  const caughtUp = document.getElementById("caughtUp");
+  if(s.attention.length === 0){
+    panel.innerHTML = "";
+    caughtUp.style.display = "inline-flex";
+    return;
   }
-
-  const overdueBanner = document.getElementById("overdueBanner");
-  if(s.overdueList.length === 0){
-    overdueBanner.style.display = "none";
-  } else {
-    overdueBanner.style.display = "flex";
-    const summary = s.overdueList.map(o=>`${o.tracking_no} (${o.stage}, ${o.hours}h)`).join(" · ");
-    overdueBanner.innerHTML = `<span class="icon">⏰</span><span class="text">Overdue based on your reminder settings: ${summary}</span>`;
-  }
+  caughtUp.style.display = "none";
+  const rows = s.attention.map(({r, chips, meta})=>`
+    <a class="attn-row" href="view.html?id=${r.id}" title="Open the form">
+      <span class="attn-chips">${chips.map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("")}</span>
+      <span class="attn-no">${escapeHtml(r.tracking_no||"-")}</span>
+      <span class="attn-proj">${escapeHtml(r.project_name||"-")}</span>
+      <span class="attn-meta">${escapeHtml(meta||"")}</span>
+      <span class="attn-go">›</span>
+    </a>`).join("");
+  panel.innerHTML = `
+    <div class="attn">
+      <div class="attn-head">
+        <span class="attn-title">Needs your attention</span>
+        <span class="attn-count">${s.attention.length}</span>
+        <span class="attn-tools" onclick="toggleActionFilter()">${actionFilterOn ? "Show all requisitions" : "Show only these in the list"}</span>
+      </div>
+      ${rows}
+    </div>`;
 }
 
 let actionFilterOn = false;
 function toggleActionFilter(){
   actionFilterOn = !actionFilterOn;
   render();
+  renderStats();
 }
 
 let sortField = "created_at", sortDir = "desc";
@@ -593,7 +625,7 @@ function renderTimelineBlock(r){
     else if(s.assigned_person_name) metaLine = `Waiting for ${escapeHtml(s.assigned_person_name)}`;
     else metaLine = `Waiting`;
 
-    const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined";
+    const isActionable = s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
     const declineReasonHtml = s.status==="Declined" ? `<div class="decline-reason-box">Reason: ${escapeHtml(s.decline_reason||"—")}</div>` : "";
     const actionHtml = (s.status==="Pending" && isActionable) ? `
       <div class="tmeta" style="margin-top:4px">Signs by opening the sign link${s.assigned_person_name ? "" : " (first person to open it claims this step)"}.</div>
