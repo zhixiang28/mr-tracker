@@ -127,9 +127,12 @@ async function init(){
     card.innerHTML = `<div class="brand">SPACElogic</div><div class="center-note">This signing link isn't valid. Ask whoever sent it to resend from the dashboard.</div>`;
     return;
   }
-  const step = ctx.step;
   const req = ctx.requisition;
-  const prevSteps = ctx.all_steps;
+  const prevSteps = ctx.all_steps || [];
+  // One link for everyone: whichever token opens this page, show whoever's turn it is now.
+  const ordered = prevSteps.slice().sort((a,b)=>a.step_order-b.step_order);
+  const current = ordered.find(s=>s.status!=="Signed");
+  const step = current || ordered[ordered.length-1] || ctx.step;
   const {data: peopleData} = await supabaseClient.from("people_public").select("id,name").order("name");
   peopleCache = peopleData || [];
 
@@ -141,7 +144,7 @@ function renderCard(step, req, allSteps){
 
   if(step.status==="Signed"){
     card.innerHTML = statusOnlyView(step, req, "success",
-      `${escHtml(step.assigned_person_name)} already signed off on <b>${escHtml(step.stage_name)}</b> on ${new Date(step.signed_at).toLocaleString()}.`);
+      `All steps are signed — this requisition is fully <b>${escHtml(req.status)}</b>. The last sign-off was <b>${escHtml(step.stage_name)}</b> by ${escHtml(step.assigned_person_name)} on ${new Date(step.signed_at).toLocaleString()}.`);
     return;
   }
   if(step.status==="Declined"){
@@ -355,10 +358,11 @@ async function doApprove(tok, isUnclaimed){
 
   let nextLinkHtml="";
   if(data.next_token){
-    const nextUrl = new URL("sign.html", window.location.href);
-    nextUrl.searchParams.set("token", data.next_token);
+    // same link as before — it always opens on whoever's turn it is
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set("token", token);
     nextLinkHtml = `
-      <p style="margin-top:14px;font-size:13px">Send this link to whoever handles <b>${escHtml(data.next_stage)}</b> next.</p>
+      <p style="margin-top:14px;font-size:13px">Send this <b>same link</b> to whoever handles <b>${escHtml(data.next_stage)}</b> next. It always opens on the next person's turn.</p>
       <div class="link-copy-box">
         <input type="text" readonly value="${nextUrl.toString()}" id="nextLinkInput">
         <button type="button" onclick="copyNextLink()">Copy</button>

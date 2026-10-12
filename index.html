@@ -501,7 +501,7 @@
     <div class="footer">
       <div class="section-title">Approval Chain</div>
       <div class="muted" style="font-size:12.5px;margin-bottom:14px;line-height:1.5">
-        This gets signed off in order — <strong>Team Manager → Procurement Approval → Purchase → Received</strong>. After you submit, copy the link and send it to the Team Manager. Each signature reveals the next link, and tells you exactly which role to send it to next.
+        This gets signed off in order — <strong>Team Manager → Procurement Approval → Purchase → Received</strong>. After you submit, copy the link and send it to the Team Manager. It is one link for the whole chain — after each signature it opens on the next person's turn, so just keep forwarding the same link.
       </div>
 
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
@@ -1137,7 +1137,7 @@ function showSubmitResult(trackingNo, firstToken){
       <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
       <button type="button" onclick="copySignLink()">Copy</button>
     </div>
-    <p class="muted" style="font-size:12px">Send this link to whoever should approve as Manager, along with: "Please open this link — you'll register or sign in, then approve or decline." Once they act, a new link for the next step (Procurement Approval) will appear for them to pass along — and so on down the chain.</p>
+    <p class="muted" style="font-size:12px">This one link works for every step. Send it to whoever should approve as Manager, along with: "Please open this link — you'll register or sign in, then approve or decline." Once they sign, the same link opens on the next step (Procurement Approval, then Purchase, then Received) — just forward it on.</p>
     <div style="display:flex;gap:6px;margin-top:10px">
       <input type="email" id="emailLinkInput" list="loginPeopleList" placeholder="Or type an email to send it instead" style="flex:1">
       <button type="button" onclick="emailTheLink('${link.toString().replace(/'/g,"\\'")}', 'Team Manager', 'emailLinkInput', 'emailLinkStatus')">Send</button>
