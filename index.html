@@ -383,7 +383,7 @@
   @media print{
     body{background:#fff}
     .app{max-width:none;margin:0;padding:0}
-    .toolbar,.hint,.status,.row-remove,.add-row{display:none!important}
+    .toolbar,.hint,.status,.row-remove,.add-row,.no-print{display:none!important}
     .sheet{box-shadow:none;padding:0;border-radius:0}
     input,textarea{color:#000}
     .header{background:#fff!important;color:#000!important;border:2px solid #111;border-radius:0}
@@ -445,6 +445,12 @@
     </div>
 
     <div class="section-title">Project Details</div>
+    <div class="no-print" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px">
+      <label for="presetSelect" style="font-weight:600;color:#4b5563">Saved projects:</label>
+      <select id="presetSelect" onchange="applyPreset()" style="padding:6px 8px;border:1px solid #d7dbe0;border-radius:6px;font:inherit;max-width:320px"></select>
+      <button type="button" onclick="savePreset()" title="Remember the project name, location, PC no. and PM for next time on this device">💾 Save project details</button>
+      <button type="button" onclick="deletePreset()" title="Remove the selected saved project">🗑 Remove</button>
+    </div>
     <div class="meta">
       <div class="meta-col">
         <div class="field"><label>PROJECT NAME :</label><input id="projectName"></div>
@@ -946,6 +952,62 @@ async function loadForEdit(requisitionId){
   btn.textContent = "Revise & Resubmit";
   setStatus("Loaded for revision.");
 }
+
+// ---------------- Saved projects (project name / location / PC no. / PM) ----------------
+// Stored in this browser only, so each device keeps its own list.
+const PRESETS_KEY = "spacelogic_project_presets_v1";
+function readPresets(){
+  try{ const a = JSON.parse(localStorage.getItem(PRESETS_KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(_){ return []; }
+}
+function writePresets(list){
+  try{ localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); return true; }catch(_){ return false; }
+}
+function presetLabel(p){
+  return [p.projectName, p.pcNo?`PC ${p.pcNo}`:"", p.pmIncharge?`PM ${p.pmIncharge}`:""].filter(Boolean).join(" · ");
+}
+function renderPresets(selectedKey){
+  const sel = document.getElementById("presetSelect");
+  if(!sel) return;
+  const list = readPresets();
+  sel.innerHTML = `<option value="">${list.length ? "— choose a saved project —" : "— none saved yet —"}</option>` +
+    list.map(p=>`<option value="${esc(p.key)}">${esc(presetLabel(p))}</option>`).join("");
+  if(selectedKey) sel.value = selectedKey;
+}
+function savePreset(){
+  const m = collect().meta;
+  if(!m.projectName.trim()){ setStatus("Enter a Project Name first, then save."); return; }
+  const entry = {
+    key: (m.projectName.trim()+"|"+m.pcNo.trim()).toLowerCase(),
+    projectName: m.projectName.trim(), projectLocation: m.projectLocation.trim(),
+    pcNo: m.pcNo.trim(), pmIncharge: m.pmIncharge.trim()
+  };
+  const list = readPresets().filter(p=>p.key!==entry.key);
+  list.push(entry);
+  list.sort((a,b)=>a.projectName.localeCompare(b.projectName));
+  if(!writePresets(list)){ setStatus("Couldn't save — this browser is blocking local storage."); return; }
+  renderPresets(entry.key);
+  setStatus(`Saved "${entry.projectName}" for next time on this device.`);
+}
+function applyPreset(){
+  const key = document.getElementById("presetSelect").value;
+  const p = readPresets().find(x=>x.key===key);
+  if(!p) return;
+  document.getElementById("projectName").value = p.projectName;
+  document.getElementById("projectLocation").value = p.projectLocation;
+  document.getElementById("pcNo").value = p.pcNo;
+  document.getElementById("pmIncharge").value = p.pmIncharge;
+  setStatus(`Filled in "${p.projectName}".`);
+}
+function deletePreset(){
+  const key = document.getElementById("presetSelect").value;
+  const p = readPresets().find(x=>x.key===key);
+  if(!p){ setStatus("Choose a saved project to remove first."); return; }
+  if(!confirm(`Remove saved project "${p.projectName}"?`)) return;
+  writePresets(readPresets().filter(x=>x.key!==key));
+  renderPresets();
+  setStatus("Removed.");
+}
+renderPresets();
 
 function newForm(){
   if(!confirm("Start a new requisition? Unsaved changes will be cleared."))return;
