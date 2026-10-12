@@ -683,7 +683,7 @@ function render(){
     const mainRow = `
       <tr class="req-row" data-rid="${r.id}" onclick="goFull('${r.id}')">
         <td class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></td>
-        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}${declineSnippet(r)}${itemsPreview(r,3)}</td>
+        <td class="proj">${escapeHtml(r.project_name||"-")}<div class="muted">${escapeHtml(r.project_location||"")}</div>${chips?`<div class="chips">${chips}</div>`:""}${declineSnippet(r)}</td>
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
@@ -699,7 +699,6 @@ function render(){
       <div class="rc-top"><span class="tracking"><a class="trk-link" href="view.html?id=${r.id}" onclick="event.stopPropagation()" title="Open the full form">${escapeHtml(r.tracking_no||"-")}<svg class="trk-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></a></span><span class="rc-total">${fmtMoney(r.grand_total)}</span></div>
       <div class="rc-proj"><b>${escapeHtml(r.project_name||"-")}</b><span class="muted">${r.project_location?" · "+escapeHtml(r.project_location):""}</span></div>
       <div class="rc-meta"><span>${escapeHtml(r.request_by||"-")}</span><span>${fmtDMY(r.form_date)||"-"}</span></div>
-      ${itemsPreview(r,3)}
       ${chips?`<div class="chips">${chips}</div>`:""}
       ${declineSnippet(r)}
       <div>${renderProgressCell(r)}</div>
