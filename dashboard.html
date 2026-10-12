@@ -136,11 +136,6 @@
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
-  .edit-field{ margin-bottom:6px; }
-  .edit-field label{ display:block; font-size:10.5px; font-weight:700; color:var(--muted); margin-bottom:2px; }
-  .edit-field input{ width:100%; font-size:12px; padding:6px 8px; }
-  .edit-item-row{ display:grid; grid-template-columns:1fr 1fr 45px 60px 60px 1fr 24px; gap:4px; margin-bottom:4px; }
-  .edit-item-row input{ font-size:11px; padding:4px 6px; }
   .reassign-row{ display:flex; gap:6px; margin-top:6px; }
 </style>
 </head>
@@ -671,18 +666,6 @@ function renderResubmitPanel(r){
 }
 
 function renderAdminPanel(r){
-  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-  const itemRows = items.map((it,i)=>`
-    <div class="edit-item-row" data-idx="${i}">
-      <input placeholder="Name" class="ei-name" value="${escapeHtml(it.name)}">
-      <input placeholder="Description" class="ei-desc" value="${escapeHtml(it.description||"")}">
-      <input placeholder="Qty" class="ei-qty" value="${it.qty}">
-      <input placeholder="Unit" class="ei-price" value="${it.unit_price}">
-      <input placeholder="Delv/Tax" class="ei-dtax" value="${it.delivery_tax}">
-      <input placeholder="Link" class="ei-link" value="${escapeHtml(it.link||"")}">
-      <button onclick="event.stopPropagation();this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>
-    </div>`).join("");
-
   const stageOptionsForReassign = (steps)=>steps.map(s=>`
     <div class="reassign-row">
       <select id="reassign-person-${s.id}" style="flex:1">
@@ -694,15 +677,9 @@ function renderAdminPanel(r){
 
   return `
     <div class="admin-panel" onclick="event.stopPropagation()">
-      <div class="admin-panel-title">🛠 Admin: Edit this requisition</div>
-      <div class="edit-field"><label>Project name</label><input id="edit-project-${r.id}" value="${escapeHtml(r.project_name||"")}"></div>
-      <div class="edit-field"><label>Location</label><input id="edit-location-${r.id}" value="${escapeHtml(r.project_location||"")}"></div>
-      <div class="edit-field"><label>Requested by</label><input id="edit-requestby-${r.id}" value="${escapeHtml(r.request_by||"")}"></div>
-      <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:10px 0 4px">Line items</div>
-      <div id="edit-items-${r.id}">${itemRows}</div>
-      <button onclick="event.stopPropagation();addEditItemRow('${r.id}')" style="font-size:11px;margin-bottom:8px">+ Add item</button>
+      <div class="admin-panel-title">🛠 Admin</div>
       <div class="row" style="display:flex;gap:6px">
-        <button class="primary" onclick="adminSave('${r.id}')">Save Changes</button>
+        <a href="index.html?adminEdit=${r.id}" style="flex:1"><button class="primary" type="button" style="width:100%">✏ Edit in form</button></a>
         <button class="danger" onclick="adminDelete('${r.id}')">Delete Requisition</button>
       </div>
       <div style="font-size:10.5px;font-weight:700;color:var(--muted);margin:12px 0 4px">Reassign a step's signer</div>
@@ -711,55 +688,6 @@ function renderAdminPanel(r){
     </div>`;
 }
 
-function addEditItemRow(reqId){
-  const container = document.getElementById("edit-items-"+reqId);
-  const div = document.createElement("div");
-  div.className = "edit-item-row";
-  div.innerHTML = `
-    <input placeholder="Name" class="ei-name">
-    <input placeholder="Description" class="ei-desc">
-    <input placeholder="Qty" class="ei-qty">
-    <input placeholder="Unit" class="ei-price">
-    <input placeholder="Delv/Tax" class="ei-dtax">
-    <input placeholder="Link" class="ei-link">
-    <button onclick="this.closest('.edit-item-row').remove()" style="padding:2px 6px">✕</button>`;
-  container.appendChild(div);
-}
-
-async function adminSave(reqId){
-  const errEl = document.getElementById("admin-err-"+reqId);
-  const header = {
-    project_name: document.getElementById("edit-project-"+reqId).value,
-    project_location: document.getElementById("edit-location-"+reqId).value,
-    request_by: document.getElementById("edit-requestby-"+reqId).value
-  };
-  const rows = [...document.querySelectorAll(`#edit-items-${reqId} .edit-item-row`)];
-  const items = rows.map((row,i)=>({
-    sn: i+1,
-    name: row.querySelector(".ei-name").value,
-    description: row.querySelector(".ei-desc").value,
-    qty: Number(row.querySelector(".ei-qty").value||0),
-    unit_price: Number(row.querySelector(".ei-price").value||0),
-    delivery_tax: Number(row.querySelector(".ei-dtax").value||0),
-    link: row.querySelector(".ei-link").value
-  }));
-
-  const {data: d1, error: e1} = await supabaseClient.rpc("admin_update_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_header: header});
-  if(e1 || !d1.success){ errEl.textContent = (d1&&d1.error)||(e1&&e1.message)||"Failed to save header."; return; }
-  const {data: d2, error: e2} = await supabaseClient.rpc("admin_replace_items", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_items: items});
-  if(e2 || !d2.success){ errEl.textContent = (d2&&d2.error)||(e2&&e2.message)||"Failed to save items."; return; }
-
-  setStatus("Requisition updated.");
-  await loadData();
-}
-
-async function withdrawRequisition(reqId){
-  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
-  const {data, error} = await supabaseClient.rpc("requester_withdraw", {p_person_id: myId, p_pin: myPin, p_requisition_id: reqId});
-  if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
-  setStatus("Requisition withdrawn.");
-  await loadData();
-}
 
 async function adminDelete(reqId){
   if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
