@@ -324,15 +324,18 @@
 
     <form class="acct-pane" id="paneProfile" role="tabpanel" aria-labelledby="tabProfile" onsubmit="saveProfile(); return false;" novalidate>
       <label for="profileNameDisplay">Name</label>
-      <input id="profileNameDisplay" readonly>
-      <div class="fieldnote">Your name is set when you register. Ask an admin if it needs to change.</div>
+      <input id="profileNameDisplay" maxlength="80" autocomplete="name" oninput="profileDirty()">
+      <div class="fieldnote" id="profileNameNote">Shown on your requisitions and sign-offs. Signed records keep the name they were signed under.</div>
       <label for="profilePosition">Position <span class="opt">(optional)</span></label>
       <input id="profilePosition" placeholder="e.g. Site Engineer" maxlength="80" autocomplete="organization-title" oninput="profileDirty()">
       <label for="profileDepartment">Team / department <span class="opt">(optional)</span></label>
       <input id="profileDepartment" placeholder="e.g. Operations" maxlength="80" oninput="profileDirty()">
       <label for="profileEmail">Company email</label>
-      <input id="profileEmail" type="email" placeholder="you@spacelogic.com.sg" maxlength="120" autocomplete="email" oninput="profileDirty()">
-      <div class="fieldnote" id="profileEmailNote">Used to send you notifications about your requisitions.</div>
+      <input id="profileEmail" type="email" readonly maxlength="120" autocomplete="email">
+      <div class="fieldnote" id="profileEmailNote">This is your sign-in email, so it can’t be changed here. Ask an admin if it needs correcting.</div>
+      <label>Saved signature</label>
+      <div class="fieldnote" id="sigNote" style="margin-top:0">Checking…</div>
+      <button type="button" id="sigRemove" hidden onclick="removeSavedSig()" style="margin-top:6px">Remove my saved signature</button>
       <div class="acct-foot">
         <span class="acct-msg" id="profileErr" role="status" aria-live="polite"></span>
         <button type="button" onclick="closeProfileModal()">Close</button>
@@ -398,6 +401,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -425,7 +429,6 @@ let allReqs = [];
 let openRows = new Set();
 let activeStageFilter = "";
 let myId = null, myPin = null, myName = null, iAmAdmin = false;
-let peopleForAdmin = [];
 let mySettings = null;
 
 function escapeHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -449,7 +452,6 @@ async function showApp(){
   AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
   try{ const vm = localStorage.getItem("sl_view_mode"); if(vm==="cards"||vm==="list") viewMode = vm; }catch(_){}
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
-  await loadPeopleForAdmin();
   await loadMySettings();
   await loadData();
   const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
@@ -462,10 +464,6 @@ async function loadMySettings(){
   mySettings = data;
 }
 
-async function loadPeopleForAdmin(){
-  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
-  peopleForAdmin = data || [];
-}
 
 function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
   return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
@@ -837,24 +835,23 @@ function renderTimelineBlock(r){
   const shareTok = steps.length ? steps[0].token : null;
   const canShare = shareTok && !["Declined","Withdrawn","Received"].includes(r.status);
   const shareBtns = canShare ? `<div class="link-tools" style="margin:0 0 6px">
-      <button onclick="event.stopPropagation();copySignLink('${shareTok}')">Copy PIN sign link</button>
-      <button onclick="event.stopPropagation();copyESignLink('${shareTok}')">Copy PDF sign link</button>
+      <button onclick="event.stopPropagation();copySignLink('${shareTok}')">Copy signing link</button>
     </div>` : "";
   return `<div><div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Sign-off</div>${shareBtns}<div class="timeline">${rowsHtml}</div></div>`;
 }
 
 async function copySignLink(tok){
-  const url = new URL("sign.html", window.location.href);
+  const url = new URL("esign.html", window.location.href);
   url.searchParams.set("token", tok);
-  try{ await navigator.clipboard.writeText(url.toString()); setStatus("Sign link copied — one link works for every step."); }
+  try{ await navigator.clipboard.writeText(url.toString()); setStatus("Signing link copied — one link works for every step."); }
   catch(_){ window.prompt("Copy this sign link:", url.toString()); }
 }
 
 async function copyESignLink(tok){
   const url = new URL("esign.html", window.location.href);
   url.searchParams.set("token", tok);
-  try{ await navigator.clipboard.writeText(url.toString()); setStatus("PDF sign link copied."); }
-  catch(_){ window.prompt("Copy this PDF sign link:", url.toString()); }
+  try{ await navigator.clipboard.writeText(url.toString()); setStatus("Signing link copied."); }
+  catch(_){ window.prompt("Copy this signing link:", url.toString()); }
 }
 
 function itemsPreview(r, n){
@@ -915,7 +912,7 @@ async function regenLink(stepId, reqId){
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   const box = document.getElementById("regenbox-"+stepId);
   if(error || !data.success){ box.innerHTML = `<div class="sign-error">${(data&&data.error)||(error&&error.message)||"Failed."}</div>`; return; }
-  const url = new URL("sign.html", window.location.href);
+  const url = new URL("esign.html", window.location.href);
   url.searchParams.set("token", data.token);
   box.innerHTML = `<div class="link-copy-box"><input type="text" readonly value="${url.toString()}" id="newlink-${stepId}"><button onclick="copyRegenLink('${stepId}')">Copy</button></div>`;
 }
@@ -991,7 +988,7 @@ async function adminDelete(reqId){
 }
 
 
-let profileOrig = {position:"", department:"", email:""};
+let profileOrig = {name:"", position:"", department:""};
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function openProfileModal(tab){
@@ -1000,6 +997,7 @@ async function openProfileModal(tab){
   document.getElementById("acctWho").textContent = myName || "";
   document.getElementById("acctAv").textContent = (myName||"?").trim().charAt(0).toUpperCase();
   document.getElementById("profileNameDisplay").value = myName || "";
+  profileOrig.name = myName || "";
   ["profileErr","pinChangeErr"].forEach(id=>{ const el=document.getElementById(id); el.textContent=""; el.className="acct-msg"; });
   ["pinOld","pinNew1","pinNew2"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pinShow").checked = false; togglePinShow(false);
@@ -1008,11 +1006,24 @@ async function openProfileModal(tab){
   document.addEventListener("keydown", acctKey);
   const {data, error} = await supabaseClient.rpc("get_my_profile", {p_person_id: myId, p_pin: myPin});
   if(error || !data || !data.success){ setAcctMsg("profileErr", (data&&data.error)||"Could not load your profile.", "err"); return; }
-  profileOrig = {position:data.position||"", department:data.department||"", email:data.email||""};
+  profileOrig = {name:myName||"", position:data.position||"", department:data.department||""};
   document.getElementById("profilePosition").value = profileOrig.position;
   document.getElementById("profileDepartment").value = profileOrig.department;
-  document.getElementById("profileEmail").value = profileOrig.email;
+  document.getElementById("profileEmail").value = data.email || "";
   profileDirty();
+  refreshSigNote();
+}
+async function refreshSigNote(){
+  const {data} = await supabaseClient.rpc("has_saved_signature", {p_person_id: myId});
+  const has = data === true;
+  document.getElementById("sigNote").textContent = has ? "You have a saved signature. When you sign, you can use it with just your PIN." : "None yet. When you sign, tick “Save this as my signature for next time”.";
+  document.getElementById("sigRemove").hidden = !has;
+}
+async function removeSavedSig(){
+  if(!confirm("Remove your saved signature? You can save a new one the next time you sign.")) return;
+  const {data, error} = await supabaseClient.rpc("save_my_signature", {p_person_id: myId, p_pin: myPin, p_signature: null});
+  if(error || !data || !data.success){ setAcctMsg("profileErr", (data&&data.error)||"Could not remove it.", "err"); return; }
+  setAcctMsg("profileErr", "Saved signature removed ✓", "ok"); refreshSigNote();
 }
 function closeProfileModal(){
   document.getElementById("profileModal").style.display = "none";
@@ -1041,28 +1052,37 @@ function setAcctMsg(id, text, kind){ const el=document.getElementById(id); el.te
 
 /* ---- profile ---- */
 function profileDirty(){
-  const v = {position:document.getElementById("profilePosition").value.trim(), department:document.getElementById("profileDepartment").value.trim(), email:document.getElementById("profileEmail").value.trim()};
-  const changed = v.position!==profileOrig.position || v.department!==profileOrig.department || v.email!==profileOrig.email;
-  const emailOk = !v.email || EMAIL_RE.test(v.email);
-  const note = document.getElementById("profileEmailNote"), inp = document.getElementById("profileEmail");
-  inp.classList.toggle("bad", !emailOk);
-  note.textContent = emailOk ? "Used to send you notifications about your requisitions." : "That doesn't look like an email address.";
-  note.className = "fieldnote" + (emailOk ? "" : " err");
-  document.getElementById("profileSaveBtn").disabled = !(changed && emailOk);
+  const v = {name:document.getElementById("profileNameDisplay").value.trim(), position:document.getElementById("profilePosition").value.trim(), department:document.getElementById("profileDepartment").value.trim()};
+  const changed = v.name!==profileOrig.name || v.position!==profileOrig.position || v.department!==profileOrig.department;
+  const nameOk = v.name.length>=2;
+  const inp = document.getElementById("profileNameDisplay"), note = document.getElementById("profileNameNote");
+  inp.classList.toggle("bad", !nameOk);
+  note.textContent = nameOk ? "Shown on your requisitions and sign-offs. Signed records keep the name they were signed under." : "Please enter your name (at least 2 characters).";
+  note.className = "fieldnote" + (nameOk ? "" : " err");
+  document.getElementById("profileSaveBtn").disabled = !(changed && nameOk);
   if(changed) setAcctMsg("profileErr","");
 }
 async function saveProfile(){
   const btn = document.getElementById("profileSaveBtn"); if(btn.disabled) return;
+  const name = document.getElementById("profileNameDisplay").value.trim();
   const position = document.getElementById("profilePosition").value.trim();
   const department = document.getElementById("profileDepartment").value.trim();
-  const email = document.getElementById("profileEmail").value.trim();
   btn.disabled = true; btn.textContent = "Saving…";
-  const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: email});
+  const fail = (m)=>{ btn.disabled = false; btn.textContent = "Save changes"; setAcctMsg("profileErr", m||"Could not save. Please try again.", "err"); };
+  let renamed = false;
+  if(name !== profileOrig.name){
+    const {data: nd, error: ne} = await supabaseClient.rpc("update_my_name", {p_person_id: myId, p_pin: myPin, p_name: name});
+    if(ne || !nd || !nd.success){ fail((nd&&nd.error)||(ne&&ne.message)); return; }
+    renamed = true; myName = nd.name || name;
+    try{ sessionStorage.setItem("sl_person_name", myName); }catch(_){}
+  }
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: null});
   btn.textContent = "Save changes";
   if(error || !data || !data.success){ btn.disabled = false; setAcctMsg("profileErr", (data&&data.error)||(error&&error.message)||"Could not save. Please try again.", "err"); return; }
-  profileOrig = {position, department, email};
+  profileOrig = {name: myName, position, department};
   profileDirty();
   setAcctMsg("profileErr", "Saved ✓", "ok");
+  if(renamed) setTimeout(()=>location.reload(), 700);
 }
 
 /* ---- PIN ---- */
@@ -1097,6 +1117,7 @@ async function changeMyPin(){
   ["pinOld","pinNew1","pinNew2"].forEach(id=>{ const el=document.getElementById(id); el.value=""; el.classList.remove("bad"); });
   validatePins();
   setAcctMsg("pinChangeErr", "PIN updated ✓ Use the new one from now on.", "ok");
+  Notify.show({tone:"success", icon:"key", title:"PIN updated", sub:"Use your new PIN to sign in and to sign off.", html:"<p>Anyone holding an old signing link still needs <b>their own</b> PIN, so nothing else changes.</p>", primary:{label:"Done"}});
 }
 
 function hoursToFields(hours, inputId, unitId){

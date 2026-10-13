@@ -89,6 +89,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -128,92 +129,11 @@ async function init(){
   myId = sessionStorage.getItem("sl_person_id");
   myPin = sessionStorage.getItem("sl_pin");
   if(!myId || !myPin){
-    const {data: people} = await supabaseClient.from("people_public").select("id,name").order("name");
-    viewPeopleCache = people || [];
-    content.innerHTML = `
-      <div style="max-width:340px;margin:20px auto;text-align:center">
-        <h3 style="margin-bottom:6px">Sign in to view this form</h3>
-        <div class="center-note" style="padding:0 0 14px">Only people involved in this requisition can view it. New here? Just type your name and choose a PIN.</div>
-        <input type="text" id="viewNameInput" list="viewPeopleList" placeholder="Your name" autocomplete="off" oninput="toggleViewConfirmPin()" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-        <datalist id="viewPeopleList">${viewPeopleCache.map(p=>`<option value="${escHtml(p.name)}">`).join("")}</datalist>
-        <input type="password" id="viewPinInput" placeholder="PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-        <div id="viewConfirmPinWrap" style="display:none">
-          <input type="email" id="viewNewEmailInput" placeholder="Company email (you@spacelogic.com.sg)" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-          <input type="password" id="viewConfirmPinInput" placeholder="Confirm new PIN" maxlength="4" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-        </div>
-        <div id="viewCodeWrap" style="display:none">
-          <input type="text" id="viewRegCodeInput" placeholder="6-digit code from your email" maxlength="6" inputmode="numeric" style="width:100%;margin-bottom:8px;padding:9px;border:1px solid var(--line);border-radius:8px">
-        </div>
-        <button class="btn" onclick="viewLogin('${id}')" style="width:100%;background:var(--accent);color:#fff;border-color:var(--accent)">Continue</button>
-        <div class="decline-box" id="viewLoginErr" style="display:none;margin-top:10px"></div>
-      </div>`;
+    // not signed in: use the normal sign-in page (company email + PIN), then come straight back here
+    location.href = "login.html?redirect=" + encodeURIComponent("view.html?id=" + id);
     return;
   }
 
-  await loadRequisition(id);
-}
-
-let viewPeopleCache = [];
-let viewAwaitingCode = null; // email string once a code has been sent
-
-function toggleViewConfirmPin(){
-  const name = document.getElementById("viewNameInput").value.trim().toLowerCase();
-  const wrap = document.getElementById("viewConfirmPinWrap");
-  const isNew = name && !viewPeopleCache.some(p=>p.name.toLowerCase()===name);
-  wrap.style.display = isNew ? "block" : "none";
-}
-
-async function viewLogin(id){
-  const errEl = document.getElementById("viewLoginErr");
-
-  if(viewAwaitingCode){
-    const code = document.getElementById("viewRegCodeInput").value.trim();
-    if(!/^\d{6}$/.test(code)){ errEl.style.display="block"; errEl.textContent="Enter the 6-digit code from your email."; return; }
-    const pin = document.getElementById("viewPinInput").value.trim();
-    const {data, error} = await supabaseClient.rpc("verify_registration", {p_email: viewAwaitingCode, p_code: code});
-    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Could not verify."; return; }
-    viewAwaitingCode = null;
-    myId = data.id; myPin = pin;
-    sessionStorage.setItem("sl_person_id", myId);
-    sessionStorage.setItem("sl_person_name", data.name);
-    sessionStorage.setItem("sl_pin", myPin);
-    await loadRequisition(id);
-    return;
-  }
-
-  const name = document.getElementById("viewNameInput").value.trim();
-  const pin = document.getElementById("viewPinInput").value.trim();
-  if(!name || !/^\d{4}$/.test(pin)){ errEl.style.display="block"; errEl.textContent="Enter your name and 4-digit PIN."; return; }
-
-  const existing = viewPeopleCache.find(p=>p.name.toLowerCase()===name.toLowerCase());
-  let personId, resolvedName;
-
-  if(existing){
-    const {data, error} = await supabaseClient.rpc("login_person", {p_person_id: existing.id, p_pin: pin});
-    if(error || !data.success){ errEl.style.display="block"; errEl.textContent=(data&&data.error)||"Login failed."; return; }
-    personId = data.id; resolvedName = data.name;
-  } else {
-    const confirmPin = document.getElementById("viewConfirmPinInput").value.trim();
-    const email = document.getElementById("viewNewEmailInput").value.trim();
-    if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ errEl.style.display="block"; errEl.textContent="Enter your @spacelogic.com.sg company email."; return; }
-    if(pin !== confirmPin){ errEl.style.display="block"; errEl.textContent="PINs don't match — re-enter both."; return; }
-
-    const {data: regData, error: regErr} = await supabaseClient.rpc("start_registration", {p_name: name, p_pin: pin, p_email: email});
-    if(regErr || !regData.success){ errEl.style.display="block"; errEl.textContent=(regData&&regData.error)||"Could not start registration."; return; }
-    const sent = await sendEmail(regData.email, regData.subject, regData.html);
-    if(!sent){ errEl.style.display="block"; errEl.textContent="Could not send the verification email — try again."; return; }
-
-    viewAwaitingCode = regData.email;
-    document.getElementById("viewCodeWrap").style.display = "block";
-    errEl.style.display="block"; errEl.style.color = "var(--success)";
-    errEl.textContent = `Code sent to ${email}. Enter it above, then click Continue again.`;
-    return;
-  }
-
-  myId = personId; myPin = pin;
-  sessionStorage.setItem("sl_person_id", myId);
-  sessionStorage.setItem("sl_person_name", resolvedName);
-  sessionStorage.setItem("sl_pin", myPin);
   await loadRequisition(id);
 }
 
@@ -241,8 +161,7 @@ function renderActions(req, steps){
   if(isRequester && req.status==="Declined") edit.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
 
   if(shareTok && !closed){
-    share.push(`<button onclick="copyLink('sign.html','${shareTok}','PIN sign link')">Copy PIN sign link</button>`);
-    share.push(`<button onclick="copyLink('esign.html','${shareTok}','PDF sign link')">Copy PDF sign link</button>`);
+    share.push(`<button onclick="copyLink('esign.html','${shareTok}','signing link')">Copy signing link</button>`);
     if((viewIsAdmin || isRequester) && nextStep) share.push(`<button onclick="regenLink('${nextStep.id}')" title="Make the current link stop working and copy a new one (${escHtml(nextStep.stage_name)})">Regenerate link</button>`);
   }
 
@@ -280,6 +199,9 @@ async function withdrawReq(id){
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition withdrawn.");
+  Notify.show({tone:"info", icon:"undo", title:"Requisition withdrawn", sub:`${(currentReq&&currentReq.tracking_no)||"It"} has been stopped.`,
+    html:"<p>Nobody can sign it any more. It stays in the list as <b>Withdrawn</b>.</p>",
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
 }
 async function rejectReq(id){
   const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
@@ -289,22 +211,29 @@ async function rejectReq(id){
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition rejected.");
+  Notify.show({tone:"warn", icon:"x", title:"Requisition rejected", sub:`${(currentReq&&currentReq.tracking_no)||"It"} was sent back.`,
+    html:`<p>The requester can see your reason and can <b>fix &amp; resubmit</b>. Approval restarts from the Team Manager.</p>`,
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
 }
 async function deleteReq(id){
   if(!(await AppBar.confirmTwice(AppBar.CONFIRM.del))) return;
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
-  window.location.href = "dashboard.html";
+  Notify.show({tone:"danger", icon:"trash", title:"Requisition deleted", sub:"It has been permanently removed.",
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, onClose:()=>{ window.location.href = "dashboard.html"; }});
 }
 async function regenLink(stepId){
   if(!(await AppBar.confirmTwice(AppBar.CONFIRM.regen))) return;
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed."); return; }
-  const url = new URL("sign.html", window.location.href);
+  const url = new URL("esign.html", window.location.href);
   url.searchParams.set("token", data.token);
   try{ await navigator.clipboard.writeText(url.toString()); }catch(_){ window.prompt("New link — the old one no longer works:", url.toString()); }
   await loadRequisition(currentReq.id);
   actionsMsg("New link copied — the old one no longer works.");
+  Notify.show({tone:"success", icon:"link", title:"New link copied", sub:"The old link no longer works.",
+    html:"<p>Send the <b>new link</b> to whoever should sign next. It is already on your clipboard.</p>",
+    primary:{label:"Got it"}});
 }
 
 function signCard(step){
