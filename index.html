@@ -416,6 +416,7 @@
     @page{size:A4 landscape;margin:8mm}
   }
 </style>
+<script src="session.js"></script>
 </head>
 <body>
 <script>
@@ -629,7 +630,7 @@ function updateLoginBar(){
 }
 
 function requesterLogout(){
-  sessionStorage.removeItem("sl_person_id"); sessionStorage.removeItem("sl_person_name"); sessionStorage.removeItem("sl_pin");
+  sessionStorage.removeItem("sl_person_id"); sessionStorage.removeItem("sl_person_name"); sessionStorage.removeItem("sl_pin"); if(window.Session) Session.forget();
   window.location.href = "login.html?redirect=dashboard.html";
 }
 

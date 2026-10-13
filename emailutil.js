@@ -9,7 +9,7 @@
       el.type = "text"; el.setAttribute("inputmode","email"); el.setAttribute("autocapitalize","off"); el.setAttribute("autocorrect","off"); el.setAttribute("spellcheck","false");
       el.placeholder = "firstname.lastname";
       var note = document.createElement("div");
-      note.style.cssText = "font-size:11.5px;color:#6b7280;margin:-6px 0 8px";
+      note.style.cssText = "font-size:12px;line-height:1.45;color:#6b7280;margin:6px 0 14px";
       note.textContent = "Just type the first part — " + DOMAIN + " is added for you.";
       el.insertAdjacentElement("afterend", note);
       el.addEventListener("blur", function(){ var n = w.normEmail(el.value); if(n) el.value = n; });

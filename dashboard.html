@@ -241,6 +241,7 @@
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
 </style>
+<script src="session.js"></script>
 </head>
 <body>
 <div class="app" id="app" style="display:none">
@@ -443,7 +444,7 @@ function setStatus(t){
 function logout(){
   sessionStorage.removeItem("sl_person_id");
   sessionStorage.removeItem("sl_person_name");
-  sessionStorage.removeItem("sl_pin");
+  sessionStorage.removeItem("sl_pin"); if(window.Session) Session.forget();
   window.location.href = "login.html?redirect=dashboard.html";
 }
 
@@ -1074,7 +1075,7 @@ async function saveProfile(){
     const {data: nd, error: ne} = await supabaseClient.rpc("update_my_name", {p_person_id: myId, p_pin: myPin, p_name: name});
     if(ne || !nd || !nd.success){ fail((nd&&nd.error)||(ne&&ne.message)); return; }
     renamed = true; myName = nd.name || name;
-    try{ sessionStorage.setItem("sl_person_name", myName); }catch(_){}
+    try{ sessionStorage.setItem("sl_person_name", myName); if(window.Session) Session.sync(); }catch(_){}
   }
   const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: null});
   btn.textContent = "Save changes";
@@ -1113,7 +1114,7 @@ async function changeMyPin(){
     setAcctMsg("pinChangeErr", (data&&data.error)||(error&&error.message)||"Could not change your PIN.", "err"); return;
   }
   myPin = newPin;
-  sessionStorage.setItem("sl_pin", myPin);
+  sessionStorage.setItem("sl_pin", myPin); if(window.Session) Session.sync();
   ["pinOld","pinNew1","pinNew2"].forEach(id=>{ const el=document.getElementById(id); el.value=""; el.classList.remove("bad"); });
   validatePins();
   setAcctMsg("pinChangeErr", "PIN updated ✓ Use the new one from now on.", "ok");
