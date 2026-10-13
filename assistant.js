@@ -147,6 +147,7 @@
         off:"I couldn't find that in the system or the Manual. Try a REQ number or a project name, or ask an admin.",
         budget:"The AI helper has reached its monthly limit, so I can only answer from the built-in help and your requisitions. Try a REQ number or a project name.",
         daily:`You've used today's ${data.limit||""} AI questions. I can still answer from your requisitions and the built-in help.`,
+        busy:"The AI helper is busy right now (the free service is sometimes overloaded). I can still answer from your requisitions and the built-in help — try a REQ number or a project name, or try again in a minute.",
         auth:"Please sign in again to use the assistant."
       }[data.reason];
       return {text: msg || "I'm not sure about that. Try a REQ number or ask an admin."};
