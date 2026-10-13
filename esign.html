@@ -66,8 +66,8 @@
 <div class="modal" id="signModal">
   <div class="mbox">
     <h3 id="mTitle">Sign</h3>
-    <p>Type your name, then draw your signature with your finger or mouse.</p>
-    <input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name">
+    <div id="mWho"></div>
+    <p id="mHelp">Draw your signature with your finger or mouse.</p>
     <canvas id="pad" width="900" height="360"></canvas>
     <div class="merr" id="mErr"></div>
     <div class="mact">
@@ -246,11 +246,21 @@ function openModal(order){
   signingOrder = order;
   document.getElementById("mTitle").textContent = "Sign — " + SLOTS[order-1].label.replace(/ :$/,"");
   document.getElementById("mErr").textContent = "";
-  try{ document.getElementById("mName").value = localStorage.getItem("esignName") || ""; }catch(_){}
+  const sid = sessionStorage.getItem("sl_person_id"), sname = sessionStorage.getItem("sl_person_name");
+  const back = encodeURIComponent("esign.html" + location.search);
+  if(sid){
+    document.getElementById("mWho").innerHTML = `<div style="font-size:13.5px;margin-bottom:8px">Signing as <b>${esc2(sname||"")}</b></div>
+      <input type="password" id="mPin" inputmode="numeric" maxlength="4" placeholder="Your 4-digit PIN" autocomplete="current-password">`;
+  } else {
+    let nm = ""; try{ nm = localStorage.getItem("esignName") || ""; }catch(_){}
+    document.getElementById("mWho").innerHTML = `<input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name" value="${esc2(nm)}">
+      <div style="font-size:12px;color:#6b7280;margin:4px 0 8px">Have an account? <a href="login.html?redirect=${back}">Sign in</a> to link this to your dashboard. No account needed to sign.</div>`;
+  }
   clearPad();
   document.getElementById("signModal").classList.add("open");
 }
 function closeModal(){ document.getElementById("signModal").classList.remove("open"); }
+function esc2(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 // crop transparent margins so the signature fills its box in the PDF
 function croppedSignature(){
@@ -271,26 +281,35 @@ function croppedSignature(){
 
 async function submitSignature(){
   const err = document.getElementById("mErr");
-  const name = document.getElementById("mName").value.trim();
-  if(!name){ err.textContent = "Please type your name."; return; }
+  const sid = sessionStorage.getItem("sl_person_id");
+  const nameEl = document.getElementById("mName"), pinEl = document.getElementById("mPin");
+  const name = nameEl ? nameEl.value.trim() : (sessionStorage.getItem("sl_person_name")||"");
+  const pin = pinEl ? pinEl.value.trim() : "";
+  if(sid){ if(!/^\d{4}$/.test(pin)){ err.textContent = "Enter your 4-digit PIN."; return; } }
+  else if(!name){ err.textContent = "Please type your name."; return; }
   if(!drewAnything){ err.textContent = "Please draw your signature."; return; }
   const png = croppedSignature();
   if(!png){ err.textContent = "Please draw your signature."; return; }
   const btn = document.getElementById("mSubmit");
   btn.disabled = true; btn.textContent = "Signing...";
-  const {data, error} = await supabaseClient.rpc("esign_sign_step", {
-    p_token: token, p_step_order: signingOrder, p_name: name, p_signature: png
-  });
+  const {data, error} = sid
+    ? await supabaseClient.rpc("esign_sign_step_as", {p_token: token, p_step_order: signingOrder, p_person_id: sid, p_pin: pin, p_signature: png})
+    : await supabaseClient.rpc("esign_sign_step", {p_token: token, p_step_order: signingOrder, p_name: name, p_signature: png});
   btn.disabled = false; btn.textContent = "Sign";
   if(error || !data || !data.success){
     err.textContent = (data && data.error) || (error && error.message) || "Could not save the signature.";
     if(data && data.error) loadDoc();
     return;
   }
-  try{ localStorage.setItem("esignName", name); }catch(_){}
+  if(!sid){ try{ localStorage.setItem("esignName", name); }catch(_){} }
   closeModal();
   await loadDoc();
-  if(window.Tour) Tour.afterSign({signedSteps: doc && doc.steps ? doc.steps.filter(x=>x.status==="Signed").length : 1});
+  const signedCount = doc && doc.steps ? doc.steps.filter(x=>x.status==="Signed").length : 1;
+  if(sid){
+    Notify.show({tone:"success", title:"You're signed!", sub:"Your signature is saved on this requisition.", track:{done:Math.max(1,Math.min(4,signedCount))},
+      html:"<p>It is linked to your account, so you can follow every step on your <b>Dashboard</b>.</p>",
+      primary:{label:"Open my dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
+  } else if(window.Tour) Tour.afterSign({signedSteps: signedCount});
 }
 
 // ---------------- PDF (follows the MRF reference layout) ----------------

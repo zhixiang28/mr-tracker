@@ -180,6 +180,7 @@ function renderCard(step, req, allSteps){
     </div>
     <label>Your PIN</label>
     <input type="password" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••">
+    ${sessId ? "" : `<div style="font-size:12px;color:var(--muted);margin-top:8px">Have an account? <a href="login.html?redirect=${encodeURIComponent(location.pathname.split("/").pop() + location.search)}">Sign in</a> to follow this on your dashboard.</div>`}
   `;
 
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
@@ -324,9 +325,11 @@ async function doApprove(tok, isUnclaimed){
     tone:"success", title:"Signed — thank you!", sub:`You approved ${data.stage}.`, track:{done:Math.min(4,doneCount)},
     html: data.next_token ? `<p>Next up: <b>${escHtml(data.next_stage)}</b>. Send the <b>same link</b> to them — it opens on their turn. The link is on the page behind this card.</p>`
                           : `<p>That was the <b>final step</b>: the requisition is now fully <b>Received</b>. Nice work!</p>`,
-    primary: data.next_token ? {label:"Copy the link", onClick:(el)=>{ try{ copyNextLink(); el.textContent="Copied ✓"; }catch(_){} return false; }} : {label:"Done"},
-    secondary: data.next_token ? {label:"Close"} : null,
-    small:"Everything you signed is tracked on the Dashboard."
+    primary: data.next_token ? {label:"Copy the link", onClick:(el)=>{ try{ copyNextLink(); el.textContent="Copied ✓"; }catch(_){} return false; }}
+                             : (sessionStorage.getItem("sl_person_id") ? {label:"Open my dashboard", href:"dashboard.html"} : {label:"Done"}),
+    secondary: sessionStorage.getItem("sl_person_id") ? (data.next_token ? {label:"Open my dashboard", href:"dashboard.html"} : {label:"Stay here"})
+                                                      : (data.next_token ? {label:"Close"} : null),
+    small: sessionStorage.getItem("sl_person_id") ? "Everything you signed is tracked on your Dashboard." : "Sign in any time to follow this on your Dashboard."
   });
 }
 function copyNextLink(){
