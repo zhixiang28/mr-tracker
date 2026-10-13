@@ -197,6 +197,7 @@ async function handleVerifyCode(){
   sessionStorage.setItem("sl_person_name", data.name);
   sessionStorage.setItem("sl_pin", pendingSignup.pin);
   try{ localStorage.setItem("sl_tour_pending", data.id); }catch(_){}
+  await claimPending(data.id, pendingSignup.pin);
   document.getElementById("verifyPanel").style.display="none";
   showProfileStep(data.id, pendingSignup.pin);
   Notify.show({tone:"success", title:"Account created!", sub:`Welcome to MR Tracker, ${data.name}.`, html:"<p>Add your position and team if you like (optional) — then a 1-minute tour will show you around.</p>", primary:{label:"Continue"}});
@@ -238,7 +239,17 @@ function skipProfile(){
   window.location.href = redirectTo;
 }
 
-function completeLogin(id, name, pin, isAdmin){
+// someone who signed a requisition without an account, then registered or signed in: attach those signatures to this account
+async function claimPending(id, pin){
+  try{
+    const list = JSON.parse(localStorage.getItem("sl_pending_claims") || "[]");
+    for(const c of list){ if(Date.now()-c.at < 7*86400000) await supabaseClient.rpc("claim_signed_step", {p_token:c.t, p_step_order:c.o, p_person_id:id, p_pin:pin, p_name:c.n}); }
+    localStorage.removeItem("sl_pending_claims");
+  }catch(_){}
+}
+
+async function completeLogin(id, name, pin, isAdmin){
+  await claimPending(id, pin);
   if(isAdmin !== undefined) sessionStorage.setItem("sl_is_admin", isAdmin ? "1" : "0");
   sessionStorage.setItem("sl_person_id", id);
   sessionStorage.setItem("sl_person_name", name);

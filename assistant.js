@@ -43,6 +43,7 @@
     {k:"supply date meaning required", go:["Open the form","index.html"], a:"The supply date is when the materials are needed on site. It is filled in on the form and shown on the requisition."},
     {k:"verification code email sign up register not receive junk spam", a:"Check your <b>junk / spam</b> folder for the 6-digit code. If it is not there, ask an admin for the code and type it in the same box."},
     {k:"sign pdf link account signed in pin drawn signature already have account", a:"Sign in first, then open the signing link. It asks for your PIN plus your drawn signature, so the signature is linked to your account and shows on your Dashboard. Without an account you can still sign by typing your name."},
+    {k:"saved signature save draw again remember", a:"When you sign while signed in, tick <b>Save this as my signature for next time</b>. After that the signing window uses it and only asks for your PIN. Remove it under <b>My Profile</b>."},
     {k:"tour guide tutorial new user start onboarding walkthrough", a:"Open your name menu and choose <b>Quick tour</b> for a step-by-step guide. The <b>Manual</b> in the same menu has the details."},
     {k:"email domain spacelogic type sign in login username", a:"Sign in with your company email and PIN. Just type the first part (for example alex.tan) — @spacelogic.com.sg is added for you."},
     {k:"version update new what's whatsnew", a:"The version is shown under <b>Log out</b> in the name menu. Click it to read what's new."}

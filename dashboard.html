@@ -333,6 +333,9 @@
       <label for="profileEmail">Company email</label>
       <input id="profileEmail" type="email" readonly maxlength="120" autocomplete="email">
       <div class="fieldnote" id="profileEmailNote">This is your sign-in email, so it can’t be changed here. Ask an admin if it needs correcting.</div>
+      <label>Saved signature</label>
+      <div class="fieldnote" id="sigNote" style="margin-top:0">Checking…</div>
+      <button type="button" id="sigRemove" hidden onclick="removeSavedSig()" style="margin-top:6px">Remove my saved signature</button>
       <div class="acct-foot">
         <span class="acct-msg" id="profileErr" role="status" aria-live="polite"></span>
         <button type="button" onclick="closeProfileModal()">Close</button>
@@ -1008,6 +1011,19 @@ async function openProfileModal(tab){
   document.getElementById("profileDepartment").value = profileOrig.department;
   document.getElementById("profileEmail").value = data.email || "";
   profileDirty();
+  refreshSigNote();
+}
+async function refreshSigNote(){
+  const {data} = await supabaseClient.rpc("has_saved_signature", {p_person_id: myId});
+  const has = data === true;
+  document.getElementById("sigNote").textContent = has ? "You have a saved signature. When you sign, you can use it with just your PIN." : "None yet. When you sign, tick “Save this as my signature for next time”.";
+  document.getElementById("sigRemove").hidden = !has;
+}
+async function removeSavedSig(){
+  if(!confirm("Remove your saved signature? You can save a new one the next time you sign.")) return;
+  const {data, error} = await supabaseClient.rpc("save_my_signature", {p_person_id: myId, p_pin: myPin, p_signature: null});
+  if(error || !data || !data.success){ setAcctMsg("profileErr", (data&&data.error)||"Could not remove it.", "err"); return; }
+  setAcctMsg("profileErr", "Saved signature removed ✓", "ok"); refreshSigNote();
 }
 function closeProfileModal(){
   document.getElementById("profileModal").style.display = "none";

@@ -62,6 +62,9 @@
   .mseg button{ flex:1; border:0; background:none; padding:8px; border-radius:8px; color:#4b5563; }
   .mseg button.on{ background:#fff; color:#111; box-shadow:0 1px 3px rgba(0,0,0,.12); }
   .mseg button.on.dec{ color:var(--danger); }
+  .msaved{ background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:10px; padding:14px; font-size:13.5px; font-weight:700; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .msaved button, .linkbtn{ background:none; border:0; color:var(--accent); font-weight:700; padding:4px 0; font-size:13px; }
+  .msave{ display:flex; align-items:center; gap:8px; font-size:13px; margin-top:10px; color:#374151; }
   .padwrap{ position:relative; } .padwrap .clr{ position:absolute; right:8px; top:8px; padding:4px 10px; font-size:12px; }
   .padhint{ position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:11.5px; color:#9ca3af; pointer-events:none; }
   textarea.mreason{ width:100%; min-height:110px; font:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; resize:vertical; }
@@ -89,7 +92,10 @@
       <div id="mWork">
         <div class="mseg" role="tablist"><button type="button" id="segA" class="on" onclick="setMode('approve')">Approve &amp; sign</button><button type="button" id="segD" class="dec" onclick="setMode('decline')">Decline</button></div>
         <div id="mApprove">
-          <div class="padwrap"><canvas id="pad" width="900" height="360"></canvas><button type="button" class="clr" onclick="clearPad()">Clear</button><div class="padhint" id="padHint">Sign here with your finger or mouse</div></div>
+          <div id="mSaved" hidden><div class="msaved">✓ Your saved signature will be used.<button type="button" onclick="useSavedSig(false)">Draw a new one</button></div></div>
+          <div id="mDrawArea"><div class="padwrap"><canvas id="pad" width="900" height="360"></canvas><button type="button" class="clr" onclick="clearPad()">Clear</button><div class="padhint" id="padHint">Sign here with your finger or mouse</div></div>
+          <label id="mSaveWrap" class="msave" hidden><input type="checkbox" id="mSaveBox"> Save this as my signature for next time</label>
+          <div id="mBack" hidden style="margin-top:6px"><button type="button" class="linkbtn" onclick="useSavedSig(true)">Use my saved signature instead</button></div></div>
         </div>
         <div id="mDecline" hidden>
           <textarea class="mreason" id="mReason" maxlength="500" placeholder="Why are you declining? The requester will see this and can fix it."></textarea>
@@ -272,7 +278,14 @@ pad.addEventListener("pointermove", e=>{
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>pad.addEventListener(ev, ()=>{ drawing=false; }));
 
 function clearPad(){ pctx.clearRect(0,0,pad.width,pad.height); drewAnything=false; const hint = document.getElementById("padHint"); if(hint) hint.style.display = ""; }
-let signMode = "approve";
+let signMode = "approve", hasSaved = false, useSaved = false;
+function useSavedSig(on){
+  useSaved = on && hasSaved;
+  document.getElementById("mSaved").hidden = !useSaved;
+  document.getElementById("mDrawArea").hidden = useSaved;
+  document.getElementById("mBack").hidden = !(hasSaved && !useSaved);
+  document.getElementById("mErr").textContent = "";
+}
 function setMode(m){
   signMode = m;
   document.getElementById("segA").classList.toggle("on", m==="approve");
@@ -310,6 +323,12 @@ function openModal(order){
       <div class="mnote">Have an account? <a href="login.html?redirect=${back}">Sign in</a> to link this to your dashboard. No account needed to sign.</div>`;
   }
   clearPad(); setMode("approve");
+  hasSaved = false; useSaved = false;
+  document.getElementById("mSaved").hidden = true; document.getElementById("mDrawArea").hidden = false; document.getElementById("mBack").hidden = true;
+  document.getElementById("mSaveWrap").hidden = !sid; document.getElementById("mSaveBox").checked = false;
+  if(sid && !work.hidden){
+    supabaseClient.rpc("has_saved_signature", {p_person_id: sid}).then(({data})=>{ hasSaved = data === true; if(hasSaved) useSavedSig(true); });
+  }
   document.getElementById("signModal").classList.add("open");
 }
 function closeModal(){ document.getElementById("signModal").classList.remove("open"); }
@@ -370,9 +389,12 @@ async function submitSignature(){
     return;
   }
 
-  if(!drewAnything){ err.textContent = "Please draw your signature."; return; }
-  const png = croppedSignature();
-  if(!png){ err.textContent = "Please draw your signature."; return; }
+  let png = null;
+  if(!(sid && useSaved)){
+    if(!drewAnything){ err.textContent = "Please draw your signature."; return; }
+    png = croppedSignature();
+    if(!png){ err.textContent = "Please draw your signature."; return; }
+  }
   btn.disabled = true; btn.textContent = "Signing...";
   const {data, error} = sid
     ? await supabaseClient.rpc("esign_sign_step_as", {p_token: token, p_step_order: signingOrder, p_person_id: sid, p_pin: pin, p_signature: png})
@@ -383,7 +405,17 @@ async function submitSignature(){
     if(data && data.error) loadDoc();
     return;
   }
-  if(!sid){ try{ localStorage.setItem("esignName", name); }catch(_){} }
+  if(!sid){
+    try{
+      localStorage.setItem("esignName", name);
+      // remember this signature, so if they create an account from the invite it can be attached to it
+      const list = JSON.parse(localStorage.getItem("sl_pending_claims") || "[]").filter(x=>Date.now()-x.at < 7*86400000);
+      list.push({t: token, o: signingOrder, n: name, at: Date.now()});
+      localStorage.setItem("sl_pending_claims", JSON.stringify(list.slice(-10)));
+    }catch(_){}
+  } else if(png && document.getElementById("mSaveBox").checked){
+    await supabaseClient.rpc("save_my_signature", {p_person_id: sid, p_pin: pin, p_signature: png});
+  }
   closeModal();
   await loadDoc();
   const status = doc && doc.requisition ? doc.requisition.status : "";
