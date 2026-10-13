@@ -51,6 +51,24 @@
   .mact{ display:flex; gap:8px; margin-top:12px; }
   .mact button{ flex:1; }
   .merr{ color:var(--danger); font-size:12.5px; margin-top:8px; min-height:16px; }
+  .mbox{ padding:0; overflow:hidden; max-height:94vh; overflow-y:auto; }
+  .mhead{ background:linear-gradient(160deg,#2f6fed,#1e3a8a); color:#fff; padding:16px 20px 14px; }
+  .mhead .mrole{ font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; opacity:.85; }
+  .mhead h3{ color:#fff; margin:4px 0 0; font-size:17px; }
+  .mbody{ padding:16px 20px 18px; }
+  .mwho{ font-size:13.5px; margin-bottom:10px; } .mwho .tag{ display:inline-block; background:#eef2ff; color:#3730a3; border-radius:99px; padding:2px 9px; font-size:11.5px; font-weight:700; margin-left:6px; }
+  .mnote{ font-size:12px; color:#6b7280; margin:-4px 0 12px; } .mnote a{ color:var(--accent); font-weight:700; }
+  .mseg{ display:flex; background:#f1f4f9; border-radius:10px; padding:4px; margin:4px 0 12px; }
+  .mseg button{ flex:1; border:0; background:none; padding:8px; border-radius:8px; color:#4b5563; }
+  .mseg button.on{ background:#fff; color:#111; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .mseg button.on.dec{ color:var(--danger); }
+  .padwrap{ position:relative; } .padwrap .clr{ position:absolute; right:8px; top:8px; padding:4px 10px; font-size:12px; }
+  .padhint{ position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:11.5px; color:#9ca3af; pointer-events:none; }
+  textarea.mreason{ width:100%; min-height:110px; font:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; resize:vertical; }
+  button.danger{ background:var(--danger); border-color:var(--danger); color:#fff; }
+  .mlock{ background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:12px; font-size:13px; line-height:1.5; }
+  .slot .pinsig{ color:#166534; font-weight:700; font-size:12px; padding-bottom:6px; }
+  .slot .decl{ color:var(--danger); font-weight:700; font-size:12px; padding-bottom:6px; }
 </style>
 </head>
 <body>
@@ -64,16 +82,24 @@
 <div class="stage" id="stage"><div class="paper" id="paper" style="display:none"></div></div>
 
 <div class="modal" id="signModal">
-  <div class="mbox">
-    <h3 id="mTitle">Sign</h3>
-    <div id="mWho"></div>
-    <p id="mHelp">Draw your signature with your finger or mouse.</p>
-    <canvas id="pad" width="900" height="360"></canvas>
-    <div class="merr" id="mErr"></div>
-    <div class="mact">
-      <button onclick="clearPad()">Clear</button>
-      <button onclick="closeModal()">Cancel</button>
-      <button class="primary" id="mSubmit" onclick="submitSignature()">Sign</button>
+  <div class="mbox" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="mhead"><div class="mrole" id="mRole">Sign-off</div><h3 id="mTitle">Sign</h3></div>
+    <div class="mbody">
+      <div id="mWho"></div>
+      <div id="mWork">
+        <div class="mseg" role="tablist"><button type="button" id="segA" class="on" onclick="setMode('approve')">Approve &amp; sign</button><button type="button" id="segD" class="dec" onclick="setMode('decline')">Decline</button></div>
+        <div id="mApprove">
+          <div class="padwrap"><canvas id="pad" width="900" height="360"></canvas><button type="button" class="clr" onclick="clearPad()">Clear</button><div class="padhint" id="padHint">Sign here with your finger or mouse</div></div>
+        </div>
+        <div id="mDecline" hidden>
+          <textarea class="mreason" id="mReason" maxlength="500" placeholder="Why are you declining? The requester will see this and can fix it."></textarea>
+        </div>
+      </div>
+      <div class="merr" id="mErr"></div>
+      <div class="mact">
+        <button type="button" onclick="closeModal()">Cancel</button>
+        <button type="button" class="primary" id="mSubmit" onclick="submitSignature()">Approve &amp; sign</button>
+      </div>
     </div>
   </div>
 </div>
@@ -113,7 +139,7 @@ async function loadDoc(){
   if(!token){ setBanner("err","No signing link provided. Ask whoever sent this for the full link."); return; }
   const {data, error} = await supabaseClient.rpc("get_esign_doc", {p_token: token});
   if(error || !data || !data.success){
-    setBanner("err","This link isn't valid. Ask whoever sent it to copy the PDF sign link again.");
+    setBanner("err","This link isn't valid. Ask whoever sent it to copy the signing link again.");
     return;
   }
   doc = data;
@@ -157,11 +183,15 @@ function render(){
   const slotHtml = o => {
     const s = stepBy(o);
     if(s.status==="Signed"){
-      return `<div class="slot">${s.signature_data?`<img src="${esc(s.signature_data)}" alt="signature">`:""}</div>
+      return `<div class="slot">${s.signature_data?`<img src="${esc(s.signature_data)}" alt="signature">`:`<span class="pinsig">✓ Approved with PIN</span>`}</div>
               <div class="who">${esc(s.assigned_person_name||"")}<br>${esc(fmtStamp(s.signed_at))}</div>`;
     }
+    if(s.status==="Declined"){
+      return `<div class="slot"><span class="decl">✕ Declined</span></div>
+              <div class="who">${esc(s.assigned_person_name||"")}<br>“${esc(s.decline_reason||"")}”</div>`;
+    }
     if(o===activeOrder){
-      return `<div class="slot"><button class="sign-btn" onclick="openModal(${o})">Tap to sign</button></div>`;
+      return `<div class="slot"><button class="sign-btn" onclick="openModal(${o})">Tap to sign or decline</button></div>`;
     }
     return `<div class="slot"><span class="locked">${activeOrder? "Waiting for earlier signature":"—"}</span></div>`;
   };
@@ -226,7 +256,7 @@ function padPoint(e){
   return { x:(e.clientX-rect.left)*pad.width/rect.width, y:(e.clientY-rect.top)*pad.height/rect.height };
 }
 pad.addEventListener("pointerdown", e=>{
-  drawing = true; drewAnything = true;
+  drawing = true; drewAnything = true; const hint = document.getElementById("padHint"); if(hint) hint.style.display = "none";
   pad.setPointerCapture(e.pointerId);
   const p = padPoint(e);
   pctx.lineWidth = 5; pctx.lineCap = "round"; pctx.lineJoin = "round"; pctx.strokeStyle = "#0b1f4d";
@@ -241,26 +271,48 @@ pad.addEventListener("pointermove", e=>{
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>pad.addEventListener(ev, ()=>{ drawing=false; }));
 
-function clearPad(){ pctx.clearRect(0,0,pad.width,pad.height); drewAnything=false; }
+function clearPad(){ pctx.clearRect(0,0,pad.width,pad.height); drewAnything=false; const hint = document.getElementById("padHint"); if(hint) hint.style.display = ""; }
+let signMode = "approve";
+function setMode(m){
+  signMode = m;
+  document.getElementById("segA").classList.toggle("on", m==="approve");
+  document.getElementById("segD").classList.toggle("on", m==="decline");
+  document.getElementById("mApprove").hidden = m!=="approve";
+  document.getElementById("mDecline").hidden = m!=="decline";
+  const b = document.getElementById("mSubmit");
+  b.textContent = m==="approve" ? "Approve & sign" : "Decline";
+  b.className = m==="approve" ? "primary" : "danger";
+  document.getElementById("mErr").textContent = "";
+  if(m==="decline") setTimeout(()=>document.getElementById("mReason").focus(), 30);
+}
 function openModal(order){
   signingOrder = order;
-  document.getElementById("mTitle").textContent = "Sign — " + SLOTS[order-1].label.replace(/ :$/,"");
+  const r = doc.requisition, st = doc.steps.find(x=>x.step_order===order) || {};
+  document.getElementById("mRole").textContent = `Step ${order} of 4 · ${st.stage_name || SLOTS[order-1].label.replace(/ :$/,"")}`;
+  document.getElementById("mTitle").textContent = `${r.tracking_no||""} — ${r.project_name||"Materials requisition"}`;
   document.getElementById("mErr").textContent = "";
+  document.getElementById("mReason").value = "";
   const sid = sessionStorage.getItem("sl_person_id"), sname = sessionStorage.getItem("sl_person_name");
   const back = encodeURIComponent("esign.html" + location.search);
-  if(sid){
-    document.getElementById("mWho").innerHTML = `<div style="font-size:13.5px;margin-bottom:8px">Signing as <b>${esc2(sname||"")}</b></div>
+  const work = document.getElementById("mWork"), submit = document.getElementById("mSubmit");
+  work.hidden = false; submit.hidden = false;
+  if(st.assigned_to_account && (!sid || (sname||"").toLowerCase() !== (st.assigned_person_name||"").toLowerCase())){
+    // this step belongs to someone's account: only they can sign it
+    document.getElementById("mWho").innerHTML = `<div class="mlock">This step is assigned to <b>${esc(st.assigned_person_name||"an account")}</b>.<br>Please sign in as them to approve or decline.</div>
+      <div style="margin-top:12px"><a href="login.html?redirect=${back}"><button type="button" class="primary" style="width:100%">Sign in</button></a></div>`;
+    work.hidden = true; submit.hidden = true;
+  } else if(sid){
+    document.getElementById("mWho").innerHTML = `<div class="mwho">Signing as <b>${esc(sname||"")}</b><span class="tag">Your account</span></div>
       <input type="password" id="mPin" inputmode="numeric" maxlength="4" placeholder="Your 4-digit PIN" autocomplete="current-password">`;
   } else {
     let nm = ""; try{ nm = localStorage.getItem("esignName") || ""; }catch(_){}
-    document.getElementById("mWho").innerHTML = `<input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name" value="${esc2(nm)}">
-      <div style="font-size:12px;color:#6b7280;margin:4px 0 8px">Have an account? <a href="login.html?redirect=${back}">Sign in</a> to link this to your dashboard. No account needed to sign.</div>`;
+    document.getElementById("mWho").innerHTML = `<input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name" value="${esc(nm)}">
+      <div class="mnote">Have an account? <a href="login.html?redirect=${back}">Sign in</a> to link this to your dashboard. No account needed to sign.</div>`;
   }
-  clearPad();
+  clearPad(); setMode("approve");
   document.getElementById("signModal").classList.add("open");
 }
 function closeModal(){ document.getElementById("signModal").classList.remove("open"); }
-function esc2(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 // crop transparent margins so the signature fills its box in the PDF
 function croppedSignature(){
@@ -279,6 +331,17 @@ function croppedSignature(){
   return c.toDataURL("image/png");
 }
 
+const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
+// tell the requester (or purchaser) by email when something important happened on this link
+async function notify(event){
+  try{
+    const {data} = await supabaseClient.rpc("get_esign_notification", {p_token: token, p_event: event});
+    if(!data || !data.success) return;
+    await fetch(SEND_EMAIL_URL, {method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
+      body: JSON.stringify({to:data.to, subject:data.subject, html:data.html})});
+  }catch(e){ console.error("Notification email failed:", e); }
+}
+
 async function submitSignature(){
   const err = document.getElementById("mErr");
   const sid = sessionStorage.getItem("sl_person_id");
@@ -287,15 +350,34 @@ async function submitSignature(){
   const pin = pinEl ? pinEl.value.trim() : "";
   if(sid){ if(!/^\d{4}$/.test(pin)){ err.textContent = "Enter your 4-digit PIN."; return; } }
   else if(!name){ err.textContent = "Please type your name."; return; }
+  const btn = document.getElementById("mSubmit");
+
+  if(signMode === "decline"){
+    const reason = document.getElementById("mReason").value.trim();
+    if(!reason){ err.textContent = "Please give a short reason."; return; }
+    if(!confirm("Decline this requisition? It goes back to the requester with your reason.")) return;
+    btn.disabled = true; btn.textContent = "Declining...";
+    const {data, error} = sid
+      ? await supabaseClient.rpc("esign_decline_step_as", {p_token: token, p_step_order: signingOrder, p_person_id: sid, p_pin: pin, p_reason: reason})
+      : await supabaseClient.rpc("esign_decline_step", {p_token: token, p_step_order: signingOrder, p_name: name, p_reason: reason});
+    btn.disabled = false; btn.textContent = "Decline";
+    if(error || !data || !data.success){ err.textContent = (data && data.error) || (error && error.message) || "Could not decline."; if(data && data.error) loadDoc(); return; }
+    if(!sid){ try{ localStorage.setItem("esignName", name); }catch(_){} }
+    closeModal(); await loadDoc(); notify("declined");
+    Notify.show({tone:"danger", icon:"x", title:"Declined", sub:`You declined this at ${data.stage}.`,
+      html:"<p>The requester can see your reason, fix the request and send it again. Approval then starts over from the Team Manager.</p>",
+      primary: sid ? {label:"Open my dashboard", href:"dashboard.html"} : {label:"OK"}, secondary: sid ? {label:"Stay here"} : null});
+    return;
+  }
+
   if(!drewAnything){ err.textContent = "Please draw your signature."; return; }
   const png = croppedSignature();
   if(!png){ err.textContent = "Please draw your signature."; return; }
-  const btn = document.getElementById("mSubmit");
   btn.disabled = true; btn.textContent = "Signing...";
   const {data, error} = sid
     ? await supabaseClient.rpc("esign_sign_step_as", {p_token: token, p_step_order: signingOrder, p_person_id: sid, p_pin: pin, p_signature: png})
     : await supabaseClient.rpc("esign_sign_step", {p_token: token, p_step_order: signingOrder, p_name: name, p_signature: png});
-  btn.disabled = false; btn.textContent = "Sign";
+  btn.disabled = false; btn.textContent = "Approve & sign";
   if(error || !data || !data.success){
     err.textContent = (data && data.error) || (error && error.message) || "Could not save the signature.";
     if(data && data.error) loadDoc();
@@ -304,12 +386,21 @@ async function submitSignature(){
   if(!sid){ try{ localStorage.setItem("esignName", name); }catch(_){} }
   closeModal();
   await loadDoc();
+  const status = doc && doc.requisition ? doc.requisition.status : "";
+  if(status === "Purchased") notify("purchased"); else if(status === "Received") notify("received");
   const signedCount = doc && doc.steps ? doc.steps.filter(x=>x.status==="Signed").length : 1;
+  const next = doc && doc.steps ? doc.steps.slice().sort((a,b)=>a.step_order-b.step_order).find(x=>x.status!=="Signed") : null;
+  const nextHtml = next ? `<p>Next: <b>${esc(next.stage_name)}</b>. Send them <b>this same link</b> — it opens on their turn.</p>` : `<p>That was the <b>final signature</b> — this requisition is now fully <b>Received</b>.</p>`;
   if(sid){
     Notify.show({tone:"success", title:"You're signed!", sub:"Your signature is saved on this requisition.", track:{done:Math.max(1,Math.min(4,signedCount))},
-      html:"<p>It is linked to your account, so you can follow every step on your <b>Dashboard</b>.</p>",
-      primary:{label:"Open my dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
-  } else if(window.Tour) Tour.afterSign({signedSteps: signedCount});
+      html: nextHtml + "<p>It is linked to your account, so you can follow every step on your <b>Dashboard</b>.</p>",
+      primary: next ? {label:"Copy this link", onClick:(el)=>{ copyThisLink().then(ok=>{ el.textContent = ok ? "Copied ✓" : "Copy failed"; }); return false; }} : {label:"Open my dashboard", href:"dashboard.html"},
+      secondary: next ? {label:"Open my dashboard", href:"dashboard.html"} : {label:"Stay here"}});
+  } else if(window.Tour) Tour.afterSign({signedSteps: signedCount, nextHtml});
+}
+async function copyThisLink(){
+  try{ await navigator.clipboard.writeText(location.href); return true; }catch(_){}
+  try{ const t=document.createElement("textarea"); t.value=location.href; document.body.appendChild(t); t.select(); const ok=document.execCommand("copy"); t.remove(); return ok; }catch(_){ return false; }
 }
 
 // ---------------- PDF (follows the MRF reference layout) ----------------

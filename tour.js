@@ -30,7 +30,7 @@
   /* ---------------- spotlight tour (Dashboard) ---------------- */
   const STEPS = [
     {t:"Welcome to MR Tracker", h:"This is where we <b>request, approve and track</b> materials purchases. Let me show you around — it takes 1 minute."},
-    {sel:'a[href="index.html"] button.primary', t:"Start a requisition", h:"Press here to open the form. Pick your <b>project</b>, add items and prices, then choose <b>PIN Sign</b> or <b>PDF Sign</b> — you get <b>one link</b> to send to your approvers."},
+    {sel:'a[href="index.html"] button.primary', t:"Start a requisition", h:"Press here to open the form. Pick your <b>project</b>, add items and prices, then press <b>Submit for approval</b> — you get <b>one link</b> to send to your approvers."},
     {sel:"#pipeline", t:"Every stage at a glance", h:"Each box counts requisitions at one stage: <b>Manager → Procurement → Purchase → Received</b>. Click a box to show only that stage."},
     {sel:"#needsChip", t:"What needs you", h:"Things waiting for <b>your</b> signature, or a declined request you need to fix. Check here first."},
     {sel:".view-toggle", t:"List or Cards", h:"Switch the layout. <b>Point</b> at a requisition to preview it, <b>click</b> it to open the full form (with Withdraw, Regenerate link and more)."},
@@ -112,7 +112,7 @@
     w.Notify.show({
       tone:"success", title:"You're signed!", sub:"Your signature is saved on this requisition.",
       track:{done: Math.max(1, Math.min(4, opts.signedSteps || 1))},
-      html:'<div style="text-align:center;font-size:15px;font-weight:800;color:#111827">Want to follow it all the way?</div>',
+      html:(opts.nextHtml || "") + '<div style="text-align:center;font-size:15px;font-weight:800;color:#111827;margin-top:6px">Want to follow it all the way?</div>',
       tiles:[{icon:"track",label:"Track every step"},{icon:"form",label:"Raise requests in minutes"},{icon:"price",label:"Reuse past prices"}],
       primary:{label:"Create my free account", href:"login.html?signup=1&redirect=dashboard.html"},
       secondary:{label:"Not now"},

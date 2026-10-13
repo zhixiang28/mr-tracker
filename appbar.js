@@ -128,20 +128,16 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.13";
-  const NOTICE_ID = "upgrade-2026-10e";
+  const VERSION = "2026.10.14";
+  const NOTICE_ID = "upgrade-2026-10f";
   const NOTICE = [
-    ["Ask MR Tracker (new)", "Press the blue Ask button at the bottom right. Ask where a requisition is (for example “where is REQ-00031?”), what needs your signature, or how to do something. It answers from your requisitions and the Manual first, and uses a small AI helper only when it has to, with strict daily limits."],
-    ["Safer buttons", "Regenerate link, Reject, Withdraw and Delete now each ask you to confirm twice, so the original link or requisition can’t be lost by an accidental click."],
-    ["Dashboard: List or Cards", "Switch the layout at the top of the list. Cards puts the requisitions in one column per stage, in the same order as the stage boxes. Click a column title to fold it away."],
-    ["Point to see more, click to open", "Rest your mouse on any row or card to preview the items and who has signed. Click it to open the full form."],
-    ["See why it was declined", "The reason and who declined it now show right on the list and cards. If it is yours, press “Fix & Resubmit in form”."],
-    ["Reject, Withdraw and Delete kept apart", "Reject sits next to Edit; Withdraw and Delete are on the other side so a delete is harder to click by mistake."],
-    ["Projects: everyone can add", "The Projects page is open to everyone. You can also press “Save this project for everyone” on the form when your project is not in the list yet. Admins can edit or archive projects."],
-    ["Pick items you've bought before", "Click the Item box on the form to choose from past purchases. The price and link are filled in, and Purchase History shows what we paid and to whom."],
-    ["One link to sign", "PIN Sign and PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form."],
-    ["Analytics and account settings", "Analytics shows your spending and approval speed (admins see everything). My Profile and Change PIN are one tidy window under your name."],
-    ["Version number", "The version now shows under Log out. Click it any time to read this list again."]
+    ["One simple way to sign", "There is now just one button on the form: Submit for approval. You get one link; each approver opens it, taps their box and either draws a signature or declines with a reason."],
+    ["Sign in with your email", "Use your company email and PIN — just type the first part, @spacelogic.com.sg is added for you. After 5 wrong PINs an account is locked for 15 minutes."],
+    ["Signed in? Sign as yourself", "If you are signed in, signing asks for your PIN and links the signature to your account, so it shows on your Dashboard."],
+    ["Clear result cards", "Submitting, signing, declining, withdrawing and other actions now end with a short card that tells you what happened and what's next."],
+    ["Quick tour", "New here? Your name menu → Quick tour points at each part of the Dashboard."],
+    ["Ask MR Tracker", "The blue Ask button answers questions like “where is REQ-00031?”, “did my screws arrive?” or “which supplier did we use for cable?”."],
+    ["Your profile", "You can change your name in My Profile. Your email is your sign-in ID, so an admin changes it if needed."]
   ];
   function showNotice(force){
     if(!force){ try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){} }

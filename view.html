@@ -161,8 +161,7 @@ function renderActions(req, steps){
   if(isRequester && req.status==="Declined") edit.push(`<a class="btn btn-primary" href="index.html?editRequisition=${req.id}">Revise &amp; Resubmit</a>`);
 
   if(shareTok && !closed){
-    share.push(`<button onclick="copyLink('sign.html','${shareTok}','PIN sign link')">Copy PIN sign link</button>`);
-    share.push(`<button onclick="copyLink('esign.html','${shareTok}','PDF sign link')">Copy PDF sign link</button>`);
+    share.push(`<button onclick="copyLink('esign.html','${shareTok}','signing link')">Copy signing link</button>`);
     if((viewIsAdmin || isRequester) && nextStep) share.push(`<button onclick="regenLink('${nextStep.id}')" title="Make the current link stop working and copy a new one (${escHtml(nextStep.stage_name)})">Regenerate link</button>`);
   }
 
@@ -227,7 +226,7 @@ async function regenLink(stepId){
   if(!(await AppBar.confirmTwice(AppBar.CONFIRM.regen))) return;
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed."); return; }
-  const url = new URL("sign.html", window.location.href);
+  const url = new URL("esign.html", window.location.href);
   url.searchParams.set("token", data.token);
   try{ await navigator.clipboard.writeText(url.toString()); }catch(_){ window.prompt("New link — the old one no longer works:", url.toString()); }
   await loadRequisition(currentReq.id);

@@ -37,12 +37,12 @@ You already have a repo and Pages site running the earlier version. To push this
 4. Your links stay the same as before:
    - Form: `https://yourusername.github.io/your-repo-name/`
    - Dashboard: `https://yourusername.github.io/your-repo-name/dashboard.html`
-   - Sign page (only reached via generated links, never typed directly): `.../sign.html?token=...`
+   - Sign page (only reached via generated links, never typed directly): `.../esign.html?token=...` (old `sign.html?token=...` links redirect there)
 
 ## Day-to-day use
 
 - **Registering people**: do it inline from the form's dropdown ("+ Add new person") the first time you need someone. Anyone filling out the form can register a new signer — there's no separate admin step.
-- **Forgot to send a link / lost it**: open the dashboard, expand the requisition, and use **Copy PIN sign link** or **Copy PDF e-sign link** to get the link again.
+- **Forgot to send a link / lost it**: open the dashboard, expand the requisition, and use **Copy signing link** on the requisition to get the link again.
 - **A step was declined by mistake**: there's no "un-decline" button by design — start a fresh requisition. If you'd like a resubmit/reopen flow later, that's a reasonable next upgrade.
 - **Someone forgot their PIN**: there's no self-service reset yet. For now, open the Supabase dashboard's Table Editor → `people` table, delete their row, and have them re-register from the form's dropdown with a new PIN. (Happy to build a proper reset flow if this comes up often.)
 
@@ -53,18 +53,13 @@ You already have a repo and Pages site running the earlier version. To push this
 - Email/WhatsApp send button instead of copy-paste (you chose copy-paste for now, but this is a small addition later).
 - An admin view of the people directory for editing/removing signers without touching Supabase directly.
 
-## Hybrid mode: drawn-signature PDF page (`esign.html`)
+## Signing (`esign.html`) — one way for everyone
 
-For a transition period where approvers sign on the PDF form instead of using PINs, while the record still lives in the tracker:
-
-1. On the form, click **PDF Sign** (next to **PIN Sign**). The MRF is saved to the tracker (same record and tracking number as PIN Sign) and a link to `esign.html` is copied. You can also copy it again from any requisition's expanded row on the dashboard.
-2. Whoever opens the link sees the MRF laid out like the SPACElogic PDF form. The next slot in order (Team Manager, Approve, Purchase, Received) shows a **Tap to sign** box: they type their name and draw their signature with finger or mouse.
-3. Each signature is stored against the requisition, advances its stage on the dashboard, and appears there as a "drawn signature" with a thumbnail.
-4. Anyone with the link can **Export PDF** (with the signatures so far) and keep their own copy.
-
-Notes: there is no PIN on this page, so anyone holding the link can sign the next open slot. Only share it with the intended signers. Signing is strictly in order. The database part is in `esign-pdf-upgrade.sql` (already applied to the live project).
-
-`esign-hardening.sql` (run after `esign-pdf-upgrade.sql`) tightens `sign_step`, `decline_step` and `requester_resubmit`: a withdrawn/declined requisition can't be signed through an already-claimed link, and resubmitting clears drawn signatures and typed-only names.
+1. On the form, press **Submit for approval**. The requisition is saved and one signing link (`esign.html?token=...`) is copied/shown, with a box to email it.
+2. Whoever opens the link sees the MRF laid out like the SPACElogic PDF form. The next slot in order (Team Manager, Approve, Purchase, Received) shows **Tap to sign or decline**.
+3. **Approve & sign**: draw a signature. Signed-in people also enter their PIN (`esign_sign_step_as`, linked to their account); others type their name (`esign_sign_step`). **Decline**: give a reason (`esign_decline_step` / `esign_decline_step_as`).
+4. A step already tied to an account can only be signed by that person, signed in. The requester gets an email when it is declined, purchased or received (`get_esign_notification`).
+5. Anyone with the link can **Export PDF** with the signatures so far. Old `sign.html` links redirect here.
 
 ## Analytics page (`analytics.html`) — everyone (each person sees only the data they can access)
 
