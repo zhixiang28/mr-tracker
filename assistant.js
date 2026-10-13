@@ -11,36 +11,36 @@
 
   /* ---------------- built-in answers (keep short; same facts as the Manual & FAQ) ---------------- */
   const FAQ = [
-    {k:"withdraw cancel stop requisition remove", a:"Open the requisition (click it on the dashboard) and press <b>Withdraw</b>. The requester or an admin can do this until it has been <b>Purchased</b>. You will be asked to confirm twice."},
-    {k:"declined rejected fix resubmit revise edit again", a:"A declined requisition shows the reason on the dashboard. Open it and press <b>Fix &amp; Resubmit in form</b>, change what was flagged and resubmit. Approval restarts from the Team Manager."},
-    {k:"edit change modify submitted after", a:"A submitted requisition can't be edited by the requester unless it is declined. Ask an approver to decline it with a reason, then use <b>Fix &amp; Resubmit in form</b>. Admins can use <b>Edit in form</b>."},
-    {k:"sign approve link send forward next approver", a:"After you submit (PIN Sign or PDF Sign) you get <b>one link</b> that works for every step. Send it to the Team Manager first; after each signature it opens on the next person's turn, so keep forwarding the same link."},
-    {k:"lost link regenerate new link old link", a:"Open the requisition and press <b>Regenerate link</b>. The old link stops working straight away, so the app asks you to confirm twice."},
+    {k:"withdraw cancel stop requisition remove", go:["Open your requisitions","dashboard.html"], a:"Open the requisition (click it on the dashboard) and press <b>Withdraw</b>. The requester or an admin can do this until it has been <b>Purchased</b>. You will be asked to confirm twice."},
+    {k:"declined rejected fix resubmit revise edit again", go:["Your requisitions (use Needs action)","dashboard.html"], a:"A declined requisition shows the reason on the dashboard. Open it and press <b>Fix &amp; Resubmit in form</b>, change what was flagged and resubmit. Approval restarts from the Team Manager."},
+    {k:"edit change modify submitted after", go:["Your requisitions","dashboard.html"], a:"A submitted requisition can't be edited by the requester unless it is declined. Ask an approver to decline it with a reason, then use <b>Fix &amp; Resubmit in form</b>. Admins can use <b>Edit in form</b>."},
+    {k:"sign approve link send forward next approver", go:["Your requisitions","dashboard.html"], a:"After you submit (PIN Sign or PDF Sign) you get <b>one link</b> that works for every step. Send it to the Team Manager first; after each signature it opens on the next person's turn, so keep forwarding the same link."},
+    {k:"lost link regenerate new link old link", go:["Your requisitions","dashboard.html"], a:"Open the requisition and press <b>Regenerate link</b>. The old link stops working straight away, so the app asks you to confirm twice."},
     {k:"pin sign pdf sign difference which", a:"<b>PIN Sign</b>: each approver types their PIN. <b>PDF Sign</b>: each approver draws their signature on the PDF form. Both save the requisition in the system and both give one link."},
-    {k:"forgot pin reset password", a:"PINs can't be looked up. Ask an admin to delete your account in <b>Admin Settings</b> and sign you up again with a new PIN. You keep your name on past requisitions."},
+    {k:"forgot pin reset password", go:["Read more in the Manual","manual.html#faq"], a:"PINs can't be looked up. Ask an admin to delete your account in <b>Admin Settings</b> and sign you up again with a new PIN. You keep your name on past requisitions."},
     {k:"change pin profile account email", a:"Click your name at the top right, then <b>My Profile</b> (details) or <b>Change PIN</b>."},
     {k:"project add save new list shared", a:"Anyone can add a project: use the <b>Projects</b> page, or press <b>Save this project for everyone</b> under PM Incharge on the form. Admins can edit or archive projects."},
     {k:"item history bought before price supplier purchase history cheapest", a:"Open <b>Purchase History</b> to search what we bought, from which supplier and at what price. On the form, click the Item box to pick a past item and its price fills in."},
     {k:"currency convert exchange rate foreign usd", a:"On the form press <b>Currency converter</b> above the materials table. It fetches a live rate; if it can't, type a rate yourself."},
     {k:"draft save later unfinished", a:"Press <b>Save Draft</b> on the form. Open your drafts with <b>My Drafts</b> from any device."},
-    {k:"export pdf csv print download", a:"Open the requisition's full form, then use <b>Print</b> or <b>Export PDF</b>. The form page also has Export PDF and Export CSV."},
-    {k:"cards list layout view change dashboard group", a:"On the dashboard use the <b>List / Cards</b> buttons. In List you can group by status, stage, project, requester or month. In Cards, click a stage title to fold the column."},
+    {k:"export pdf csv print download", go:["Open the form","index.html"], a:"Open the requisition's full form, then use <b>Print</b> or <b>Export PDF</b>. The form page also has Export PDF and Export CSV."},
+    {k:"cards list layout view change dashboard group", go:["Open the dashboard","dashboard.html"], a:"On the dashboard use the <b>List / Cards</b> buttons. In List you can group by status, stage, project, requester or month. In Cards, click a stage title to fold the column."},
     {k:"reminder overdue notification email remind", a:"Click your name, then <b>Reminder Settings</b> to set how long a stage may sit before it is flagged as overdue."},
-    {k:"admin become make access", a:"An existing admin can grant admin access in <b>Admin Settings</b>. There must always be at least one admin."},
-    {k:"stages stage workflow flow order approval process", a:"Every requisition goes <b>Submitted → Manager Approved → Procurement Approved → Purchased → Received</b>. It can also end as Declined or Withdrawn."},
-    {k:"reject delete admin", a:"Admins can open a requisition and press <b>Reject</b> (with a reason; the requester can fix and resubmit), <b>Withdraw</b>, or <b>Delete</b> (permanent). Each asks you to confirm twice."},
+    {k:"admin become make access", go:["Read more in the Manual","manual.html#admin"], a:"An existing admin can grant admin access in <b>Admin Settings</b>. There must always be at least one admin."},
+    {k:"stages stage workflow flow order approval process", go:["Read how it works in the Manual","manual.html#workflow"], a:"Every requisition goes <b>Submitted → Manager Approved → Procurement Approved → Purchased → Received</b>. It can also end as Declined or Withdrawn."},
+    {k:"reject delete admin", go:["Your requisitions","dashboard.html"], a:"Admins can open a requisition and press <b>Reject</b> (with a reason; the requester can fix and resubmit), <b>Withdraw</b>, or <b>Delete</b> (permanent). Each asks you to confirm twice."},
     {k:"analytics chart spending report", a:"Open <b>Analytics</b> for spending, approval speed and price insights. You see your own requisitions; admins see everyone's."},
     {k:"duplicate copy requisition again similar new form", a:"On the form press <b>Duplicate</b> to start a fresh, unsaved copy with everything filled in. To buy something again, open <b>Purchase History</b>, tick the item and press <b>Add to a new requisition</b>."},
     {k:"combine separate same item merge names aliases similar", a:"In <b>Purchase History</b>, tick the items that are really the same and press <b>Combine as one item</b> (everyone then sees them as one). Use <b>Possible duplicates</b> to find look-alikes; you can separate them again."},
-    {k:"locked attempts wrong pin too many", a:"After 5 wrong PIN attempts on a signing link, that step is locked for 15 minutes. Wait and try again with the right PIN. If you forgot it, ask an admin."},
-    {k:"share email send form pdf", a:"On the form press <b>Share</b> to send the PDF through your device's share menu, or <b>Export PDF</b> to download it."},
-    {k:"search find filter requisition dashboard stage", a:"On the dashboard use the search box (REQ number, project or requester), the stage boxes, the <b>All stages</b> filter or the <b>Needs action</b> button."},
-    {k:"hover preview point mouse", a:"Rest your mouse on a row or card to preview its items and who has signed. Click it to open the full form."},
-    {k:"date format ddmmyyyy dd/mm/yyyy", a:"Dates are shown and typed as dd/mm/yyyy, for example 25/08/2026."},
-    {k:"chinese csv excel garbled characters", a:"Export CSV opens correctly in Excel with Chinese text. If you still see odd characters, open it from Excel with <b>Data → From Text/CSV</b> and choose UTF-8."},
+    {k:"locked attempts wrong pin too many", go:["Read more in the Manual","manual.html#faq"], a:"After 5 wrong PIN attempts on a signing link, that step is locked for 15 minutes. Wait and try again with the right PIN. If you forgot it, ask an admin."},
+    {k:"share email send form pdf", go:["Open the form","index.html"], a:"On the form press <b>Share</b> to send the PDF through your device's share menu, or <b>Export PDF</b> to download it."},
+    {k:"search find filter requisition dashboard stage", go:["Open the dashboard","dashboard.html"], a:"On the dashboard use the search box (REQ number, project or requester), the stage boxes, the <b>All stages</b> filter or the <b>Needs action</b> button."},
+    {k:"hover preview point mouse", go:["Open the dashboard","dashboard.html"], a:"Rest your mouse on a row or card to preview its items and who has signed. Click it to open the full form."},
+    {k:"date format ddmmyyyy dd/mm/yyyy", go:["Open the form","index.html"], a:"Dates are shown and typed as dd/mm/yyyy, for example 25/08/2026."},
+    {k:"chinese csv excel garbled characters", go:["Read more in the Manual","manual.html#faq"], a:"Export CSV opens correctly in Excel with Chinese text. If you still see odd characters, open it from Excel with <b>Data → From Text/CSV</b> and choose UTF-8."},
     {k:"people add person delete user admin settings account", a:"Admins open <b>Admin Settings</b> to add a person, delete an account, or make or remove an admin. There must always be one admin."},
     {k:"project archive edit import excel admin", a:"Admins can edit or archive a project on the <b>Projects</b> page, or paste a whole list with <b>Import from Excel</b>. Archiving hides it from the form without deleting it."},
-    {k:"supply date meaning required", a:"The supply date is when the materials are needed on site. It is filled in on the form and shown on the requisition."},
+    {k:"supply date meaning required", go:["Open the form","index.html"], a:"The supply date is when the materials are needed on site. It is filled in on the form and shown on the requisition."},
     {k:"version update new what's whatsnew", a:"The version is shown under <b>Log out</b> in the name menu. Click it to read what's new."}
   ];
   const STOP = new Set("the a an is are to of in on for my me i how do does can what when where why who which it this that and or with be have has was were will would should please tell show about there their your you our we many much too more some like".split(" "));
@@ -64,7 +64,7 @@
       kt.forEach(t=>{ if(qt.has(t)) sc += 2; else { for(const x of qt){ if((x.length>3 && (t.startsWith(x)||x.startsWith(t))) || (x.length>=5 && near(x,t))) { sc += 1.5; break; } } } });
       if(sc > bestScore){ bestScore = sc; best = f; }
     });
-    return bestScore >= 2 ? best.a : null;
+    return bestScore >= 2 ? linkify(best.a) + (best.go && !/<a /.test(linkify(best.a)) ? `<br><a href="${best.go[1]}">${best.go[0]} →</a>` : "") : null;
   }
 
   /* ---------------- live data (the signed-in person's own requisitions) ---------------- */
@@ -117,6 +117,13 @@
   const ALLW = [].concat(...Object.values(W), GENERIC);
   const keywordsOf = text => toks(text).filter(t=>!ALLW.some(w=>near(t,w))).map(t=>t.replace(/(es|s)$/,m=> t.length>4?"":m)).filter(t=>t.length>=3 || /[一-鿿]/.test(t));
   const supplierName = link => (w.supplierOf ? w.supplierOf(link).name : "(no link)");
+  // supplier name that opens the product page entered on the requisition (http/https only)
+  const supplierLink = url => {
+    const name = esc(supplierName(url)); let u = String(url||"").trim();
+    if(!u) return name;
+    if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) u = "https://"+u;
+    return /^https?:\/\//i.test(u) ? `<a href="${esc(u)}">${name}</a>` : name;
+  };
   const daysSince = d => { const t = Date.parse(String(d||"").slice(0,10)); return isNaN(t) ? null : Math.max(0, Math.floor((Date.now()-t)/86400000)); };
   const OPEN = r => !["Received","Declined","Withdrawn"].includes(r.status);
 
@@ -150,6 +157,12 @@
     {w:["manual","faq","help","guide"], t:"Manual &amp; FAQ", h:"manual.html", d:"step-by-step help"}
   ];
 
+  // turns the bold button/page names in help text into links to the right page
+  const GO = {"Purchase History":"items.html","Possible duplicates":"items.html","Combine as one item":"items.html","Add to a new requisition":"items.html",
+    "Projects":"projects.html","Analytics":"analytics.html","Admin Settings":"admin.html","Import from Excel":"projects.html",
+    "Reminder Settings":"dashboard.html?open=reminders","My Profile":"dashboard.html?open=profile","Change PIN":"dashboard.html?open=pin",
+    "Save Draft":"index.html","My Drafts":"index.html","Duplicate":"index.html","Currency converter":"index.html","Save this project for everyone":"index.html","Export PDF":"index.html","Export CSV":"index.html","Share":"index.html","PIN Sign":"index.html","PDF Sign":"index.html"};
+  const linkify = html => html.replace(/<b>([^<]+)<\/b>/g,(all,t)=>{ const h = GO[t.replace(/&amp;/g,"&")]; return h ? `<a href="${h}"><b>${t}</b></a>` : all; });
   async function rules(q, client){
     const text = q.trim(), low = text.toLowerCase();
     const isHow = /^(how|what happens|can i|can we|where do|where can|why can|is it possible|who can|what is|what are)\b/.test(low);
@@ -166,7 +179,7 @@
       if(!r) return `I can't find REQ-${String(n).padStart(5,"0")} among the requisitions you can see.`;
       if(hasWord(low,W.items) && !hasWord(low,W.who)){
         const its = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-        return `${link(r)} has ${its.length} item${its.length===1?"":"s"}:<br>` + its.slice(0,8).map(i=>`• ${esc(i.name||"-")} — ${i.qty} × ${money(i.unit_price)}${i.link?" ("+esc(supplierName(i.link))+")":""}`).join("<br>") + (its.length>8?`<br>…and ${its.length-8} more.`:"") + `<br>Total ${money(r.grand_total)}.`;
+        return `${link(r)} has ${its.length} item${its.length===1?"":"s"}:<br>` + its.slice(0,8).map(i=>`• ${esc(i.name||"-")} — ${i.qty} × ${money(i.unit_price)}${i.link?" ("+supplierLink(i.link)+")":""}`).join("<br>") + (its.length>8?`<br>…and ${its.length-8} more.`:"") + `<br>Total ${money(r.grand_total)}.`;
       }
       if(hasWord(low,W.who)) return chain(r);
       if(hasWord(low,W.arrive)) return arrivalLine(r);
@@ -201,9 +214,9 @@
         if(!kw.length) return "Which item? For example “which supplier for screws?” or “how much did we pay for cable?”. <a href=\"items.html\">Purchase History</a> also searches everything we bought.";
         const hits = itemHits(reqs, kw).filter(h=>!["Declined","Withdrawn"].includes(h.r.status)).sort((a,b)=>String(b.r.form_date).localeCompare(String(a.r.form_date)));
         if(!hits.length) return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see. Try <a href="items.html">Purchase History</a>.`;
-        const lines = hits.slice(0,5).map(h=>`• ${esc(h.it.name)} — <b>${esc(supplierName(h.it.link))}</b>, ${money(h.it.unit_price)} each, ${dmy(h.r.form_date)} (${link(h.r)}, ${esc(h.r.status)})`).join("<br>");
+        const lines = hits.slice(0,5).map(h=>`• ${esc(h.it.name)} — <b>${supplierLink(h.it.link)}</b>, ${money(h.it.unit_price)} each, ${dmy(h.r.form_date)} (${link(h.r)}, ${esc(h.r.status)})`).join("<br>");
         const priced = hits.filter(h=>Number(h.it.unit_price)>0).sort((a,b)=>a.it.unit_price-b.it.unit_price)[0];
-        return `Found ${hits.length} purchase${hits.length>1?"s":""}:<br>${lines}` + (priced && hits.length>1 ? `<br>Cheapest so far: ${money(priced.it.unit_price)} at ${esc(supplierName(priced.it.link))}.` : "") + (hits.some(h=>!h.it.link) ? "<br>“(no link)” means no product link was entered, so the supplier is unknown." : "");
+        return `Found ${hits.length} purchase${hits.length>1?"s":""}:<br>${lines}` + (priced && hits.length>1 ? `<br>Cheapest so far: ${money(priced.it.unit_price)} at ${supplierLink(priced.it.link)}.` : "") + (hits.some(h=>!h.it.link) ? "<br>“(no link)” means no product link was entered, so the supplier is unknown." : "");
       }
 
       // who signed / who is next (by keyword)
@@ -269,6 +282,12 @@
   }
   const OPEN_NOT_PURCHASED = r => ["Submitted","Manager Approved","Procurement Approved"].includes(r.status);
 
+  // REQ numbers in an AI answer become links when we know that requisition
+  const linkReqs = html => html.replace(/REQ-0*(\d{1,6})/g,(all,n)=>{
+    const r = cache.data && (cache.data.requisitions||[]).find(x=>parseInt(String(x.tracking_no||"").replace(/\D/g,""),10)===parseInt(n,10));
+    return r ? `<a href="view.html?id=${esc(r.id)}">${all}</a>` : all;
+  });
+
   /* ---------------- AI fallback ---------------- */
   async function askAI(q, client){
     const id = ss.get("sl_person_id"), pin = ss.get("sl_pin");
@@ -324,7 +343,8 @@
       <form class="as-form" id="asForm"><input id="asIn" maxlength="300" autocomplete="off" placeholder="e.g. where is REQ-00031?"><button type="submit" id="asGo">Send</button></form>`;
     document.body.appendChild(fab); document.body.appendChild(panel);
     const log = panel.querySelector("#asLog"), input = panel.querySelector("#asIn"), go = panel.querySelector("#asGo");
-    const add = (html, who, tag)=>{ const d=document.createElement("div"); d.className="as-m "+who; d.innerHTML = html + (tag?`<span class="as-tag">${esc(tag)}</span>`:""); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
+    const tab = h=>String(h).replace(/<a href=/g,'<a target="_blank" rel="noopener" href=');
+    const add = (html, who, tag)=>{ const d=document.createElement("div"); d.className="as-m "+who; d.innerHTML = tab(html) + (tag?`<span class="as-tag">${esc(tag)}</span>`:""); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
     let started = false;
     const open = ()=>{
       panel.classList.add("open"); fab.style.display="none";
@@ -346,8 +366,8 @@
       const wait = add("…", "bot");
       try{
         let ans = await rules(q, client);
-        if(ans){ wait.innerHTML = ans; }
-        else { wait.innerHTML = "Let me think…"; const r = await askAI(q, client); wait.innerHTML = r.text + (r.ai?`<span class="as-tag">AI answer — double-check important details${typeof r.left==="number"?" · "+r.left+" AI questions left today":""}</span>`:""); }
+        if(ans){ wait.innerHTML = tab(ans); }
+        else { wait.innerHTML = "Let me think…"; const r = await askAI(q, client); wait.innerHTML = tab(r.ai ? linkReqs(r.text) : r.text) + (r.ai?`<span class="as-tag">AI answer — double-check important details${typeof r.left==="number"?" · "+r.left+" AI questions left today":""}</span>`:""); }
       }catch(_){ wait.innerHTML = "Sorry, something went wrong. Please try again."; }
       go.disabled = false; log.scrollTop = log.scrollHeight; input.focus();
     }
