@@ -17,3 +17,7 @@ revoke all on public.requisitions, public.requisition_items, public.approval_ste
 -- 4) TO RUN AFTER the email sign-in release is live: stop publishing the list of names.
 -- revoke select on public.people_public from anon, authenticated;
 -- drop view public.people_public;
+
+-- 5) Email is required, unique and locked for users (ALREADY APPLIED): people_email_required check + unique index on lower(email);
+--    update_my_profile no longer changes the email; update_my_name (users can rename themselves; signed history keeps the old name);
+--    admin_set_person_email (admins can correct someone's sign-in email).

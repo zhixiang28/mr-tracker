@@ -324,15 +324,15 @@
 
     <form class="acct-pane" id="paneProfile" role="tabpanel" aria-labelledby="tabProfile" onsubmit="saveProfile(); return false;" novalidate>
       <label for="profileNameDisplay">Name</label>
-      <input id="profileNameDisplay" readonly>
-      <div class="fieldnote">Your name is set when you register. Ask an admin if it needs to change.</div>
+      <input id="profileNameDisplay" maxlength="80" autocomplete="name" oninput="profileDirty()">
+      <div class="fieldnote" id="profileNameNote">Shown on your requisitions and sign-offs. Signed records keep the name they were signed under.</div>
       <label for="profilePosition">Position <span class="opt">(optional)</span></label>
       <input id="profilePosition" placeholder="e.g. Site Engineer" maxlength="80" autocomplete="organization-title" oninput="profileDirty()">
       <label for="profileDepartment">Team / department <span class="opt">(optional)</span></label>
       <input id="profileDepartment" placeholder="e.g. Operations" maxlength="80" oninput="profileDirty()">
       <label for="profileEmail">Company email</label>
-      <input id="profileEmail" type="email" placeholder="you@spacelogic.com.sg" maxlength="120" autocomplete="email" oninput="profileDirty()">
-      <div class="fieldnote" id="profileEmailNote">Used to send you notifications about your requisitions.</div>
+      <input id="profileEmail" type="email" readonly maxlength="120" autocomplete="email">
+      <div class="fieldnote" id="profileEmailNote">This is your sign-in email, so it can’t be changed here. Ask an admin if it needs correcting.</div>
       <div class="acct-foot">
         <span class="acct-msg" id="profileErr" role="status" aria-live="polite"></span>
         <button type="button" onclick="closeProfileModal()">Close</button>
@@ -985,7 +985,7 @@ async function adminDelete(reqId){
 }
 
 
-let profileOrig = {position:"", department:"", email:""};
+let profileOrig = {name:"", position:"", department:""};
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function openProfileModal(tab){
@@ -994,6 +994,7 @@ async function openProfileModal(tab){
   document.getElementById("acctWho").textContent = myName || "";
   document.getElementById("acctAv").textContent = (myName||"?").trim().charAt(0).toUpperCase();
   document.getElementById("profileNameDisplay").value = myName || "";
+  profileOrig.name = myName || "";
   ["profileErr","pinChangeErr"].forEach(id=>{ const el=document.getElementById(id); el.textContent=""; el.className="acct-msg"; });
   ["pinOld","pinNew1","pinNew2"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("pinShow").checked = false; togglePinShow(false);
@@ -1002,10 +1003,10 @@ async function openProfileModal(tab){
   document.addEventListener("keydown", acctKey);
   const {data, error} = await supabaseClient.rpc("get_my_profile", {p_person_id: myId, p_pin: myPin});
   if(error || !data || !data.success){ setAcctMsg("profileErr", (data&&data.error)||"Could not load your profile.", "err"); return; }
-  profileOrig = {position:data.position||"", department:data.department||"", email:data.email||""};
+  profileOrig = {name:myName||"", position:data.position||"", department:data.department||""};
   document.getElementById("profilePosition").value = profileOrig.position;
   document.getElementById("profileDepartment").value = profileOrig.department;
-  document.getElementById("profileEmail").value = profileOrig.email;
+  document.getElementById("profileEmail").value = data.email || "";
   profileDirty();
 }
 function closeProfileModal(){
@@ -1035,28 +1036,37 @@ function setAcctMsg(id, text, kind){ const el=document.getElementById(id); el.te
 
 /* ---- profile ---- */
 function profileDirty(){
-  const v = {position:document.getElementById("profilePosition").value.trim(), department:document.getElementById("profileDepartment").value.trim(), email:document.getElementById("profileEmail").value.trim()};
-  const changed = v.position!==profileOrig.position || v.department!==profileOrig.department || v.email!==profileOrig.email;
-  const emailOk = !v.email || EMAIL_RE.test(v.email);
-  const note = document.getElementById("profileEmailNote"), inp = document.getElementById("profileEmail");
-  inp.classList.toggle("bad", !emailOk);
-  note.textContent = emailOk ? "Used to send you notifications about your requisitions." : "That doesn't look like an email address.";
-  note.className = "fieldnote" + (emailOk ? "" : " err");
-  document.getElementById("profileSaveBtn").disabled = !(changed && emailOk);
+  const v = {name:document.getElementById("profileNameDisplay").value.trim(), position:document.getElementById("profilePosition").value.trim(), department:document.getElementById("profileDepartment").value.trim()};
+  const changed = v.name!==profileOrig.name || v.position!==profileOrig.position || v.department!==profileOrig.department;
+  const nameOk = v.name.length>=2;
+  const inp = document.getElementById("profileNameDisplay"), note = document.getElementById("profileNameNote");
+  inp.classList.toggle("bad", !nameOk);
+  note.textContent = nameOk ? "Shown on your requisitions and sign-offs. Signed records keep the name they were signed under." : "Please enter your name (at least 2 characters).";
+  note.className = "fieldnote" + (nameOk ? "" : " err");
+  document.getElementById("profileSaveBtn").disabled = !(changed && nameOk);
   if(changed) setAcctMsg("profileErr","");
 }
 async function saveProfile(){
   const btn = document.getElementById("profileSaveBtn"); if(btn.disabled) return;
+  const name = document.getElementById("profileNameDisplay").value.trim();
   const position = document.getElementById("profilePosition").value.trim();
   const department = document.getElementById("profileDepartment").value.trim();
-  const email = document.getElementById("profileEmail").value.trim();
   btn.disabled = true; btn.textContent = "Saving…";
-  const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: email});
+  const fail = (m)=>{ btn.disabled = false; btn.textContent = "Save changes"; setAcctMsg("profileErr", m||"Could not save. Please try again.", "err"); };
+  let renamed = false;
+  if(name !== profileOrig.name){
+    const {data: nd, error: ne} = await supabaseClient.rpc("update_my_name", {p_person_id: myId, p_pin: myPin, p_name: name});
+    if(ne || !nd || !nd.success){ fail((nd&&nd.error)||(ne&&ne.message)); return; }
+    renamed = true; myName = nd.name || name;
+    try{ sessionStorage.setItem("sl_person_name", myName); }catch(_){}
+  }
+  const {data, error} = await supabaseClient.rpc("update_my_profile", {p_person_id: myId, p_pin: myPin, p_position: position, p_department: department, p_email: null});
   btn.textContent = "Save changes";
   if(error || !data || !data.success){ btn.disabled = false; setAcctMsg("profileErr", (data&&data.error)||(error&&error.message)||"Could not save. Please try again.", "err"); return; }
-  profileOrig = {position, department, email};
+  profileOrig = {name: myName, position, department};
   profileDirty();
   setAcctMsg("profileErr", "Saved ✓", "ok");
+  if(renamed) setTimeout(()=>location.reload(), 700);
 }
 
 /* ---- PIN ---- */
