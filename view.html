@@ -296,6 +296,7 @@ async function deleteReq(id){
   window.location.href = "dashboard.html";
 }
 async function regenLink(stepId){
+  if(!(await AppBar.confirmTwice({"title": "Replace this signing link?", "lines": ["The link you already sent will stop working straight away.", "Anyone using the old link will see an error until you send them the new one."], "finalTitle": "Really replace the link?", "finalText": "The original link will be disabled and cannot be brought back. Only continue if the old link was lost or sent to the wrong person.", "confirmLabel": "Yes, replace the link"}))) return;
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed."); return; }
   const url = new URL("sign.html", window.location.href);

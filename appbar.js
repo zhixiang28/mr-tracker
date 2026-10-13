@@ -162,5 +162,43 @@
     try{ sessionStorage.setItem("sl_is_admin", v ? "1" : "0"); }catch(_){}
     if(state.root && state.isAdmin !== !!v){ state.isAdmin = !!v; render(); }
   }
-  w.AppBar = {mount, setAdmin};
+  /* ---- two-step confirmation for risky actions: resolves true only after both steps ---- */
+  function confirmTwice(o){
+    return new Promise(resolve=>{
+      if(!document.getElementById("cfCss")){ const st=document.createElement("style"); st.id="cfCss"; st.textContent=`
+        .cf-back{ position:fixed; inset:0; background:rgba(15,23,42,.5); display:flex; align-items:center; justify-content:center; padding:18px; z-index:1100; font-family:inherit; }
+        .cf-box{ background:#fff; color:#1f2933; border-radius:14px; max-width:440px; width:100%; padding:22px 24px; box-shadow:0 24px 60px rgba(0,0,0,.3); }
+        .cf-box h3{ margin:0 0 8px; font-size:17px; }
+        .cf-box p{ margin:0 0 6px; font-size:13.5px; line-height:1.5; color:#475569; }
+        .cf-box .cf-step{ font-size:11px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; color:#6b7280; margin-bottom:6px; }
+        .cf-box.cf-last{ border-top:4px solid #dc2626; }
+        .cf-foot{ display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+        .cf-foot button{ font:inherit; font-size:13px; font-weight:700; padding:9px 16px; border-radius:8px; border:1px solid #d7dbe0; background:#fff; color:#1f2933; cursor:pointer; }
+        .cf-foot button.go{ background:#2f6fed; border-color:#2f6fed; color:#fff; }
+        .cf-foot button.danger{ background:#dc2626; border-color:#dc2626; color:#fff; }`; document.head.appendChild(st); }
+      const back = document.createElement("div"); back.className="cf-back"; back.setAttribute("role","alertdialog"); back.setAttribute("aria-modal","true");
+      const done = v=>{ document.removeEventListener("keydown", onKey); back.remove(); resolve(v); };
+      const onKey = e=>{ if(e.key==="Escape") done(false); };
+      const step1 = ()=>{
+        back.innerHTML = `<div class="cf-box"><div class="cf-step">Step 1 of 2</div><h3>${esc(o.title)}</h3>${(o.lines||[]).map(l=>`<p>${esc(l)}</p>`).join("")}
+          <div class="cf-foot"><button type="button" data-a="no">Cancel</button><button type="button" class="go" data-a="next">Continue</button></div></div>`;
+        back.querySelector('[data-a="no"]').focus();
+      };
+      const step2 = ()=>{
+        back.innerHTML = `<div class="cf-box cf-last"><div class="cf-step">Step 2 of 2 — last check</div><h3>${esc(o.finalTitle||"Are you sure?")}</h3><p>${esc(o.finalText||"This cannot be undone.")}</p>
+          <div class="cf-foot"><button type="button" data-a="no">No, keep it</button><button type="button" class="danger" data-a="yes">${esc(o.confirmLabel||"Yes, do it")}</button></div></div>`;
+        back.querySelector('[data-a="no"]').focus();
+      };
+      back.addEventListener("click", e=>{
+        const a = e.target.getAttribute && e.target.getAttribute("data-a");
+        if(e.target===back || a==="no") done(false);
+        else if(a==="next") step2();
+        else if(a==="yes") done(true);
+      });
+      document.addEventListener("keydown", onKey);
+      step1(); document.body.appendChild(back);
+      back.querySelector('[data-a="no"]').focus();
+    });
+  }
+  w.AppBar = {mount, setAdmin, confirmTwice};
 })(window);
