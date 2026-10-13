@@ -89,6 +89,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -199,6 +200,9 @@ async function withdrawReq(id){
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to withdraw."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition withdrawn.");
+  Notify.show({tone:"info", icon:"undo", title:"Requisition withdrawn", sub:`${(currentReq&&currentReq.tracking_no)||"It"} has been stopped.`,
+    html:"<p>Nobody can sign it any more. It stays in the list as <b>Withdrawn</b>.</p>",
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
 }
 async function rejectReq(id){
   const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
@@ -208,12 +212,16 @@ async function rejectReq(id){
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition rejected.");
+  Notify.show({tone:"warn", icon:"x", title:"Requisition rejected", sub:`${(currentReq&&currentReq.tracking_no)||"It"} was sent back.`,
+    html:`<p>The requester can see your reason and can <b>fix &amp; resubmit</b>. Approval restarts from the Team Manager.</p>`,
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
 }
 async function deleteReq(id){
   if(!(await AppBar.confirmTwice(AppBar.CONFIRM.del))) return;
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
-  window.location.href = "dashboard.html";
+  Notify.show({tone:"danger", icon:"trash", title:"Requisition deleted", sub:"It has been permanently removed.",
+    primary:{label:"Back to dashboard", href:"dashboard.html"}, onClose:()=>{ window.location.href = "dashboard.html"; }});
 }
 async function regenLink(stepId){
   if(!(await AppBar.confirmTwice(AppBar.CONFIRM.regen))) return;
@@ -224,6 +232,9 @@ async function regenLink(stepId){
   try{ await navigator.clipboard.writeText(url.toString()); }catch(_){ window.prompt("New link — the old one no longer works:", url.toString()); }
   await loadRequisition(currentReq.id);
   actionsMsg("New link copied — the old one no longer works.");
+  Notify.show({tone:"success", icon:"link", title:"New link copied", sub:"The old link no longer works.",
+    html:"<p>Send the <b>new link</b> to whoever should sign next. It is already on your clipboard.</p>",
+    primary:{label:"Got it"}});
 }
 
 function signCard(step){

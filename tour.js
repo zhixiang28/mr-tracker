@@ -24,30 +24,7 @@
   .tr-nav .go{ background:#2f6fed; border-color:#2f6fed; color:#fff; } .tr-nav .go:hover{ background:#2050bd; }
   .tr-nav .skip{ border:0; background:none; color:#6b7280; font-weight:600; padding-left:0; }
 
-  .iv-back{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px; z-index:1200; font-family:inherit; }
-  .iv{ width:100%; max-width:400px; background:#fff; border-radius:22px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.35); text-align:center; animation:ivIn .3s ease; }
-  @keyframes ivIn{ from{ transform:translateY(14px) scale(.97); opacity:0; } to{ transform:none; opacity:1; } }
-  .iv-hero{ background:linear-gradient(160deg,#2f6fed 0%,#1e3a8a 100%); color:#fff; padding:26px 22px 22px; position:relative; }
-  .iv-check{ width:58px; height:58px; border-radius:50%; background:rgba(255,255,255,.16); display:flex; align-items:center; justify-content:center; margin:0 auto 10px; }
-  .iv-hero h2{ margin:0; font-size:22px; letter-spacing:-.3px; } .iv-hero .s{ opacity:.85; font-size:13px; margin-top:4px; }
-  .iv-track{ display:flex; align-items:center; justify-content:center; margin:18px auto 0; max-width:300px; }
-  .iv-track .d{ width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.3); flex:none; }
-  .iv-track .d.ok{ background:#4ade80; } .iv-track .d.now{ background:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.3); }
-  .iv-track .l{ flex:1; height:3px; background:rgba(255,255,255,.3); } .iv-track .l.ok{ background:#4ade80; }
-  .iv-lbl{ display:flex; justify-content:space-between; max-width:318px; margin:6px auto 0; font-size:10px; opacity:.8; }
-  .iv-body{ padding:18px 22px 20px; }
-  .iv-q{ font-size:15px; font-weight:800; color:#111827; }
-  .iv-tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0 16px; }
-  .iv-tile{ background:#f3f6fc; border-radius:12px; padding:12px 6px 10px; font-size:11.5px; font-weight:700; color:#1f2933; line-height:1.3; }
-  .iv-tile svg{ display:block; margin:0 auto 6px; }
-  .iv-cta{ display:block; width:100%; box-sizing:border-box; background:#2f6fed; color:#fff; text-decoration:none; font-weight:800; font-size:14.5px; padding:13px; border-radius:12px; }
-  .iv-cta:hover{ background:#2050bd; } .iv-cta:focus{ outline:3px solid #93c5fd; outline-offset:2px; }
-  .tr-nav .go:focus{ outline:3px solid #93c5fd; outline-offset:1px; }
-  .iv-small{ font-size:11.5px; color:#6b7280; margin-top:8px; }
-  .iv-foot{ display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:12px; color:#6b7280; }
-  .iv-foot label{ display:flex; gap:6px; align-items:center; cursor:pointer; }
-  .iv-foot button{ border:0; background:none; font:inherit; font-weight:700; color:#4b5563; cursor:pointer; padding:4px; }
-  @media print{ .tr-layer,.iv-back{ display:none!important; } }`;
+  @media print{ .tr-layer{ display:none!important; } }`;
   function css(){ if(document.getElementById("trCss")) return; const st=document.createElement("style"); st.id="trCss"; st.textContent=CSS; document.head.appendChild(st); }
 
   /* ---------------- spotlight tour (Dashboard) ---------------- */
@@ -127,45 +104,21 @@
     draw();
   }
 
-  /* ---------------- invite after a PDF signature (no account) ---------------- */
-  const ICON = {
-    track:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h2M14.5 12h2"/></svg>',
-    form:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
-    price:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2f6fed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>'
-  };
+  /* ---------------- invite after a PDF signature (no account) — uses the shared result card in notify.js ---------------- */
   function afterSign(opts){
     opts = opts || {};
-    try{ if(sessionStorage.getItem("sl_person_id")) return; if(localStorage.getItem("sl_aftersign_hide")==="1") return; }catch(_){}
-    css();
-    if(document.getElementById("ivBack")) return;
-    const done = Math.max(1, Math.min(4, opts.signedSteps || 1));     // how many of the 4 sign-offs are done, for the little tracker
-    const dots = [0,1,2,3].map(k=>`<span class="d ${k<done?"ok":k===done?"now":""}"></span>${k<3?`<span class="l ${k<done-1?"ok":""}"></span>`:""}`).join("");
-    const back = document.createElement("div"); back.className = "iv-back"; back.id = "ivBack";
-    back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","You're signed");
-    back.innerHTML = `<div class="iv">
-      <div class="iv-hero">
-        <div class="iv-check"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-        <h2>You're signed!</h2><div class="s">Your signature is saved on this requisition.</div>
-        <div class="iv-track">${dots}</div>
-        <div class="iv-lbl"><span>Manager</span><span>Procurement</span><span>Purchase</span><span>Received</span></div>
-      </div>
-      <div class="iv-body">
-        <div class="iv-q">Want to follow it all the way?</div>
-        <div class="iv-tiles">
-          <div class="iv-tile">${ICON.track}Track every step</div>
-          <div class="iv-tile">${ICON.form}Raise requests in minutes</div>
-          <div class="iv-tile">${ICON.price}Reuse past prices</div>
-        </div>
-        <a class="iv-cta" href="login.html?signup=1&redirect=dashboard.html">Create my free account</a>
-        <div class="iv-small">Company email + 4-digit PIN · takes 1 minute</div>
-        <div class="iv-foot"><label><input type="checkbox" id="ivHide"> Don't show again</label><button type="button" data-a="later">Not now</button></div>
-      </div></div>`;
-    const close = ()=>{ try{ if(document.getElementById("ivHide").checked) localStorage.setItem("sl_aftersign_hide","1"); }catch(_){} document.removeEventListener("keydown", onKey); back.remove(); };
-    const onKey = e=>{ if(e.key==="Escape") close(); };
-    back.addEventListener("click", e=>{ const a = e.target.getAttribute && e.target.getAttribute("data-a"); if(a==="later" || e.target===back) close(); });
-    document.addEventListener("keydown", onKey);
-    document.body.appendChild(back);
-    const cta = back.querySelector(".iv-cta"); if(cta) cta.focus({preventScroll:true});
+    try{ if(sessionStorage.getItem("sl_person_id")) return; }catch(_){}
+    if(!w.Notify) return;
+    w.Notify.show({
+      tone:"success", title:"You're signed!", sub:"Your signature is saved on this requisition.",
+      track:{done: Math.max(1, Math.min(4, opts.signedSteps || 1))},
+      html:'<div style="text-align:center;font-size:15px;font-weight:800;color:#111827">Want to follow it all the way?</div>',
+      tiles:[{icon:"track",label:"Track every step"},{icon:"form",label:"Raise requests in minutes"},{icon:"price",label:"Reuse past prices"}],
+      primary:{label:"Create my free account", href:"login.html?signup=1&redirect=dashboard.html"},
+      secondary:{label:"Not now"},
+      small:"Company email + 4-digit PIN · takes 1 minute",
+      hideKey:"sl_aftersign_hide"
+    });
   }
 
   w.Tour = {start, afterSign};

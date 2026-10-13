@@ -69,6 +69,7 @@
 
   <div class="signup-panel" id="verifyPanel">
     <div class="signup-note" id="verifyNote">We've sent a 6-digit code to your email. Enter it below to finish creating your account.</div>
+    <div class="signup-note" style="background:#fffbeb;border-color:#fde68a;color:#92400e">Didn't get the email? Check your <b>junk / spam</b> folder. Still nothing? <b>Ask an admin for the code.</b></div>
     <label>Verification code</label>
     <input type="text" id="verifyCodeInput" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="off">
     <button onclick="handleVerifyCode()">Verify &amp; Create Account</button>
@@ -94,6 +95,7 @@
   <a href="manual.html#faq" style="color:#6b7280;margin:0 8px">FAQ</a>
 </div>
 
+<script src="notify.js"></script>
 <script src="emailutil.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -197,6 +199,7 @@ async function handleVerifyCode(){
   try{ localStorage.setItem("sl_tour_pending", data.id); }catch(_){}
   document.getElementById("verifyPanel").style.display="none";
   showProfileStep(data.id, pendingSignup.pin);
+  Notify.show({tone:"success", title:"Account created!", sub:`Welcome to MR Tracker, ${data.name}.`, html:"<p>Add your position and team if you like (optional) — then a 1-minute tour will show you around.</p>", primary:{label:"Continue"}});
 }
 
 async function handleResendCode(){

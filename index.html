@@ -585,6 +585,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="appbar.js"></script>
 <script src="supplier.js"></script>
 <script src="itemmatch.js"></script>
@@ -1351,7 +1352,7 @@ async function submitToDashboard(){
       if(e2) throw e2;
       if(!d2.success) throw new Error(d2.error || "Could not save the items.");
       setStatus("Changes saved.");
-      setTimeout(()=>{ window.location.href = "dashboard.html"; }, 900);
+      Notify.show({tone:"info", icon:"edit", title:"Changes saved", sub:"The requisition has been updated.", primary:{label:"Back to dashboard", href:"dashboard.html"}, onClose:()=>{ window.location.href = "dashboard.html"; }});
       return;
     }
 
@@ -1364,7 +1365,9 @@ async function submitToDashboard(){
       if(!data.success) throw new Error(data.error || "Unknown error");
 
       setStatus("Revised and resubmitted — approval restarts from the Team Manager.");
-      setTimeout(()=>{ window.location.href = "dashboard.html"; }, 1200);
+      Notify.show({tone:"success", title:"Resubmitted!", sub:"Approval starts again from the Team Manager.", track:{done:0},
+        html:"<p>The reviewers will see your changes. You can follow it on the Dashboard.</p>",
+        primary:{label:"Go to dashboard", href:"dashboard.html"}, onClose:()=>{ window.location.href = "dashboard.html"; }});
       return;
     }
 
@@ -1444,20 +1447,8 @@ async function copyESignLink(){
     link.searchParams.set("token", data.first_token);
     const copied = await copyText(link.toString());
 
-    document.getElementById("submitResultTitle").textContent = `Saved — ${data.tracking_no}`;
-    document.getElementById("submitResultBody").innerHTML = `
-      <p>${copied ? "The PDF sign link has been copied to your clipboard." : "Tap <b>Copy</b> to copy the PDF sign link."} Send it to whoever needs to sign. They open it, see the PDF form, draw their signature, and can export their own PDF.</p>
-      <div class="link-copy-box">
-        <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
-        <button type="button" onclick="copySignLink()">Copy</button>
-      </div>
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <input type="email" id="emailLinkInput" list="loginPeopleList" placeholder="Or type an email to send it instead" style="flex:1">
-        <button type="button" onclick="emailTheLink('${link.toString().replace(/'/g,"\\'")}', 'Team Manager', 'emailLinkInput', 'emailLinkStatus')">Send</button>
-      </div>
-      <div class="muted" id="emailLinkStatus" style="font-size:11.5px;margin-top:4px"></div>
-      <p class="muted" style="font-size:12px">Signing order: Team Manager → Approve → Purchase → Received. Each signature shows up on the <a href="dashboard.html" target="_blank">dashboard</a> under this tracking number. You can get this link again from the dashboard row.</p>`;
-    document.getElementById("submitResultModal").style.display="flex";
+    showLinkResult({title:"Saved!", sub:`${data.tracking_no} is saved in the tracker.`, link:link.toString(), copied, role:"Team Manager",
+      intro:"<b>Send this one link</b> to whoever needs to sign. They open it, see the PDF form, draw their signature and it is recorded here. The same link then works for every step."});
     if(currentDraftId){
       supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
     }
@@ -1488,22 +1479,22 @@ function resetFormForNext(){
 function showSubmitResult(trackingNo, firstToken){
   const link = new URL("sign.html", window.location.href);
   link.searchParams.set("token", firstToken);
-  document.getElementById("submitResultTitle").textContent = `Submitted — ${trackingNo}`;
-  document.getElementById("submitResultBody").innerHTML = `
-    <p>This requisition needs a <strong>Team Manager</strong> to approve it first.</p>
-    <div class="link-copy-box">
-      <input type="text" readonly value="${link.toString()}" id="firstSignLinkInput">
-      <button type="button" onclick="copySignLink()">Copy</button>
-    </div>
-    <p class="muted" style="font-size:12px">This one link works for every step. Send it to whoever should approve as Manager, along with: "Please open this link — you'll register or sign in, then approve or decline." Once they sign, the same link opens on the next step (Procurement Approval, then Purchase, then Received) — just forward it on.</p>
-    <div style="display:flex;gap:6px;margin-top:10px">
-      <input type="email" id="emailLinkInput" list="loginPeopleList" placeholder="Or type an email to send it instead" style="flex:1">
-      <button type="button" onclick="emailTheLink('${link.toString().replace(/'/g,"\\'")}', 'Team Manager', 'emailLinkInput', 'emailLinkStatus')">Send</button>
-    </div>
-    <div class="muted" id="emailLinkStatus" style="font-size:11.5px;margin-top:4px"></div>
-    <p class="muted" style="font-size:12px">Signing is only done through the link. The <a href="dashboard.html" target="_blank">dashboard</a> is for tracking, and you can copy the link again from any requisition there.</p>
-  `;
-  document.getElementById("submitResultModal").style.display="flex";
+  showLinkResult({title:"Request submitted!", sub:`${trackingNo} is now waiting for the Team Manager.`, link:link.toString(), copied:false, role:"Team Manager",
+    intro:"<b>Send this one link</b> to the Team Manager. It works for every step — after each signature it opens on the next person's turn."});
+}
+// Result card with the one signing link (copy / email it)
+function showLinkResult(o){
+  Notify.show({
+    tone:"success", title:o.title, sub:o.sub, track:{done:0},
+    html:`<p>${o.intro}</p>
+      <div class="link-copy-box"><input type="text" readonly value="${o.link}" id="firstSignLinkInput"><button type="button" onclick="copySignLink()">Copy</button></div>
+      <div style="display:flex;gap:6px"><input type="email" id="emailLinkInput" placeholder="Or type an email to send it instead" style="flex:1">
+        <button type="button" onclick="emailTheLink('${o.link.replace(/'/g,"\\'")}', '${o.role}', 'emailLinkInput', 'emailLinkStatus')">Send</button></div>
+      <div id="emailLinkStatus" style="font-size:11.5px;margin-top:4px;color:#6b7280"></div>`,
+    primary:{label:o.copied?"Link copied ✓ — copy again":"Copy link", onClick:(el)=>{ copySignLink().then(()=>{ el.textContent="Copied ✓"; }); return false; }},
+    secondary:{label:"Done"},
+    small:"Track it any time on the Dashboard. You can copy the link again from the requisition."
+  });
 }
 async function emailTheLink(link, roleName, inputId, statusId){
   const email = document.getElementById(inputId).value.trim();

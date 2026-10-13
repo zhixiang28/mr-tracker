@@ -76,6 +76,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -137,7 +138,9 @@ async function init(){
   renderCard(step, req, prevSteps || []);
 }
 
+let lastSteps = [];
 function renderCard(step, req, allSteps){
+  lastSteps = allSteps || [];
   const prevIncomplete = allSteps.find(s=>s.step_order < step.step_order && s.status!=="Signed");
 
   if(step.status==="Signed"){
@@ -316,6 +319,15 @@ async function doApprove(tok, isUnclaimed){
     ${justRegisteredNew ? profileCompletionHtml() : ""}
     <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
   `;
+  const doneCount = lastSteps.filter(x=>x.status==="Signed").length + 1;
+  Notify.show({
+    tone:"success", title:"Signed — thank you!", sub:`You approved ${data.stage}.`, track:{done:Math.min(4,doneCount)},
+    html: data.next_token ? `<p>Next up: <b>${escHtml(data.next_stage)}</b>. Send the <b>same link</b> to them — it opens on their turn. The link is on the page behind this card.</p>`
+                          : `<p>That was the <b>final step</b>: the requisition is now fully <b>Received</b>. Nice work!</p>`,
+    primary: data.next_token ? {label:"Copy the link", onClick:(el)=>{ try{ copyNextLink(); el.textContent="Copied ✓"; }catch(_){} return false; }} : {label:"Done"},
+    secondary: data.next_token ? {label:"Close"} : null,
+    small:"Everything you signed is tracked on the Dashboard."
+  });
 }
 function copyNextLink(){
   const inp=document.getElementById("nextLinkInput");
@@ -367,6 +379,9 @@ async function doDecline(tok, isUnclaimed){
     ${justRegisteredNew ? profileCompletionHtml() : ""}
     <div style="margin-top:16px;font-size:13px"><a href="dashboard.html" target="_blank">View full tracking dashboard →</a></div>
   `;
+  Notify.show({tone:"danger", icon:"x", title:"Declined", sub:`You declined this at ${data.stage}.`,
+    html:"<p>The requester can see your reason on their dashboard, fix the request and send it again.</p>",
+    primary:{label:"OK"}});
 }
 
 function profileCompletionHtml(){

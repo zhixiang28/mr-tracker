@@ -41,6 +41,7 @@
     {k:"people add person delete user admin settings account", a:"Admins open <b>Admin Settings</b> to add a person, delete an account, or make or remove an admin. There must always be one admin."},
     {k:"project archive edit import excel admin", a:"Admins can edit or archive a project on the <b>Projects</b> page, or paste a whole list with <b>Import from Excel</b>. Archiving hides it from the form without deleting it."},
     {k:"supply date meaning required", go:["Open the form","index.html"], a:"The supply date is when the materials are needed on site. It is filled in on the form and shown on the requisition."},
+    {k:"verification code email sign up register not receive junk spam", a:"Check your <b>junk / spam</b> folder for the 6-digit code. If it is not there, ask an admin for the code and type it in the same box."},
     {k:"tour guide tutorial new user start onboarding walkthrough", a:"Open your name menu and choose <b>Quick tour</b> for a step-by-step guide. The <b>Manual</b> in the same menu has the details."},
     {k:"email domain spacelogic type sign in login username", a:"Sign in with your company email and PIN. Just type the first part (for example alex.tan) — @spacelogic.com.sg is added for you."},
     {k:"version update new what's whatsnew", a:"The version is shown under <b>Log out</b> in the name menu. Click it to read what's new."}

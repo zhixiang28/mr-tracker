@@ -398,6 +398,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="notify.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -1101,6 +1102,7 @@ async function changeMyPin(){
   ["pinOld","pinNew1","pinNew2"].forEach(id=>{ const el=document.getElementById(id); el.value=""; el.classList.remove("bad"); });
   validatePins();
   setAcctMsg("pinChangeErr", "PIN updated ✓ Use the new one from now on.", "ok");
+  Notify.show({tone:"success", icon:"key", title:"PIN updated", sub:"Use your new PIN to sign in and to sign off.", html:"<p>Anyone holding an old signing link still needs <b>their own</b> PIN, so nothing else changes.</p>", primary:{label:"Done"}});
 }
 
 function hoursToFields(hours, inputId, unitId){
