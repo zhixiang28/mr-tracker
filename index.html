@@ -611,12 +611,7 @@ let currentRequisitionId = null; // set once this draft has been submitted to Su
 let requesterId = sessionStorage.getItem("sl_person_id");
 let requesterName = sessionStorage.getItem("sl_person_name");
 let requesterPin = sessionStorage.getItem("sl_pin");
-let requesterPeople = [];
 
-async function loadRequesterPeopleList(){
-  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
-  requesterPeople = data || [];
-}
 
 function updateLoginBar(){
   const text = document.getElementById("loginBarText") || {};
@@ -1900,7 +1895,6 @@ async function shareFile(){
 setDateField("formDate", todayISO());
 addRow();
 recalc();
-loadRequesterPeopleList();
 updateLoginBar();
 
 // Support jumping straight into drafts from a dashboard shortcut link

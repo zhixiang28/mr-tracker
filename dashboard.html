@@ -425,7 +425,6 @@ let allReqs = [];
 let openRows = new Set();
 let activeStageFilter = "";
 let myId = null, myPin = null, myName = null, iAmAdmin = false;
-let peopleForAdmin = [];
 let mySettings = null;
 
 function escapeHtml(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -449,7 +448,6 @@ async function showApp(){
   AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
   try{ const vm = localStorage.getItem("sl_view_mode"); if(vm==="cards"||vm==="list") viewMode = vm; }catch(_){}
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
-  await loadPeopleForAdmin();
   await loadMySettings();
   await loadData();
   const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
@@ -462,10 +460,6 @@ async function loadMySettings(){
   mySettings = data;
 }
 
-async function loadPeopleForAdmin(){
-  const {data} = await supabaseClient.from("people_public").select("id,name").order("name");
-  peopleForAdmin = data || [];
-}
 
 function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
   return s.status==="Pending" && idx===prevSignedUpTo && r.status!=="Declined" && r.status!=="Withdrawn";
