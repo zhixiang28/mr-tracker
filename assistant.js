@@ -61,7 +61,7 @@
   const WORDS = t => String(t||"").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff\s'-]/g," ").split(/\s+/).filter(Boolean);
   const hasWord = (low, list) => { const ws = WORDS(low); return list.some(w=>ws.some(t=>near(t,w))); };
 
-  function faqAnswer(q){
+  function faqAnswer(q, min){
     const qt = new Set(toks(q)); if(!qt.size) return null;
     let best = null, bestScore = 0;
     FAQ.forEach(f=>{
@@ -69,7 +69,7 @@
       kt.forEach(t=>{ if(qt.has(t)) sc += 2; else { for(const x of qt){ if((x.length>3 && (t.startsWith(x)||x.startsWith(t))) || (x.length>=5 && near(x,t))) { sc += 1.5; break; } } } });
       if(sc > bestScore){ bestScore = sc; best = f; }
     });
-    return bestScore >= 2 ? linkify(best.a) + (best.go && !/<a /.test(linkify(best.a)) ? `<br><a href="${best.go[1]}">${best.go[0]} →</a>` : "") : null;
+    return bestScore >= (min||2) ? linkify(best.a) + (best.go && !/<a /.test(linkify(best.a)) ? `<br><a href="${best.go[1]}">${best.go[0]} →</a>` : "") : null;
   }
 
   /* ---------------- live data (the signed-in person's own requisitions) ---------------- */
@@ -191,7 +191,18 @@
       return describe(r);
     }
 
-    if(isHow){ const f = faqAnswer(text); if(f) return f; }
+    // "what is the progress of my (latest) order?" — answer from the person's own requisitions before any how-to text
+    if(reqs && !m && hasWord(low,["progress","status","update","track","tracking","where","happening","doing","state"]) &&
+       hasWord(low,["order","orders","requisition","requisitions","request","requests","purchase","purchases","form","forms","mr"])){
+      if(!reqs.length) return "You don't have any requisitions yet. Press <b>+ New requisition</b> on the Dashboard to start one.";
+      if(hasWord(low,W.last)) return describe(reqs[0]);
+      const open = reqs.filter(OPEN), pool = open.length ? open : reqs.slice(0,3);
+      return (open.length ? `Your ${open.length} open requisition${open.length>1?"s":""}:` : "Nothing is open right now. Your latest:") + "<br>" +
+        pool.slice(0,6).map(r=>{ const n = nextStep(r); return `• ${link(r)} ${esc(r.project_name||"-")} — <b>${esc(r.status)}</b>${n&&OPEN(r)?", waiting for "+esc(n.stage_name)+(n.assigned_person_name?" ("+esc(n.assigned_person_name)+")":""):""}`; }).join("<br>") +
+        (pool.length>6?`<br>…and ${pool.length-6} more on the Dashboard.`:"") + "<br>Ask about one for details, for example “where is REQ-00031?”.";
+    }
+
+    if(isHow){ const f = faqAnswer(text, 3); if(f) return f; }
 
     // pages
     if(isAsk || /\b(page|menu|tab)\b/.test(low)){
@@ -301,8 +312,8 @@
       if(error || !data) return {text:"I couldn't reach the AI helper just now. Try rephrasing with a REQ number or a keyword, or ask an admin."};
       if(data.ok) return {text:esc(data.answer).replace(/\n/g,"<br>"), ai:true, left:data.questions_left};
       const msg = {
-        not_configured:"I couldn't find that in the system or the Manual. Try a REQ number (for example REQ-00031), a project name, or ask an admin.",
-        off:"I couldn't find that in the system or the Manual. Try a REQ number or a project name, or ask an admin.",
+        not_configured:"I didn't understand that one."+'<br><br>Things I can answer: “where is REQ-00031?”, “what needs my action?”, “progress of my latest order”, “which supplier did we use for cable?”, “did my screws arrive?”, “how do I withdraw?”. Or ask an admin.',
+        off:"I didn't understand that one."+'<br><br>Things I can answer: “where is REQ-00031?”, “what needs my action?”, “progress of my latest order”, “which supplier did we use for cable?”, “did my screws arrive?”, “how do I withdraw?”. Or ask an admin.',
         budget:"The AI helper has reached its monthly limit, so I can only answer from the built-in help and your requisitions. Try a REQ number or a project name.",
         daily:`You've used today's ${data.limit||""} AI questions. I can still answer from your requisitions and the built-in help.`,
         busy:"The AI helper is busy right now (the free service is sometimes overloaded). I can still answer from your requisitions and the built-in help — try a REQ number or a project name, or try again in a minute.",
