@@ -101,7 +101,7 @@
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
     render();
-    if(state.opts.notice !== false){ if(!maybeTour()) showNotice(); }
+    if(state.opts.notice !== false){ if(!maybeTour()) showNotice(); if(isAdminCached()) setTimeout(checkVerifications, 900); }
     if(state.opts.client && state.opts.assistant !== false){
       const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
       if(window.Assistant) boot();
@@ -185,7 +185,40 @@
 
   function setAdmin(v){
     try{ sessionStorage.setItem("sl_is_admin", v ? "1" : "0"); }catch(_){}
-    if(state.root && state.isAdmin !== !!v){ state.isAdmin = !!v; render(); }
+    if(state.root && state.isAdmin !== !!v){ state.isAdmin = !!v; render(); if(v && state.opts.notice !== false) setTimeout(checkVerifications, 900); }
+  }
+
+  /* ---- admins: people who could not get their sign-up code ask to be verified; shown when an admin signs in ---- */
+  let verifBusy = false;
+  async function checkVerifications(force){
+    if(verifBusy || !state.opts.client) return;
+    const id = sessionStorage.getItem("sl_person_id"), pin = sessionStorage.getItem("sl_pin");
+    if(!id || !pin) return;
+    verifBusy = true;
+    try{
+      const {data} = await state.opts.client.rpc("admin_list_pending_verifications", {p_admin_id:id, p_admin_pin:pin});
+      const list = (data && data.success) ? data.requests : [];
+      const key = list.map(r=>r.email).join("|");
+      if(!list.length){ if(document.getElementById("ivBack") && force) document.getElementById("ivBack").remove(); return; }
+      if(!force && sessionStorage.getItem("sl_verif_seen") === key) return;
+      try{ sessionStorage.setItem("sl_verif_seen", key); }catch(_){}
+      await loadNotify();
+      const rows = list.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #e5e7eb"><div style="flex:1;min-width:0"><b>${esc(r.name)}</b><div style="font-size:11.5px;color:#6b7280;overflow:hidden;text-overflow:ellipsis">${esc(r.email)}</div></div>
+        <button type="button" data-rv="1" data-email="${esc(r.email)}">Verify</button><button type="button" data-rv="0" data-email="${esc(r.email)}" style="color:#dc2626">Reject</button></div>`).join("");
+      const card = window.Notify.show({tone:"warn", icon:"key", title:"People waiting for verification", sub:`${list.length} sign-up${list.length>1?"s":""} could not get the email code.`,
+        html:`<p>Only verify people you know. They sign in with the email and PIN they chose.</p><div id="rvList">${rows}</div>`, primary:{label:"Close"}});
+      const box = document.getElementById("rvList");
+      if(box) box.addEventListener("click", async e=>{
+        const b = e.target.closest("[data-rv]"); if(!b) return;
+        b.disabled = true;
+        const {data:r} = await state.opts.client.rpc("admin_review_registration", {p_admin_id:id, p_admin_pin:pin, p_email:b.getAttribute("data-email"), p_approve:b.getAttribute("data-rv")==="1"});
+        if(!r || !r.success){ alert((r&&r.error)||"Could not update."); b.disabled = false; return; }
+        verifBusy = false; if(card) card.close(); sessionStorage.removeItem("sl_verif_seen"); checkVerifications(true);
+      });
+    }catch(_){} finally{ verifBusy = false; }
+  }
+  function loadNotify(){
+    return new Promise(res=>{ if(window.Notify) return res(); const sc = document.createElement("script"); sc.src = "notify.js"; sc.onload = ()=>res(); sc.onerror = ()=>res(); document.head.appendChild(sc); });
   }
   /* ---- two-step confirmation for risky actions: resolves true only after both steps ---- */
   function confirmTwice(o){

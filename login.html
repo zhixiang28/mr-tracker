@@ -69,11 +69,12 @@
 
   <div class="signup-panel" id="verifyPanel">
     <div class="signup-note" id="verifyNote">We've sent a 6-digit code to your email. Enter it below to finish creating your account.</div>
-    <div class="signup-note" style="background:#fffbeb;border-color:#fde68a;color:#92400e">Didn't get the email? Check your <b>junk / spam</b> folder. Still nothing? <b>Ask an admin for the code.</b></div>
+    <div class="signup-note" style="background:#fffbeb;border-color:#fde68a;color:#92400e">Didn't get the email? Check your <b>junk / spam</b> folder. Still nothing? Ask an admin to verify you instead.</div>
     <label>Verification code</label>
     <input type="text" id="verifyCodeInput" placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="off">
     <button onclick="handleVerifyCode()">Verify &amp; Create Account</button>
     <button class="secondary" onclick="handleResendCode()">Resend code</button>
+    <button class="secondary" id="manualBtn" onclick="handleManualVerify()" style="margin-top:8px">I didn't get it — ask an admin to verify me</button>
     <div class="msg" id="verifyMsg"></div>
   </div>
 
@@ -201,6 +202,18 @@ async function handleVerifyCode(){
   document.getElementById("verifyPanel").style.display="none";
   showProfileStep(data.id, pendingSignup.pin);
   Notify.show({tone:"success", title:"Account created!", sub:`Welcome to MR Tracker, ${data.name}.`, html:"<p>Add your position and team if you like (optional) — then a 1-minute tour will show you around.</p>", primary:{label:"Continue"}});
+}
+
+async function handleManualVerify(){
+  const msg = document.getElementById("verifyMsg");
+  if(!pendingSignup){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Session expired — please start over."; return; }
+  const {data, error} = await supabaseClient.rpc("request_manual_verification", {p_email: pendingSignup.email});
+  if(error || !data || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not send the request."; return; }
+  document.getElementById("manualBtn").style.display = "none";
+  Notify.show({tone:"info", icon:"send", title:"Request sent", sub:"An admin will verify you.",
+    html:"<p>Admins see your request the next time they sign in. Once approved, come back to this page and <b>sign in with your email and the PIN you chose</b>.</p><p>Please tell an admin you are waiting, so it is quick.</p>",
+    primary:{label:"OK"}});
+  msg.className="msg success"; msg.style.display="block"; msg.textContent="Request sent. When an admin approves it, sign in with your email and PIN.";
 }
 
 async function handleResendCode(){
