@@ -45,7 +45,7 @@
     {k:"sign pdf link account signed in pin drawn signature already have account", a:"Sign in first, then open the signing link. It asks for your PIN plus your drawn signature, so the signature is linked to your account and shows on your Dashboard. Without an account you can still sign by typing your name."},
     {k:"saved signature save draw again remember", a:"When you sign while signed in, tick <b>Save this as my signature for next time</b>. After that the signing window uses it and only asks for your PIN. Remove it under <b>My Profile</b>."},
     {k:"tour guide tutorial new user start onboarding walkthrough", a:"Open your name menu and choose <b>Quick tour</b> for a step-by-step guide. The <b>Manual</b> in the same menu has the details."},
-    {k:"email domain spacelogic type sign in login username", a:"Sign in with your company email and PIN. Just type the first part (for example alex.tan) — @spacelogic.com.sg is added for you."},
+    {k:"email domain spacelogic type sign in login username", a:"Sign in with your company email and PIN. Just type the part of your email before the @ — @spacelogic.com.sg is added for you."},
     {k:"version update new what's whatsnew", a:"The version is shown under <b>Log out</b> in the name menu. Click it to read what's new."}
   ];
   const STOP = new Set("the a an is are to of in on for my me i how do does can what when where why who which it this that and or with be have has was were will would should please tell show about there their your you our we many much too more some like".split(" "));
