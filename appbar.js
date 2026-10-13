@@ -200,5 +200,11 @@
       back.querySelector('[data-a="no"]').focus();
     });
   }
-  w.AppBar = {mount, setAdmin, confirmTwice};
+  const CONFIRM = {
+    regen:{title:"Replace this signing link?", lines:["The link you already sent will stop working straight away.","Anyone using the old link will see an error until you send them the new one."], finalTitle:"Really replace the link?", finalText:"The original link will be disabled and cannot be brought back. Only continue if the old link was lost or sent to the wrong person.", confirmLabel:"Yes, replace the link"},
+    withdraw:{title:"Withdraw this requisition?", lines:["This stops the approval chain. Nobody will be able to sign it any more.","Withdrawing is not the same as rejecting: the requester cannot fix and resubmit it."], finalTitle:"Really withdraw it?", finalText:"This cannot be undone.", confirmLabel:"Yes, withdraw it"},
+    reject:{title:"Reject this requisition?", lines:["It goes back to the requester with your reason, and the approval chain stops.","The requester can then fix it and resubmit."], finalTitle:"Really reject it?", finalText:"The requester will be told and the signing links will stop working until they resubmit.", confirmLabel:"Yes, reject it"},
+    del:{title:"Delete this requisition?", lines:["The requisition and all its items and signatures will be permanently removed.","Nobody will be able to open it again."], finalTitle:"Really delete it for good?", finalText:"This is permanent and cannot be undone. If you only want to stop it, use Withdraw instead.", confirmLabel:"Yes, delete it"}
+  };
+  w.AppBar = {mount, setAdmin, confirmTwice, CONFIRM};
 })(window);

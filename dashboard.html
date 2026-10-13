@@ -911,7 +911,7 @@ function toggleRow(id){
   render();
 }
 async function regenLink(stepId, reqId){
-  if(!(await AppBar.confirmTwice({"title": "Replace this signing link?", "lines": ["The link you already sent will stop working straight away.", "Anyone using the old link will see an error until you send them the new one."], "finalTitle": "Really replace the link?", "finalText": "The original link will be disabled and cannot be brought back. Only continue if the old link was lost or sent to the wrong person.", "confirmLabel": "Yes, replace the link"}))) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.regen))) return;
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   const box = document.getElementById("regenbox-"+stepId);
   if(error || !data.success){ box.innerHTML = `<div class="sign-error">${(data&&data.error)||(error&&error.message)||"Failed."}</div>`; return; }
@@ -960,7 +960,7 @@ function renderManageBar(r){
 
 
 async function withdrawRequisition(reqId){
-  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.withdraw))) return;
   const req = allReqs.find(x=>x.id===reqId);
   const asAdmin = iAmAdmin && !(req && req.requester_person_id===myId);
   const {data, error} = asAdmin
@@ -974,6 +974,7 @@ async function withdrawRequisition(reqId){
 async function adminReject(reqId){
   const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
   if(!reason) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.reject))) return;
   const {data, error} = await supabaseClient.rpc("admin_reject_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId, p_reason: reason});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
   await loadData();
@@ -981,7 +982,7 @@ async function adminReject(reqId){
 }
 
 async function adminDelete(reqId){
-  if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.del))) return;
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: reqId});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
   setStatus("Requisition deleted.");
