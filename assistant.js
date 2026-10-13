@@ -30,17 +30,38 @@
     {k:"stages stage workflow flow order approval process", a:"Every requisition goes <b>Submitted → Manager Approved → Procurement Approved → Purchased → Received</b>. It can also end as Declined or Withdrawn."},
     {k:"reject delete admin", a:"Admins can open a requisition and press <b>Reject</b> (with a reason; the requester can fix and resubmit), <b>Withdraw</b>, or <b>Delete</b> (permanent). Each asks you to confirm twice."},
     {k:"analytics chart spending report", a:"Open <b>Analytics</b> for spending, approval speed and price insights. You see your own requisitions; admins see everyone's."},
+    {k:"duplicate copy requisition again similar new form", a:"On the form press <b>Duplicate</b> to start a fresh, unsaved copy with everything filled in. To buy something again, open <b>Purchase History</b>, tick the item and press <b>Add to a new requisition</b>."},
+    {k:"combine separate same item merge names aliases similar", a:"In <b>Purchase History</b>, tick the items that are really the same and press <b>Combine as one item</b> (everyone then sees them as one). Use <b>Possible duplicates</b> to find look-alikes; you can separate them again."},
+    {k:"locked attempts wrong pin too many", a:"After 5 wrong PIN attempts on a signing link, that step is locked for 15 minutes. Wait and try again with the right PIN. If you forgot it, ask an admin."},
+    {k:"share email send form pdf", a:"On the form press <b>Share</b> to send the PDF through your device's share menu, or <b>Export PDF</b> to download it."},
+    {k:"search find filter requisition dashboard stage", a:"On the dashboard use the search box (REQ number, project or requester), the stage boxes, the <b>All stages</b> filter or the <b>Needs action</b> button."},
+    {k:"hover preview point mouse", a:"Rest your mouse on a row or card to preview its items and who has signed. Click it to open the full form."},
+    {k:"date format ddmmyyyy dd/mm/yyyy", a:"Dates are shown and typed as dd/mm/yyyy, for example 25/08/2026."},
+    {k:"chinese csv excel garbled characters", a:"Export CSV opens correctly in Excel with Chinese text. If you still see odd characters, open it from Excel with <b>Data → From Text/CSV</b> and choose UTF-8."},
+    {k:"people add person delete user admin settings account", a:"Admins open <b>Admin Settings</b> to add a person, delete an account, or make or remove an admin. There must always be one admin."},
+    {k:"project archive edit import excel admin", a:"Admins can edit or archive a project on the <b>Projects</b> page, or paste a whole list with <b>Import from Excel</b>. Archiving hides it from the form without deleting it."},
+    {k:"supply date meaning required", a:"The supply date is when the materials are needed on site. It is filled in on the form and shown on the requisition."},
     {k:"version update new what's whatsnew", a:"The version is shown under <b>Log out</b> in the name menu. Click it to read what's new."}
   ];
-  const STOP = new Set("the a an is are to of in on for my me i how do does can what when where why who which it this that and or with be have has was were will would should please tell show about there their your you our we".split(" "));
+  const STOP = new Set("the a an is are to of in on for my me i how do does can what when where why who which it this that and or with be have has was were will would should please tell show about there their your you our we many much too more some like".split(" "));
   const toks = s => String(s||"").toLowerCase().replace(/[^a-z0-9一-鿿\s'-]/g," ").split(/\s+/).filter(t=>t && !STOP.has(t) && (t.length>2 || /[一-鿿]/.test(t)));
+
+  function lev(a,b){
+    if(a===b) return 0; if(Math.abs(a.length-b.length)>2) return 3;
+    const dp = Array.from({length:a.length+1},(_,i)=>[i]); for(let j=1;j<=b.length;j++) dp[0][j]=j;
+    for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+    return dp[a.length][b.length];
+  }
+  const near = (t,w)=>{ if(t===w) return true; const n = Math.max(t.length,w.length); const d = n>=8 ? 2 : n>=5 ? 1 : 0; return d>0 && lev(t,w)<=d; };
+  const WORDS = t => String(t||"").toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff\s'-]/g," ").split(/\s+/).filter(Boolean);
+  const hasWord = (low, list) => { const ws = WORDS(low); return list.some(w=>ws.some(t=>near(t,w))); };
 
   function faqAnswer(q){
     const qt = new Set(toks(q)); if(!qt.size) return null;
     let best = null, bestScore = 0;
     FAQ.forEach(f=>{
       const kt = toks(f.k); let sc = 0;
-      kt.forEach(t=>{ if(qt.has(t)) sc += 2; else { for(const x of qt){ if(x.length>3 && (t.startsWith(x)||x.startsWith(t))) { sc += 1; break; } } } });
+      kt.forEach(t=>{ if(qt.has(t)) sc += 2; else { for(const x of qt){ if((x.length>3 && (t.startsWith(x)||x.startsWith(t))) || (x.length>=5 && near(x,t))) { sc += 1.5; break; } } } });
       if(sc > bestScore){ bestScore = sc; best = f; }
     });
     return bestScore >= 2 ? best.a : null;
@@ -77,44 +98,156 @@
   const listOf = (rs, max) => rs.slice(0,max||6).map(r=>`• ${link(r)} ${esc(r.project_name||"-")} — ${esc(r.status)}, ${money(r.grand_total)}`).join("<br>") + (rs.length>(max||6) ? `<br>…and ${rs.length-(max||6)} more on the dashboard.` : "");
   const byDateDesc = rs => rs.slice().sort((a,b)=>String(b.form_date||"").localeCompare(String(a.form_date||"")) || String(b.tracking_no).localeCompare(String(a.tracking_no)));
 
+  /* ---------------- intent words (typo-tolerant) ---------------- */
+  const W = {
+    arrive:["arrive","arrived","arrival","delivered","delivery","deliver","received","receive","shipped","shipping","reached","come","came","coming"],
+    supplier:["supplier","vendor","seller","shop","store","bought","buy","buying","purchased","purchase"],
+    price:["price","prices","cost","costs","paid","pay","cheapest","cheap","expensive"],
+    who:["who","signed","signs","approved","approve","approver","approval","next","sign"],
+    items:["items","item","materials","material","inside","contain","contains"],
+    overdue:["overdue","stuck","slow","delay","delayed","oldest","longest","late"],
+    need:["need","needs","waiting","wait","pending","action","turn"],
+    decl:["declined","decline","rejected","reject"],
+    sum:["summary","overview","breakdown","count","many"],
+    spend:["spent","spend","total","worth","much"],
+    last:["latest","recent","last","newest"],
+    projects:["project","projects"]
+  };
+  const GENERIC = ["status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
+  const ALLW = [].concat(...Object.values(W), GENERIC);
+  const keywordsOf = text => toks(text).filter(t=>!ALLW.some(w=>near(t,w))).map(t=>t.replace(/(es|s)$/,m=> t.length>4?"":m)).filter(t=>t.length>=3 || /[一-鿿]/.test(t));
+  const supplierName = link => (w.supplierOf ? w.supplierOf(link).name : "(no link)");
+  const daysSince = d => { const t = Date.parse(String(d||"").slice(0,10)); return isNaN(t) ? null : Math.max(0, Math.floor((Date.now()-t)/86400000)); };
+  const OPEN = r => !["Received","Declined","Withdrawn"].includes(r.status);
+
+  // every line item (with its requisition) whose name/description contains all the keywords
+  function itemHits(reqs, kw){
+    const out = [];
+    reqs.forEach(r=>(r.requisition_items||[]).forEach(it=>{
+      const hay = (String(it.name||"")+" "+String(it.description||"")).toLowerCase();
+      if(kw.every(k=>hay.includes(k))) out.push({r, it});
+    }));
+    return out;
+  }
+  const arrivalLine = r=>{
+    const n = nextStep(r), who = n && n.assigned_person_name ? " ("+esc(n.assigned_person_name)+")" : "";
+    if(r.status==="Received") { const st = stepsOf(r).find(x=>x.step_order===4 && x.signed_at); return `<b>Yes</b> — ${link(r)} is marked <b>Received</b>${st?" on "+dmy(st.signed_at):""}.`; }
+    if(r.status==="Purchased") return `<b>Ordered, not marked received yet</b> — ${link(r)} is <b>Purchased</b>; waiting for ${n?esc(n.stage_name)+who:"someone"} to mark it received.`;
+    if(r.status==="Declined") return `<b>No</b> — ${link(r)} was declined, so nothing was ordered.`;
+    if(r.status==="Withdrawn") return `<b>No</b> — ${link(r)} was withdrawn.`;
+    return `<b>Not yet</b> — ${link(r)} is still <b>${esc(r.status)}</b>, not purchased. Waiting for ${n?esc(n.stage_name)+who:"approval"}.`;
+  };
+  const chain = r => `${link(r)} — ${esc(r.project_name||"-")}<br>` + stepsOf(r).map(s=>{
+    const mark = s.status==="Signed" ? "✓" : s.status==="Declined" ? "✕" : "○";
+    return `${mark} ${esc(s.stage_name)}: ${esc(s.assigned_person_name||"not assigned")}${s.signed_at?" — signed "+dmy(s.signed_at):s.status==="Declined"?" — declined":""}`;
+  }).join("<br>");
+  const PAGES = [
+    {w:["analytics","chart","charts","graph","graphs"], t:"Analytics", h:"analytics.html", d:"spending, approval speed and price insights"},
+    {w:["history","purchased"], t:"Purchase History", h:"items.html", d:"what we bought, supplier, price and date"},
+    {w:["projects","project"], t:"Projects", h:"projects.html", d:"the shared project list (anyone can add)"},
+    {w:["dashboard","home"], t:"Dashboard", h:"dashboard.html", d:"all your requisitions"},
+    {w:["admin","settings"], t:"Admin Settings", h:"admin.html", d:"people and admin access (admins only)"},
+    {w:["manual","faq","help","guide"], t:"Manual &amp; FAQ", h:"manual.html", d:"step-by-step help"}
+  ];
+
   async function rules(q, client){
     const text = q.trim(), low = text.toLowerCase();
     const isHow = /^(how|what happens|can i|can we|where do|where can|why can|is it possible|who can|what is|what are)\b/.test(low);
+    const isAsk = hasWord(low,["where","open","go","show","link","find"]) && /\b(page|link|open|go to|where (is|are|do i find|can i find))\b/.test(low);
 
-    // a REQ number
     const m = low.match(/req[-\s#]*0*(\d{1,6})/) || low.match(/(?:number|no\.?|#)\s*0*(\d{1,6})\b/);
     const data = await loadReqs(client);
     const reqs = data ? byDateDesc(data.requisitions||[]) : null;
+
+    // a REQ number: items / sign-off chain / arrival / full summary
     if(m && reqs){
       const n = parseInt(m[1],10);
       const r = reqs.find(x=>parseInt(String(x.tracking_no||"").replace(/\D/g,""),10)===n);
-      return r ? describe(r) : `I can't find REQ-${String(n).padStart(5,"0")} among the requisitions you can see.`;
+      if(!r) return `I can't find REQ-${String(n).padStart(5,"0")} among the requisitions you can see.`;
+      if(hasWord(low,W.items) && !hasWord(low,W.who)){
+        const its = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+        return `${link(r)} has ${its.length} item${its.length===1?"":"s"}:<br>` + its.slice(0,8).map(i=>`• ${esc(i.name||"-")} — ${i.qty} × ${money(i.unit_price)}${i.link?" ("+esc(supplierName(i.link))+")":""}`).join("<br>") + (its.length>8?`<br>…and ${its.length-8} more.`:"") + `<br>Total ${money(r.grand_total)}.`;
+      }
+      if(hasWord(low,W.who)) return chain(r);
+      if(hasWord(low,W.arrive)) return arrivalLine(r);
+      return describe(r);
     }
 
     if(isHow){ const f = faqAnswer(text); if(f) return f; }
 
+    // pages
+    if(isAsk || /\b(page|menu|tab)\b/.test(low)){
+      const pg = PAGES.find(p=>p.w.some(x=>WORDS(low).some(t=>near(t,x))));
+      if(pg && !(pg.h==="admin.html" && reqs && data && !data.is_admin)) return `<a href="${pg.h}"><b>${pg.t}</b></a> — ${pg.d}. It is in the menu at the top of every page.`;
+    }
+
     if(reqs){
       const me = (ss.get("sl_person_name")||"").toLowerCase();
-      if(/(need|needs|waiting|wait|pending|action|to sign|my turn|on me|for me)/.test(low) && /(me|my|i |sign|action|need)/.test(low) && !/declin|reject/.test(low)){
+      const kw = keywordsOf(text);
+
+      // arrived / delivered?
+      if(hasWord(low,W.arrive)){
+        if(kw.length){
+          const hits = itemHits(reqs, kw), rs = [...new Map(hits.map(h=>[h.r.id,h.r])).values()];
+          if(rs.length) return rs.slice(0,4).map(arrivalLine).join("<br>") + (rs.length>4?`<br>…and ${rs.length-4} more.`:"");
+          return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see. Try <a href="items.html">Purchase History</a>, or give me the REQ number.`;
+        }
+        const ordered = reqs.filter(r=>r.status==="Purchased"), got = reqs.filter(r=>r.status==="Received").slice(0,3);
+        return (ordered.length ? `Purchased and waiting to be marked received:<br>${listOf(ordered)}` : "Nothing is waiting to be received.") + (got.length ? `<br><br>Recently received:<br>${listOf(got,3)}` : "");
+      }
+
+      // supplier / price history of an item
+      if(hasWord(low,W.supplier.concat(W.price)) || /where (did|do|can) (we|i)/.test(low)){
+        if(!kw.length) return "Which item? For example “which supplier for screws?” or “how much did we pay for cable?”. <a href=\"items.html\">Purchase History</a> also searches everything we bought.";
+        const hits = itemHits(reqs, kw).filter(h=>!["Declined","Withdrawn"].includes(h.r.status)).sort((a,b)=>String(b.r.form_date).localeCompare(String(a.r.form_date)));
+        if(!hits.length) return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see. Try <a href="items.html">Purchase History</a>.`;
+        const lines = hits.slice(0,5).map(h=>`• ${esc(h.it.name)} — <b>${esc(supplierName(h.it.link))}</b>, ${money(h.it.unit_price)} each, ${dmy(h.r.form_date)} (${link(h.r)}, ${esc(h.r.status)})`).join("<br>");
+        const priced = hits.filter(h=>Number(h.it.unit_price)>0).sort((a,b)=>a.it.unit_price-b.it.unit_price)[0];
+        return `Found ${hits.length} purchase${hits.length>1?"s":""}:<br>${lines}` + (priced && hits.length>1 ? `<br>Cheapest so far: ${money(priced.it.unit_price)} at ${esc(supplierName(priced.it.link))}.` : "") + (hits.some(h=>!h.it.link) ? "<br>“(no link)” means no product link was entered, so the supplier is unknown." : "");
+      }
+
+      // who signed / who is next (by keyword)
+      if(hasWord(low,W.who) && kw.length){
+        const rs = [...new Map(itemHits(reqs, kw).concat(reqs.filter(r=>[r.project_name,r.project_location].join(" ").toLowerCase().includes(kw[0])).map(r=>({r}))).map(h=>[h.r.id,h.r])).values()];
+        if(rs.length) return rs.slice(0,3).map(chain).join("<br><br>");
+      }
+
+      // overdue / stuck
+      if(hasWord(low,W.overdue)){
+        const o = reqs.filter(OPEN).sort((a,b)=>String(a.form_date).localeCompare(String(b.form_date)));
+        return o.length ? "Open requisitions, oldest first:<br>" + o.slice(0,5).map(r=>{ const n = nextStep(r), d = daysSince(r.form_date); return `• ${link(r)} ${esc(r.project_name||"-")} — ${esc(r.status)}${d!=null?", "+d+" days old":""}${n?", waiting for "+esc(n.assigned_person_name||n.stage_name):""}`; }).join("<br>") : "Nothing is open right now.";
+      }
+
+      if(hasWord(low,W.need) && /(me|my|i |sign|action|need)/.test(low) && !hasWord(low,W.decl)){
         const mine = reqs.filter(r=>{
           if(["Declined","Withdrawn","Received"].includes(r.status)) return r.status==="Declined" && r.requester_person_id===ss.get("sl_person_id");
           const n = nextStep(r); return n && (n.assigned_person_name||"").toLowerCase()===me;
         });
         return mine.length ? `These need your attention:<br>${listOf(mine)}` : "Nothing is waiting on you right now.";
       }
-      if(/declin|reject/.test(low) && !isHow){
+      if(hasWord(low,W.decl) && !isHow){
         const d = reqs.filter(r=>r.status==="Declined");
         return d.length ? `Declined requisitions:<br>${d.slice(0,6).map(r=>`• ${link(r)} ${esc(r.project_name||"-")} — “${esc(r.decline_reason||"no reason given")}”`).join("<br>")}<br>Open one and press <b>Fix &amp; Resubmit in form</b>.` : "You have no declined requisitions.";
       }
-      if(/(summary|overview|how many|count|breakdown|status of (all|my|everything))/.test(low)){
+      if(hasWord(low,W.projects) && /(how many|which|list|my projects|all projects)/.test(low) && !kw.length){
+        const c = new Map(); reqs.forEach(r=>c.set(r.project_name||"(none)",(c.get(r.project_name||"(none)")||0)+1));
+        return `Your requisitions cover ${c.size} project${c.size===1?"":"s"}:<br>` + [...c.entries()].slice(0,8).map(([k,v])=>`• ${esc(k)} (${v})`).join("<br>") + `<br>The shared list is on the <a href="projects.html">Projects</a> page.`;
+      }
+      if(hasWord(low,W.sum) || /status of (all|my|everything)/.test(low)){
         const c = {}; reqs.forEach(r=>c[r.status]=(c[r.status]||0)+1);
         return `You can see <b>${reqs.length}</b> requisitions:<br>` + Object.keys(c).map(k=>`• ${esc(k)}: ${c[k]}`).join("<br>");
       }
-      if(/(spent|spend|total (cost|amount|value)|how much|worth)/.test(low)){
-        const sum = f => reqs.filter(f).reduce((a,r)=>a+Number(r.grand_total||0),0);
-        return `Purchased or received: <b>${money(sum(r=>["Purchased","Received"].includes(r.status)))}</b><br>Still in approval: ${money(sum(r=>["Submitted","Manager Approved","Procurement Approved"].includes(r.status)))}<br>Declined or withdrawn: ${money(sum(r=>["Declined","Withdrawn"].includes(r.status)))}`;
+      if(hasWord(low,W.spend) && !kw.length){
+        let pool = reqs, label = "";
+        const now = new Date(), ym = d=>String(d||"").slice(0,7);
+        const thisM = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+        const lm = new Date(now.getFullYear(), now.getMonth()-1, 1), lastM = `${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,"0")}`;
+        if(/this month/.test(low)){ pool = reqs.filter(r=>ym(r.form_date)===thisM); label = " this month"; }
+        else if(/last month/.test(low)){ pool = reqs.filter(r=>ym(r.form_date)===lastM); label = " last month"; }
+        const sum = f => pool.filter(f).reduce((a,r)=>a+Number(r.grand_total||0),0);
+        return `Requisitions${label}: ${pool.length}<br>Purchased or received: <b>${money(sum(r=>["Purchased","Received"].includes(r.status)))}</b><br>Still in approval: ${money(sum(OPEN_NOT_PURCHASED))}<br>Declined or withdrawn: ${money(sum(r=>["Declined","Withdrawn"].includes(r.status)))}`;
       }
-      if(/(latest|recent|last|newest)/.test(low) && !isHow){
+      if(hasWord(low,W.last) && !isHow){
         return reqs.length ? `Most recent:<br>${listOf(reqs,5)}` : "There are no requisitions yet.";
       }
       // keyword search over project / location / requester / items
@@ -122,10 +255,10 @@
       if(qt.length){
         const scored = reqs.map(r=>{
           const hay = [r.project_name, r.project_location, r.request_by, r.tracking_no, ...(r.requisition_items||[]).map(i=>i.name)].join(" ").toLowerCase();
-          let sc = 0; qt.forEach(t=>{ if(hay.includes(t)) sc++; });
+          let sc = 0; (kw.length?kw:qt).forEach(t=>{ if(hay.includes(t)) sc++; });
           return {r, sc};
         }).filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc);
-        const need = Math.max(1, Math.ceil(qt.length/2));
+        const base = kw.length?kw:qt, need = Math.max(1, Math.ceil(base.length/2));
         const hits = scored.filter(x=>x.sc>=need).map(x=>x.r);
         if(hits.length === 1 && !faqAnswer(text)) return describe(hits[0]);
         if(hits.length && !faqAnswer(text)) return `I found ${hits.length} match${hits.length>1?"es":""}:<br>${listOf(hits)}`;
@@ -134,6 +267,7 @@
     const f = faqAnswer(text); if(f) return f;
     return null;
   }
+  const OPEN_NOT_PURCHASED = r => ["Submitted","Manager Approved","Procurement Approved"].includes(r.status);
 
   /* ---------------- AI fallback ---------------- */
   async function askAI(q, client){
@@ -179,6 +313,7 @@
 
   function mount(client){
     if(document.getElementById("asFab") || !client) return;
+    if(!w.supplierOf){ const sc=document.createElement("script"); sc.src="supplier.js"; document.head.appendChild(sc); }
     if(!ss.get("sl_person_id") || !ss.get("sl_pin")) return;
     const st = document.createElement("style"); st.textContent = CSS; document.head.appendChild(st);
     const fab = document.createElement("button"); fab.id="asFab"; fab.className="as-fab"; fab.type="button"; fab.textContent="Ask"; fab.title="Ask about the system or your requisitions";
