@@ -101,6 +101,11 @@
     state.isAdmin = isAdminCached();
     render();
     if(state.opts.notice !== false) showNotice();
+    if(state.opts.client && state.opts.assistant !== false){
+      const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
+      if(window.Assistant) boot();
+      else { const sc = document.createElement("script"); sc.src = "assistant.js"; sc.onload = boot; document.head.appendChild(sc); }
+    }
     state.root.addEventListener("click", e=>{
       const t = e.target.closest("[data-act]"); if(!t) return;
       const act = t.getAttribute("data-act"), o = state.opts;
@@ -121,13 +126,15 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.12";
-  const NOTICE_ID = "upgrade-2026-10d";
+  const VERSION = "2026.10.13";
+  const NOTICE_ID = "upgrade-2026-10e";
   const NOTICE = [
+    ["Ask MR Tracker (new)", "Press the blue Ask button at the bottom right. Ask where a requisition is (for example “where is REQ-00031?”), what needs your signature, or how to do something. It answers from your requisitions and the Manual first, and uses a small AI helper only when it has to, with strict daily limits."],
+    ["Safer buttons", "Regenerate link, Reject, Withdraw and Delete now each ask you to confirm twice, so the original link or requisition can’t be lost by an accidental click."],
     ["Dashboard: List or Cards", "Switch the layout at the top of the list. Cards puts the requisitions in one column per stage, in the same order as the stage boxes. Click a column title to fold it away."],
     ["Point to see more, click to open", "Rest your mouse on any row or card to preview the items and who has signed. Click it to open the full form."],
     ["See why it was declined", "The reason and who declined it now show right on the list and cards. If it is yours, press “Fix & Resubmit in form”."],
-    ["Safer buttons", "Reject now sits next to Edit, while Withdraw and Delete are kept apart on the other side, so a delete is harder to click by mistake."],
+    ["Reject, Withdraw and Delete kept apart", "Reject sits next to Edit; Withdraw and Delete are on the other side so a delete is harder to click by mistake."],
     ["Projects: everyone can add", "The Projects page is open to everyone. You can also press “Save this project for everyone” on the form when your project is not in the list yet. Admins can edit or archive projects."],
     ["Pick items you've bought before", "Click the Item box on the form to choose from past purchases. The price and link are filled in, and Purchase History shows what we paid and to whom."],
     ["One link to sign", "PIN Sign and PDF Sign each give one link that works for every step. With PDF Sign, people draw their signature on the PDF form."],
