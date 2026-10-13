@@ -35,6 +35,7 @@
   .signup-shortcut a{ color:var(--accent); font-weight:700; cursor:pointer; text-decoration:none; }
   .signup-shortcut a:hover{ text-decoration:underline; }
 </style>
+<script src="session.js"></script>
 </head>
 <body>
 <div class="card">
@@ -47,6 +48,7 @@
     <input type="email" id="emailInput" placeholder="you@spacelogic.com.sg" autocomplete="username">
     <label>Your PIN</label>
     <input type="password" id="pinInput" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="current-password">
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:#374151;margin:14px 0 16px;cursor:pointer;font-size:13px"><input type="checkbox" id="keepIn" checked style="width:auto;margin:0"> Keep me signed in on this device</label>
     <button onclick="handleContinue()">Continue</button>
     <div class="msg" id="msg"></div>
     <div class="signup-shortcut">First time here? <a onclick="goToSignup()">Sign up →</a></div>
@@ -199,6 +201,7 @@ async function handleVerifyCode(){
   sessionStorage.setItem("sl_pin", pendingSignup.pin);
   try{ localStorage.setItem("sl_tour_pending", data.id); }catch(_){}
   await claimPending(data.id, pendingSignup.pin);
+  Session.remember(data.id, data.name, pendingSignup.pin, false);
   document.getElementById("verifyPanel").style.display="none";
   showProfileStep(data.id, pendingSignup.pin);
   Notify.show({tone:"success", title:"Account created!", sub:`Welcome to MR Tracker, ${data.name}.`, html:"<p>Add your position and team if you like (optional) — then a 1-minute tour will show you around.</p>", primary:{label:"Continue"}});
@@ -263,6 +266,7 @@ async function claimPending(id, pin){
 
 async function completeLogin(id, name, pin, isAdmin){
   await claimPending(id, pin);
+  const keep = document.getElementById("keepIn"); if(!keep || keep.checked) Session.remember(id, name, pin, isAdmin); else Session.forget();
   if(isAdmin !== undefined) sessionStorage.setItem("sl_is_admin", isAdmin ? "1" : "0");
   sessionStorage.setItem("sl_person_id", id);
   sessionStorage.setItem("sl_person_name", name);

@@ -63,6 +63,7 @@
   function isAdminCached(){ try{ return sessionStorage.getItem("sl_is_admin")==="1"; }catch(_){ return false; } }
   function logout(){
     ["sl_person_id","sl_person_name","sl_pin","sl_is_admin"].forEach(k=>{ try{ sessionStorage.removeItem(k); }catch(_){} });
+    try{ window.Session && Session.forget(); }catch(_){}
     const here = location.pathname.split("/").pop() || "dashboard.html";
     location.href = "login.html?redirect=" + encodeURIComponent(here);
   }
@@ -184,7 +185,7 @@
   }
 
   function setAdmin(v){
-    try{ sessionStorage.setItem("sl_is_admin", v ? "1" : "0"); }catch(_){}
+    try{ sessionStorage.setItem("sl_is_admin", v ? "1" : "0"); window.Session && Session.sync(); }catch(_){}
     if(state.root && state.isAdmin !== !!v){ state.isAdmin = !!v; render(); if(v && state.opts.notice !== false) setTimeout(checkVerifications, 900); }
   }
 
