@@ -169,13 +169,18 @@
 
   /* ---- quick tour: shown once to a brand-new account (flag set at sign-up), or any time from the name menu ---- */
   function runTour(){
-    const go = ()=>{ try{ window.Tour && window.Tour.start(); }catch(_){} };
+    // the tour points at Dashboard controls, so run it there
+    if(state.opts.active !== "dashboard"){ location.href = "dashboard.html?tour=1"; return; }
+    const go = ()=>{ setTimeout(()=>{ try{ window.Tour && window.Tour.start(); }catch(_){} }, 700); };
     if(window.Tour) go(); else { const sc = document.createElement("script"); sc.src = "tour.js"; sc.onload = go; document.head.appendChild(sc); }
   }
   function maybeTour(){
     try{
       const pid = sessionStorage.getItem("sl_person_id");
-      if(!pid || localStorage.getItem("sl_tour_pending") !== pid) return false;
+      if(state.opts.active === "dashboard" && new URLSearchParams(location.search).get("tour") === "1"){
+        history.replaceState(null, "", location.pathname); runTour(); return true;
+      }
+      if(!pid || state.opts.active !== "dashboard" || localStorage.getItem("sl_tour_pending") !== pid) return false;
       localStorage.removeItem("sl_tour_pending");
       localStorage.setItem("sl_notice_seen", NOTICE_ID);   // a new account doesn't need the "what's new" list
       runTour(); return true;

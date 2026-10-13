@@ -289,7 +289,7 @@ async function submitSignature(){
   try{ localStorage.setItem("esignName", name); }catch(_){}
   closeModal();
   await loadDoc();
-  if(window.Tour) Tour.afterSign();
+  if(window.Tour) Tour.afterSign({signedSteps: doc && doc.steps ? doc.steps.filter(x=>x.status==="Signed").length : 1});
 }
 
 // ---------------- PDF (follows the MRF reference layout) ----------------
