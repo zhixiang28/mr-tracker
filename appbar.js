@@ -83,6 +83,7 @@
             <button data-act="pin">Change PIN</button>
             <button data-act="reminders">Reminder Settings</button>
             <hr>
+            <button data-act="tour">Quick tour</button>
             <a href="manual.html" target="_blank" rel="noopener">Manual</a>
             <a href="manual.html#faq" target="_blank" rel="noopener">FAQ</a>
             <hr>
@@ -100,7 +101,7 @@
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
     render();
-    if(state.opts.notice !== false) showNotice();
+    if(state.opts.notice !== false){ if(!maybeTour()) showNotice(); }
     if(state.opts.client && state.opts.assistant !== false){
       const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
       if(window.Assistant) boot();
@@ -113,6 +114,7 @@
       document.getElementById("abMenu").classList.remove("open");
       if(act==="logout") logout();
       else if(act==="whatsnew") showNotice(true);
+      else if(act==="tour") runTour();
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="profile") (o.onProfile || (()=>go("dashboard.html?open=profile", o.newTab)))();
       else if(act==="pin") (o.onPin || (()=>go("dashboard.html?open=pin", o.newTab)))();
@@ -163,6 +165,21 @@
     document.addEventListener("keydown", onKey);
     document.body.appendChild(back);
     back.querySelector("#wnOk").focus({preventScroll:true});
+  }
+
+  /* ---- quick tour: shown once to a brand-new account (flag set at sign-up), or any time from the name menu ---- */
+  function runTour(){
+    const go = ()=>{ try{ window.Tour && window.Tour.start(); }catch(_){} };
+    if(window.Tour) go(); else { const sc = document.createElement("script"); sc.src = "tour.js"; sc.onload = go; document.head.appendChild(sc); }
+  }
+  function maybeTour(){
+    try{
+      const pid = sessionStorage.getItem("sl_person_id");
+      if(!pid || localStorage.getItem("sl_tour_pending") !== pid) return false;
+      localStorage.removeItem("sl_tour_pending");
+      localStorage.setItem("sl_notice_seen", NOTICE_ID);   // a new account doesn't need the "what's new" list
+      runTour(); return true;
+    }catch(_){ return false; }
   }
 
   function setAdmin(v){

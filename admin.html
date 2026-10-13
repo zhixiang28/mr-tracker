@@ -97,6 +97,7 @@
 
 <script src="dates.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="emailutil.js"></script>
 <script src="appbar.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -114,7 +115,7 @@ async function loadPeople(){
 function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 async function doClaim(){
-  const email = document.getElementById("claimEmail").value.trim();
+  const email = normEmail(document.getElementById("claimEmail").value);
   const pin = document.getElementById("claimPin").value.trim();
   const code = document.getElementById("claimCode").value.trim();
   const msg = document.getElementById("claimMsg");
@@ -135,7 +136,7 @@ async function doClaim(){
 }
 
 async function doLogin(){
-  const email = document.getElementById("loginEmail").value.trim();
+  const email = normEmail(document.getElementById("loginEmail").value);
   const pin = document.getElementById("loginPin").value.trim();
   const msg = document.getElementById("loginMsg");
   if(!email){ msg.className="msg error"; msg.textContent="Enter your company email."; return; }
@@ -195,7 +196,7 @@ function renderPeopleList(){
 async function editEmail(id, current){
   const v = window.prompt("Sign-in email for this person (must be @spacelogic.com.sg):", current || "");
   if(v === null) return;
-  const {data, error} = await supabaseClient.rpc("admin_set_person_email", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_target_id: id, p_email: v.trim()});
+  const {data, error} = await supabaseClient.rpc("admin_set_person_email", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_target_id: id, p_email: normEmail(v)});
   if(error || !data || !data.success){ alert((data&&data.error)||(error&&error.message)||"Could not change the email."); return; }
   await loadFullPeopleList();
 }
@@ -207,7 +208,7 @@ function toggleAddForm(){
 
 async function addPerson(){
   const name = document.getElementById("newPersonName").value.trim();
-  const email = document.getElementById("newPersonEmail").value.trim();
+  const email = normEmail(document.getElementById("newPersonEmail").value);
   const pin = document.getElementById("newPersonPin").value.trim();
   const position = document.getElementById("newPersonPosition").value.trim();
   const department = document.getElementById("newPersonDept").value.trim();
@@ -249,6 +250,7 @@ async function toggleRole(targetId, makeAdmin){
 }
 
 loadPeople();
+attachEmailFields(["claimEmail","loginEmail","newPersonEmail"]);
 </script>
 </body>
 </html>

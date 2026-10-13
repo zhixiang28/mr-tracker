@@ -94,6 +94,7 @@
   <a href="manual.html#faq" style="color:#6b7280;margin:0 8px">FAQ</a>
 </div>
 
+<script src="emailutil.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
@@ -119,7 +120,7 @@ const redirectTo = params.get("redirect") || "dashboard.html";
 function escHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 async function handleContinue(){
-  const email = document.getElementById("emailInput").value.trim();
+  const email = normEmail(document.getElementById("emailInput").value);
   const pin = document.getElementById("pinInput").value.trim();
   const msg = document.getElementById("msg");
   msg.style.display="none";
@@ -138,7 +139,7 @@ function goToSignup(){
   msg.style.display="none";
   document.getElementById("loginPanel").style.display="none";
   document.getElementById("signupPanel").style.display="block";
-  document.getElementById("signupEmailInput").value = document.getElementById("emailInput").value.trim();
+  document.getElementById("signupEmailInput").value = normEmail(document.getElementById("emailInput").value);
   document.getElementById("signupNote").textContent = "Let's set up a new account. Enter your name and your @spacelogic.com.sg email, choose a 4-digit PIN, and enter it twice to confirm.";
 }
 
@@ -157,7 +158,7 @@ let pendingSignup = null; // {name, email, pin} — held only in memory while aw
 
 async function handleSignup(){
   const name = document.getElementById("signupNameInput").value.trim();
-  const email = document.getElementById("signupEmailInput").value.trim();
+  const email = normEmail(document.getElementById("signupEmailInput").value);
   const pin1 = document.getElementById("signupPin1").value.trim();
   const pin2 = document.getElementById("signupPin2").value.trim();
   const msg = document.getElementById("signupMsg");
@@ -193,6 +194,7 @@ async function handleVerifyCode(){
   sessionStorage.setItem("sl_person_id", data.id);
   sessionStorage.setItem("sl_person_name", data.name);
   sessionStorage.setItem("sl_pin", pendingSignup.pin);
+  try{ localStorage.setItem("sl_tour_pending", data.id); }catch(_){}
   document.getElementById("verifyPanel").style.display="none";
   showProfileStep(data.id, pendingSignup.pin);
 }
@@ -241,6 +243,8 @@ function completeLogin(id, name, pin, isAdmin){
   window.location.href = redirectTo;
 }
 
+attachEmailFields(["emailInput","signupEmailInput"]);
+if(params.get("signup")==="1") goToSignup();
 </script>
 </body>
 </html>

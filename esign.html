@@ -79,6 +79,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="tour.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -288,6 +289,7 @@ async function submitSignature(){
   try{ localStorage.setItem("esignName", name); }catch(_){}
   closeModal();
   await loadDoc();
+  if(window.Tour) Tour.afterSign();
 }
 
 // ---------------- PDF (follows the MRF reference layout) ----------------
