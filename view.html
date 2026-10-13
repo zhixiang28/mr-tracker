@@ -272,7 +272,7 @@ async function copyLink(page, tok, label){
   catch(_){ window.prompt("Copy this "+label+":", url.toString()); }
 }
 async function withdrawReq(id){
-  if(!confirm("Withdraw this requisition? This stops the approval chain — you can't undo this.")) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.withdraw))) return;
   const asAdmin = viewIsAdmin && !(currentReq && currentReq.requester_person_id===myId);
   const {data, error} = asAdmin
     ? await supabaseClient.rpc("admin_withdraw_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id})
@@ -284,18 +284,20 @@ async function withdrawReq(id){
 async function rejectReq(id){
   const reason = (window.prompt("Reason for rejecting this requisition (the requester will see it):") || "").trim();
   if(!reason) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.reject))) return;
   const {data, error} = await supabaseClient.rpc("admin_reject_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id, p_reason: reason});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to reject."); return; }
   await loadRequisition(id);
   actionsMsg("Requisition rejected.");
 }
 async function deleteReq(id){
-  if(!confirm("Permanently delete this requisition and all its data? This cannot be undone.")) return;
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.del))) return;
   const {data, error} = await supabaseClient.rpc("admin_delete_requisition", {p_admin_id: myId, p_admin_pin: myPin, p_requisition_id: id});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed to delete."); return; }
   window.location.href = "dashboard.html";
 }
 async function regenLink(stepId){
+  if(!(await AppBar.confirmTwice(AppBar.CONFIRM.regen))) return;
   const {data, error} = await supabaseClient.rpc("regenerate_step_token", {p_person_id: myId, p_pin: myPin, p_step_id: stepId});
   if(error || !data.success){ actionsMsg((data&&data.error)||(error&&error.message)||"Failed."); return; }
   const url = new URL("sign.html", window.location.href);
