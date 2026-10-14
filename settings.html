@@ -8,14 +8,14 @@
   :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --ok:#15803d; --soft:#f4f6fa; }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
-  .wrap{ max-width:760px; margin:28px auto 90px; padding:0 16px; }
+  .wrap{ max-width:1300px; margin:28px auto; padding:0 18px 60px; }
+  .col{ max-width:760px; }
   button, input, select{ font:inherit; font-size:13.5px; color:var(--ink); }
   button{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 15px; font-weight:700; cursor:pointer; }
   button:hover{ background:var(--soft); }
   button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; } button.primary:hover{ background:var(--accent-dark); }
   button.quiet{ border-color:transparent; background:none; color:var(--muted); padding:8px 10px; } button.quiet:hover{ color:var(--danger); background:none; }
   button:disabled{ opacity:.5; cursor:default; }
-  h1{ margin:22px 0 2px; font-size:24px; letter-spacing:-.4px; } .sub{ color:var(--muted); font-size:13.5px; margin-bottom:18px; }
   .tabs{ display:flex; gap:4px; background:#e3e8f0; padding:4px; border-radius:12px; margin-bottom:16px; }
   .tabs button{ flex:1; border:0; background:none; padding:10px 8px; border-radius:9px; color:var(--muted); }
   .tabs button[aria-selected=true]{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
@@ -42,6 +42,11 @@
   .rem input:disabled, .rem select:disabled{ background:#f3f4f6; color:#9ca3af; }
   .foot{ display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:14px 0 12px; border-top:1px solid #eef0f4; }
   .links a{ display:flex; align-items:center; gap:14px; padding:15px 0; border-top:1px solid #eef0f4; color:inherit; text-decoration:none; } .links a:first-child{ border-top:0; } .links a:hover .txt b{ color:var(--accent); } .links .go{ color:var(--muted); font-size:20px; }
+  .fld{ padding:12px 0 2px; } .fld label{ display:block; font-size:12.5px; font-weight:700; margin-bottom:6px; } .fld label i{ font-weight:500; color:var(--muted); font-style:normal; }
+  .fld input{ width:100%; border:1px solid var(--line); border-radius:9px; padding:10px 12px; background:#fff; } .fld input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.12); }
+  .fld input[readonly]{ background:#f4f6f8; color:var(--muted); } .fld input.bad{ border-color:var(--danger); }
+  .hint{ font-size:12px; color:var(--muted); margin-top:5px; min-height:16px; line-height:1.45; } .hint.err{ color:var(--danger); } .hint.ok{ color:var(--ok); }
+  .showpin{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); padding:10px 0 4px; cursor:pointer; } .showpin input{ width:auto; }
   [hidden]{ display:none!important; }
   @media (max-width:520px){ .rem{ flex-wrap:wrap; } .devs{ padding-left:0; } .card{ padding:4px 14px; } }
 </style>
@@ -50,17 +55,22 @@
 <body>
 <div class="wrap">
   <div id="appbar"></div>
-  <h1>Settings</h1>
-  <div class="sub">Choose how and when MR Tracker keeps you in the loop.</div>
+  <div class="pagehead">
+    <div>
+      <h1>Settings</h1>
+      <div class="sub">Your profile, notifications and reminders, all in one place</div>
+    </div>
+  </div>
 
+  <div class="col">
   <div class="tabs" role="tablist">
-    <button type="button" role="tab" id="tabNotifications" aria-selected="true" onclick="showTab('notifications')">🔔 Notifications</button>
+    <button type="button" role="tab" id="tabAccount" aria-selected="true" onclick="showTab('account')">👤 Account</button>
+    <button type="button" role="tab" id="tabNotifications" aria-selected="false" onclick="showTab('notifications')">🔔 Notifications</button>
     <button type="button" role="tab" id="tabReminders" aria-selected="false" onclick="showTab('reminders')">⏰ Reminders</button>
-    <button type="button" role="tab" id="tabAccount" aria-selected="false" onclick="showTab('account')">👤 Account</button>
   </div>
 
   <!-- ===== Notifications ===== -->
-  <section id="paneNotifications">
+  <section id="paneNotifications" hidden>
     <div class="card">
       <h2>Where to send them</h2>
       <div class="row">
@@ -110,13 +120,32 @@
   </section>
 
   <!-- ===== Account ===== -->
-  <section id="paneAccount" hidden>
-    <div class="card links">
-      <a href="dashboard.html?open=profile"><div class="ico">🪪</div><div class="txt"><b>My profile</b><span>Your name, position and department.</span></div><span class="go">›</span></a>
-      <a href="dashboard.html?open=pin"><div class="ico">🔑</div><div class="txt"><b>Change PIN</b><span>The 4-digit PIN you sign in and sign off with.</span></div><span class="go">›</span></a>
-      <a href="manual.html" target="_blank" rel="noopener"><div class="ico">📘</div><div class="txt"><b>Manual &amp; FAQ</b><span>How everything works.</span></div><span class="go">›</span></a>
+  <section id="paneAccount">
+    <form class="card" onsubmit="saveProfile(); return false;" novalidate>
+      <h2>Profile</h2>
+      <div class="fld"><label for="pfName">Name</label><input id="pfName" maxlength="80" autocomplete="name" oninput="profileDirty()"><div class="hint" id="pfNameNote">Shown on your requisitions and sign-offs. Signed records keep the name they were signed under.</div></div>
+      <div class="fld"><label for="pfPos">Position <i>(optional)</i></label><input id="pfPos" placeholder="e.g. Site Engineer" maxlength="80" autocomplete="organization-title" oninput="profileDirty()"></div>
+      <div class="fld"><label for="pfDept">Team / department <i>(optional)</i></label><input id="pfDept" placeholder="e.g. Operations" maxlength="80" oninput="profileDirty()"></div>
+      <div class="fld"><label for="pfEmail">Company email</label><input id="pfEmail" type="email" readonly><div class="hint">This is your sign-in email, so it can’t be changed here. Ask an admin if it needs correcting.</div></div>
+      <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="pfMsg"></span><button type="submit" class="primary" id="pfSave" disabled>Save changes</button></div>
+    </form>
+
+    <div class="card">
+      <h2>Saved signature</h2>
+      <div class="row"><div class="ico">✍️</div><div class="txt"><b>Signature <span class="badge" id="sigBadge">…</span></b><span id="sigNote">Checking…</span></div><button type="button" id="sigRemove" hidden onclick="removeSavedSig()">Remove</button></div>
     </div>
+
+    <form class="card" onsubmit="changeMyPin(); return false;" novalidate>
+      <h2>Change PIN</h2>
+      <div class="note" style="padding-top:8px">Your PIN is 4 digits. You use it to sign in and to approve requisitions.</div>
+      <div class="fld"><label for="pinOld">Current PIN</label><input id="pinOld" type="password" maxlength="4" inputmode="numeric" autocomplete="current-password" placeholder="••••" oninput="pinInput(this)"></div>
+      <div class="fld"><label for="pinNew1">New PIN</label><input id="pinNew1" type="password" maxlength="4" inputmode="numeric" autocomplete="new-password" placeholder="••••" oninput="pinInput(this)"><div class="hint" id="pinStrength"></div></div>
+      <div class="fld"><label for="pinNew2">Confirm new PIN</label><input id="pinNew2" type="password" maxlength="4" inputmode="numeric" autocomplete="new-password" placeholder="••••" oninput="pinInput(this)"><div class="hint" id="pinMatch"></div></div>
+      <label class="showpin"><input type="checkbox" id="pinShow" onchange="togglePinShow(this.checked)"> Show PINs</label>
+      <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="pinMsg"></span><button type="submit" class="primary" id="pinSave" disabled>Update PIN</button></div>
+    </form>
   </section>
+  </div>
 </div>
 <div class="save" id="toast" role="status" aria-live="polite"></div>
 
@@ -133,7 +162,7 @@ AppBar.mount("appbar", {active:"", client:supabaseClient});
 const myId = sessionStorage.getItem("sl_person_id"), myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ location.href = "login.html?redirect=" + encodeURIComponent("settings.html" + location.search); }
 const $ = id => document.getElementById(id);
-const auth = () => ({p_person_id: myId, p_pin: myPin});
+const auth = () => ({p_person_id: myId, p_pin: sessionStorage.getItem("sl_pin")});
 let prefs = null, here = null, tgTimer = null, toastT = null;
 
 function toast(msg, bad){ const t = $("toast"); t.textContent = msg; t.className = "save show" + (bad ? " err" : ""); clearTimeout(toastT); toastT = setTimeout(()=>{ t.className = "save"; }, 2200); }
@@ -251,11 +280,88 @@ async function saveReminders(){
   $("remMsg").textContent = ""; toast("Reminders saved ✓"); loadReminders();
 }
 
+/* ---------------- account: profile, saved signature, PIN ---------------- */
+let profileOrig = {name:"", position:"", department:""}, pinTimer = null;
+const msg = (id, text, kind) => { const el = $(id); el.textContent = text || ""; el.style.color = kind === "err" ? "var(--danger)" : kind === "ok" ? "var(--ok)" : ""; };
+async function loadProfile(){
+  const name = sessionStorage.getItem("sl_person_name") || "";
+  $("pfName").value = name; profileOrig.name = name;
+  const {data} = await supabaseClient.rpc("get_my_profile", auth());
+  if(data && data.success){
+    profileOrig = {name, position: data.position || "", department: data.department || ""};
+    $("pfPos").value = profileOrig.position; $("pfDept").value = profileOrig.department; $("pfEmail").value = data.email || "";
+  } else msg("pfMsg", (data && data.error) || "Could not load your profile.", "err");
+  profileDirty(); refreshSig();
+}
+function profileDirty(){
+  const v = {name: $("pfName").value.trim(), position: $("pfPos").value.trim(), department: $("pfDept").value.trim()};
+  const changed = v.name !== profileOrig.name || v.position !== profileOrig.position || v.department !== profileOrig.department, ok = v.name.length >= 2;
+  $("pfName").classList.toggle("bad", !ok);
+  $("pfNameNote").textContent = ok ? "Shown on your requisitions and sign-offs. Signed records keep the name they were signed under." : "Please enter your name (at least 2 characters).";
+  $("pfNameNote").className = "hint" + (ok ? "" : " err");
+  $("pfSave").disabled = !(changed && ok);
+  if(changed) msg("pfMsg", "");
+}
+async function saveProfile(){
+  const btn = $("pfSave"); if(btn.disabled) return;
+  const name = $("pfName").value.trim(), position = $("pfPos").value.trim(), department = $("pfDept").value.trim();
+  btn.disabled = true; btn.textContent = "Saving…";
+  const fail = m => { btn.textContent = "Save changes"; btn.disabled = false; msg("pfMsg", m || "Could not save. Please try again.", "err"); };
+  if(name !== profileOrig.name){
+    const {data: nd, error: ne} = await supabaseClient.rpc("update_my_name", Object.assign(auth(), {p_name: name}));
+    if(ne || !nd || !nd.success) return fail((nd && nd.error) || (ne && ne.message));
+    try{ sessionStorage.setItem("sl_person_name", nd.name || name); if(window.Session) Session.sync(); }catch(_){}
+  }
+  const {data, error} = await supabaseClient.rpc("update_my_profile", Object.assign(auth(), {p_position: position, p_department: department, p_email: null}));
+  btn.textContent = "Save changes";
+  if(error || !data || !data.success) return fail((data && data.error) || (error && error.message));
+  const saved = sessionStorage.getItem("sl_person_name") || name;
+  profileOrig = {name: saved, position, department}; profileDirty();
+  msg("pfMsg", "Saved ✓", "ok"); toast("Profile saved ✓");
+  AppBar.mount("appbar", {active:"", client:supabaseClient, notice:false});          // refresh the name in the top bar
+}
+async function refreshSig(){
+  const {data} = await supabaseClient.rpc("has_saved_signature", {p_person_id: myId}), has = data === true;
+  $("sigBadge").textContent = has ? "Saved" : "None"; $("sigBadge").className = "badge" + (has ? " on" : "");
+  $("sigNote").textContent = has ? "When you sign, you can use it with just your PIN." : "When you sign, tick “Save this as my signature for next time”.";
+  $("sigRemove").hidden = !has;
+}
+async function removeSavedSig(){
+  if(!confirm("Remove your saved signature? You can save a new one the next time you sign.")) return;
+  const {data, error} = await supabaseClient.rpc("save_my_signature", Object.assign(auth(), {p_signature: null}));
+  if(error || !data || !data.success){ toast((data && data.error) || "Could not remove it.", true); return; }
+  toast("Saved signature removed ✓"); refreshSig();
+}
+function pinInput(el){ el.classList.remove("bad"); el.value = el.value.replace(/\D/g, "").slice(0, 4); validatePins(); }
+function togglePinShow(on){ ["pinOld","pinNew1","pinNew2"].forEach(id => { $(id).type = on ? "text" : "password"; }); }
+const weakPin = p => /^(\d)\1{3}$/.test(p) || ["1234","4321","0123","3210","1212","2580","0852"].includes(p);
+function validatePins(){
+  const o = $("pinOld").value, a = $("pinNew1").value, b = $("pinNew2").value, sN = $("pinStrength"), mN = $("pinMatch");
+  const ok = o.length === 4 && a.length === 4 && b.length === 4 && a === b && a !== o;
+  if(a.length === 4 && a === o){ sN.textContent = "Choose a PIN that's different from your current one."; sN.className = "hint err"; }
+  else if(a.length === 4 && weakPin(a)){ sN.textContent = "That PIN is easy to guess — consider something less obvious."; sN.className = "hint"; }
+  else { sN.textContent = a.length > 0 && a.length < 4 ? (4 - a.length) + " more digit" + (4 - a.length === 1 ? "" : "s") : ""; sN.className = "hint"; }
+  if(a.length === 4 && b.length === 4){ mN.textContent = a === b ? "PINs match ✓" : "PINs don't match yet."; mN.className = "hint " + (a === b ? "ok" : "err"); } else { mN.textContent = ""; mN.className = "hint"; }
+  $("pinSave").disabled = !ok;
+}
+async function changeMyPin(){
+  const btn = $("pinSave"); if(btn.disabled) return;
+  const oldPin = $("pinOld").value, newPin = $("pinNew1").value;
+  btn.disabled = true; btn.textContent = "Updating…";
+  const {data, error} = await supabaseClient.rpc("change_pin", {p_person_id: myId, p_old_pin: oldPin, p_new_pin: newPin});
+  btn.textContent = "Update PIN";
+  if(error || !data || !data.success){ validatePins(); $("pinOld").classList.add("bad"); $("pinOld").focus(); msg("pinMsg", (data && data.error) || (error && error.message) || "Could not change your PIN.", "err"); return; }
+  try{ sessionStorage.setItem("sl_pin", newPin); if(window.Session) Session.sync(); }catch(_){}
+  ["pinOld","pinNew1","pinNew2"].forEach(id => { $(id).value = ""; $(id).classList.remove("bad"); });
+  validatePins(); msg("pinMsg", "");
+  Notify.show({tone:"success", icon:"key", title:"PIN updated", sub:"Use your new PIN to sign in and to sign off.", html:"<p>Anyone holding an old signing link still needs <b>their own</b> PIN, so nothing else changes.</p>", primary:{label:"Done"}});
+}
+
 (function init(){
   if(!myId || !myPin) return;
   const q = new URLSearchParams(location.search), tab = q.get("tab");
-  showTab(["reminders","account"].includes(tab) ? tab : "notifications");
-  loadPrefs(); loadReminders();
+  showTab(["notifications","reminders"].includes(tab) ? tab : "account");
+  loadPrefs(); loadReminders(); loadProfile();
   if(q.get("from") === "prompt") supabaseClient.rpc("mark_notify_prompted", auth()).then(()=>{});   // they came from the post-submit offer: don't ask again
 })();
 </script>

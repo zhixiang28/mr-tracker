@@ -80,9 +80,7 @@
         <div class="ab-user">
           <button class="ab-userbtn" data-act="menu" aria-haspopup="true"><span class="ab-avatar">${esc((name||"?").trim().charAt(0).toUpperCase())}</span><span>${esc(name)}</span>${state.isAdmin?'<span class="ab-role">Admin</span>':""} ▾</button>
           <div class="ab-menu" id="abMenu">
-            <button data-act="profile">My Profile</button>
-            <button data-act="pin">Change PIN</button>
-            <button data-act="reminders">Settings &amp; notifications</button>
+            <button data-act="settings">Settings</button>
             <hr>
             <button data-act="tour">Quick tour</button>
             <a href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -124,9 +122,7 @@
       else if(act==="whatsnew") showNotice(true);
       else if(act==="tour") runTour();
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
-      else if(act==="profile") (o.onProfile || (()=>go("dashboard.html?open=profile", o.newTab)))();
-      else if(act==="pin") (o.onPin || (()=>go("dashboard.html?open=pin", o.newTab)))();
-      else if(act==="reminders") (o.onReminders || (()=>go("settings.html", o.newTab)))();
+      else if(act==="settings") go("settings.html", o.newTab);
     });
     document.addEventListener("click", ()=>{ const m=document.getElementById("abMenu"); if(m) m.classList.remove("open"); });
     // not known yet on this browser tab: ask once, then remember
@@ -145,7 +141,7 @@
     ["Clear result cards", "Submitting, signing, declining, withdrawing and other actions now end with a short card that tells you what happened and what's next."],
     ["Quick tour", "New here? Your name menu → Quick tour points at each part of the Dashboard."],
     ["Ask MR Tracker", "The blue Ask button answers questions like “where is REQ-00031?”, “did my screws arrive?” or “which supplier did we use for cable?”."],
-    ["Your profile", "You can change your name in My Profile. Your email is your sign-in ID, so an admin changes it if needed."]
+    ["Your profile", "You can change your name in Settings. Your email is your sign-in ID, so an admin changes it if needed."]
   ];
   function showNotice(force){
     if(!force){ try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){} }
