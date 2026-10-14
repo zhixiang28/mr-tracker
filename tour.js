@@ -37,7 +37,7 @@
     {sel:'.ab-nav a[href="items.html"]', t:"Purchase History", h:"What we bought before — <b>supplier, price and date</b>. Tick an item to reorder it."},
     {sel:'.ab-nav a[href="projects.html"]', t:"Projects", h:"The shared project list. Anyone can add one; it fills the project details on the form for you."},
     {sel:"#asFab", t:"Ask anything", h:"Try “<b>where is REQ-00031?</b>”, “<b>did my screws arrive?</b>” or “<b>how do I withdraw?</b>”."},
-    {sel:".ab-userbtn", t:"Your menu", h:"<b>My Profile</b>, <b>Change PIN</b>, reminders, the <b>Manual</b> — and this <b>Quick tour</b> if you want it again."},
+    {sel:".ab-userbtn", t:"Your menu", h:"<b>Settings</b> (profile, PIN, notifications, reminders), the <b>Manual</b> — and this <b>Quick tour</b> if you want it again."},
     {t:"You're all set", h:"Press <b>+ New requisition</b> whenever you need to buy something. Have a good one!"}
   ];
 

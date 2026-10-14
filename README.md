@@ -75,16 +75,16 @@ Search everything bought before (company-wide, excluding declined/withdrawn; "In
 
 ## Dashboard layout
 
-Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (My Profile, Reminder Settings, Manual, FAQ, Log out). Below: the seven stage boxes (click one to filter), a search box with a **Needs action** shortcut, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).
+Header: Purchase History · Analytics · (Admin Settings) · refresh · your name menu (Settings, Quick tour, Manual, FAQ, Log out). Below: the seven stage boxes (click one to filter), a search box with a **Needs action** shortcut, **Group by** (Status, Stage, Project, Requester, Month, No grouping — remembered per browser) and a stage filter. Rows that need you carry small tags (Awaiting your signature / Declined — needs your fix / Overdue).
 
 ## Same layout on every page
 
-`appbar.js` draws one header on every signed-in page — brand, **Dashboard · Purchase History · Analytics · (Admin Settings)**, and your-name menu (My Profile, Reminder Settings, Manual, FAQ, Log out) — followed by a page heading with the title on the left and that page's actions on the right (dashboard: My Drafts + New requisition; form: My Drafts + Save Draft; full view: Print + Export PDF; Purchase History: Export CSV; Analytics: period). The form's header links open in a new tab so an unsaved form isn't lost. The sign pages (`sign.html`, `esign.html`), login and the manual are separate on purpose.
+`appbar.js` draws one header on every signed-in page — brand, **Dashboard · Purchase History · Analytics · (Admin Settings)**, and your-name menu (Settings, Quick tour, Manual, FAQ, Log out) — followed by a page heading with the title on the left and that page's actions on the right (dashboard: My Drafts + New requisition; form: My Drafts + Save Draft; full view: Print + Export PDF; Purchase History: Export CSV; Analytics: period). The form's header links open in a new tab so an unsaved form isn't lost. The sign pages (`sign.html`, `esign.html`), login and the manual are separate on purpose.
 
 ## Pick past purchases on the form, and Account settings
 
 - **Item box suggestions** (`history.js`): click or type in an item's *Name* box on the requisition form to see items bought before (company-wide, purchased/received only), with last price, supplier, date and the cheapest price paid. Choose one (mouse or ↑↓ Enter) to fill the description, quantity (if empty), unit price and product link. Esc closes it; if nothing matches you just keep typing your own item.
-- **Account settings** (name menu → My Profile / Change PIN): one window with *Profile* and *Change PIN* tabs. Profile saves only when something changed and the email looks valid; the PIN tab accepts digits only, shows live match/strength hints, has Show PINs, warns about easy PINs and tells you if the current PIN is wrong. Esc closes it and keyboard focus stays inside the window.
+- **Settings** (name menu → Settings, `settings.html`): everything personal in one page — *Account* (profile, saved signature, Change PIN), *Notifications* and *Reminders*. Profile saves only when something changed and the email looks valid; the PIN form accepts digits only, shows live match/strength hints, has Show PINs, warns about easy PINs and tells you if the current PIN is wrong. Esc closes it and keyboard focus stays inside the window.
 - **Upgrade notice**: shown once per browser per version (`NOTICE_ID` in `appbar.js`), with a "Don't show this again" box ticked by default.
 
 ## Shared projects (Projects page, admins) and the live currency converter
