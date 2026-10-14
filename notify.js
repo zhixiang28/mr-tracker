@@ -61,7 +61,8 @@
   .iv-btn:focus{ outline:3px solid #93c5fd; outline-offset:2px; }
   .iv-small{ font-size:11.5px; color:#6b7280; margin-top:8px; }
   .iv-foot{ display:flex; justify-content:flex-start; align-items:center; margin-top:10px; font-size:12px; color:#6b7280; }
-  .iv-foot label{ display:flex; gap:6px; align-items:center; cursor:pointer; }
+  .iv-foot label{ display:flex; gap:8px; align-items:center; cursor:pointer; white-space:nowrap; }
+  .iv-foot input[type=checkbox]{ width:16px !important; height:16px; flex:none; margin:0; padding:0; }
   @media print{ .iv-back{ display:none!important; } }`;
 
   function show(o){
