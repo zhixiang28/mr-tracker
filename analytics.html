@@ -151,7 +151,7 @@ const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-AppBar.mount("appbar", {active:"analytics", client:supabaseClient});
+AppBar.mount("appbar", {active:"analytics", client:supabaseClient, fullOnly:true});
 AppBar.guard("view_analytics");
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");

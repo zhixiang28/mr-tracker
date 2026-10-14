@@ -119,7 +119,7 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-AppBar.mount("appbar", {active:"projects", client:supabaseClient});
+AppBar.mount("appbar", {active:"projects", client:supabaseClient, fullOnly:true});
 
 const myId = sessionStorage.getItem("sl_person_id"), myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ location.href = "login.html?redirect=projects.html"; }

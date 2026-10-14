@@ -283,7 +283,7 @@
       <option>Declined</option>
       <option>Withdrawn</option>
     </select>
-    <span class="view-toggle" title="Switch between a table and cards"><button type="button" id="vtList" onclick="setViewMode('list')">List</button><button type="button" id="vtCards" onclick="setViewMode('cards')">Cards</button></span>
+    <span class="view-toggle" data-full title="Switch between a table and cards"><button type="button" id="vtList" onclick="setViewMode('list')">List</button><button type="button" id="vtCards" onclick="setViewMode('cards')">Cards</button></span>
     <span class="count-note" id="countNote"></span>
   </div>
 
@@ -606,7 +606,7 @@ function render(){
   updateSortArrows();
 
   const tbody = document.getElementById("tbody");
-  const cardsMode = viewMode==="cards";
+  const cardsMode = viewMode==="cards" && !(window.UIMode && UIMode.simple());
   document.getElementById("vtList").classList.toggle("on", !cardsMode);
   document.getElementById("vtCards").classList.toggle("on", cardsMode);
   const cardWrap = document.getElementById("cardWrap");

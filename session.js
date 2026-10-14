@@ -28,3 +28,22 @@
     }
   };
 })(window);
+
+/* Simple phone view: on a phone (screen 720px or narrower) only the everyday features show — anything marked
+   data-full is hidden, and desktop-only pages offer "Use full version". The choice is kept per device. */
+(function(w, d){
+  var KEY = "sl_ui_mode";
+  function isPhone(){ return !!(w.matchMedia && w.matchMedia("(max-width:720px)").matches); }
+  function wantsFull(){ try{ return localStorage.getItem(KEY) === "full"; }catch(_){ return false; } }
+  function simple(){ return isPhone() && !wantsFull(); }
+  function apply(){ d.documentElement.classList.toggle("ui-simple", simple()); }
+  var st = d.createElement("style");
+  st.textContent = "html.ui-simple [data-full]{display:none !important}";
+  (d.head || d.documentElement).appendChild(st);
+  apply();
+  try{ w.matchMedia("(max-width:720px)").addEventListener("change", apply); }catch(_){}
+  w.UIMode = {
+    isPhone: isPhone, simple: simple, wantsFull: wantsFull,
+    set: function(mode){ try{ if(mode === "full") localStorage.setItem(KEY, "full"); else localStorage.removeItem(KEY); }catch(_){} apply(); }
+  };
+})(window, document);

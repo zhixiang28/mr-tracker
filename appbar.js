@@ -70,9 +70,9 @@
   const NAV = [
     {id:"dashboard", label:"Dashboard",        href:"dashboard.html"},
     {id:"items",     label:"Purchase History", href:"items.html",     perm:"view_purchase_history"},
-    {id:"analytics", label:"Analytics",        href:"analytics.html", perm:"view_analytics"},
-    {id:"projects",  label:"Projects",         href:"projects.html"},
-    {id:"admin",     label:"Admin Settings",   href:"admin.html", admin:true}
+    {id:"analytics", label:"Analytics",        href:"analytics.html", perm:"view_analytics", full:true},
+    {id:"projects",  label:"Projects",         href:"projects.html", full:true},
+    {id:"admin",     label:"Admin Settings",   href:"admin.html", admin:true, full:true}
   ];
   const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   let state = {opts:{}, isAdmin:false, root:null, access:null};
@@ -104,6 +104,16 @@
     });
   }
 
+  /* desktop-only pages (Analytics, Projects, Admin) in the simple phone view: offer the full version instead */
+  function desktopOnly(){
+    if(!(window.UIMode && UIMode.simple()) || document.getElementById("abDesk")) return;
+    const d = document.createElement("div"); d.id = "abDesk";
+    d.style.cssText = "position:fixed;inset:0;background:var(--bg,#eef1f6);z-index:1300;display:flex;align-items:center;justify-content:center;padding:24px 18px;";
+    d.innerHTML = '<div style="background:#fff;border:1px solid #d7dbe0;border-radius:16px;padding:28px 22px;max-width:400px;width:100%;text-align:center;font-family:inherit"><div style="font-size:34px">🖥️</div><h2 style="margin:8px 0 6px;font-size:19px">This page works best on a computer</h2><p style="color:#6b7280;font-size:14px;line-height:1.5;margin:0 0 18px">The phone view keeps only the everyday features. Open this on a computer, or switch this phone to the full version.</p><button type="button" id="abDeskFull" style="display:block;width:100%;font:inherit;font-weight:700;background:#2f6fed;color:#fff;border:0;padding:12px;border-radius:10px;cursor:pointer;margin-bottom:8px">Use full version</button><a href="dashboard.html" style="display:block;color:#1f2933;text-decoration:none;font-weight:700;padding:11px;border:1px solid #d7dbe0;border-radius:10px">Back to the Dashboard</a></div>';
+    document.body.appendChild(d); document.body.style.overflow = "hidden";
+    d.querySelector("#abDeskFull").addEventListener("click", ()=>{ UIMode.set("full"); location.reload(); });
+  }
+
   function isAdminCached(){ try{ return sessionStorage.getItem("sl_is_admin")==="1"; }catch(_){ return false; } }
   function logout(){
     ["sl_person_id","sl_person_name","sl_pin","sl_is_admin","sl_access"].forEach(k=>{ try{ sessionStorage.removeItem(k); }catch(_){} });
@@ -114,8 +124,9 @@
   function go(page, newTab){ if(newTab) window.open(page, "_blank"); else location.href = page; }
 
   function render(){
+    const phone = !!(window.UIMode && UIMode.isPhone()), simple = !!(window.UIMode && UIMode.simple());
     const o = state.opts, name = (function(){ try{ return sessionStorage.getItem("sl_person_name")||""; }catch(_){ return ""; } })();
-    const links = NAV.filter(n=>(!n.admin || state.isAdmin) && (!n.perm || can(n.perm))).map(n=>`<a href="${n.href}" class="${o.active===n.id?"on":""}">${esc(n.label)}</a>`).join("");
+    const links = NAV.filter(n=>(!n.admin || state.isAdmin) && (!n.perm || can(n.perm))).map(n=>`<a href="${n.href}" class="${o.active===n.id?"on":""}"${n.full?" data-full":""}>${esc(n.label)}</a>`).join("");
     state.root.innerHTML = `<div class="appbar">
       <a class="ab-brand" href="dashboard.html"${o.newTab?' target="_blank" rel="noopener"':""}>SPACE<span>logic</span> — MR Tracker</a>
       <div class="ab-nav">
@@ -125,6 +136,7 @@
           <button class="ab-userbtn" data-act="menu" aria-haspopup="true"><span class="ab-avatar">${esc((name||"?").trim().charAt(0).toUpperCase())}</span><span>${esc(name)}</span>${state.isAdmin?'<span class="ab-role">Admin</span>':""} ▾</button>
           <div class="ab-menu" id="abMenu">
             <button data-act="settings">Settings</button>
+            ${phone ? `<button data-act="uimode">${simple ? "Switch to full version" : "Switch to simple phone view"}</button>` : ""}
             <hr>
             <button data-act="tour">Quick tour</button>
             <a href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -153,6 +165,7 @@
     state.access = cachedAccess();
     render();
     loadAccess();
+    if(state.opts.fullOnly) desktopOnly();
     if(state.opts.notice !== false){ firstRun(); if(isAdminCached()) setTimeout(checkVerifications, 900); }
     if(state.opts.client && state.opts.assistant !== false){
       const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
@@ -169,6 +182,7 @@
       else if(act==="tour") runTour();
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="settings") go("settings.html", o.newTab);
+      else if(act==="uimode"){ UIMode.set(UIMode.simple() ? "full" : "simple"); location.reload(); }
     });
     document.addEventListener("click", ()=>{ const m=document.getElementById("abMenu"); if(m) m.classList.remove("open"); });
     // not known yet on this browser tab: ask once, then remember
