@@ -118,7 +118,7 @@
     last:["latest","recent","last","newest"],
     projects:["project","projects"]
   };
-  const GENERIC = ["history","before","previous","quote","quoted","sells","sell","sold","brand","model","ever","earlier","status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
+  const GENERIC = ["update","updates","what's","whats","today","new","news","anything","going","happening","attention","pay","know","important","urgent","miss","missed","catch","heads","notify","lately","history","before","previous","quote","quoted","sells","sell","sold","brand","model","ever","earlier","status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
   const ALLW = [].concat(...Object.values(W), GENERIC);
   const keywordsOf = text => toks(text).filter(t=>!ALLW.some(w=>near(t,w))).map(t=>t.replace(/(es|s)$/,m=> t.length>4?"":m)).filter(t=>t.length>=3 || /[一-鿿]/.test(t));
   const supplierName = link => (w.supplierOf ? w.supplierOf(link).name : "(no link)");
@@ -171,6 +171,55 @@
   const phLink = kw => `<br><a href="items.html${kw&&kw.length?"?q="+encodeURIComponent(kw.join(" ")):""}"><b>Open Purchase History${kw&&kw.length?" for “"+esc(kw.join(" "))+"”":""} →</b></a>`;
   const ANALYTICS_WORDS = ["analytic","analytics","analysis","analyse","analyze","trend","trends","chart","charts","graph","graphs","insight","insights","kpi","statistics","stats","spending"];
   const ANALYTICS_RE = /((by|per) (month|week|year|supplier|project|requester|department)|monthly|weekly|yearly|top \d*\s*(suppliers?|items?|projects?|spenders?|requesters?)|biggest|highest|lowest|ranking|approval (time|speed)|turnaround|how long (does|do|did|is|are).*(approv|take)|average (approval|time|spend|spending|order|cost)|compare|comparison|over time|so far this (year|month))/;
+  // ---- "any update?" / "what should I pay attention to?": what needs you + what moved recently ----
+  const DIGEST_RE = /(\b(any|got|there|what'?s|whats|is there)\b.*\b(updates?|news|new)\b|\bupdates?\b\s*\??$|^updates?\b|pay attention|should i (know|do|check|look|focus)|need to know|catch me up|heads[- ]up|what('?s| is) (going on|happening|up)\b|anything (for me|new|urgent|important|i (should|need|must))|any news|what did i miss|\burgent\b|\bimportant\b|what('?s| is) (urgent|important|pending)|notif(y|ication)s?|today\??$|what now)/;
+  const needsMine = reqs => {
+    const me = (ss.get("sl_person_name")||"").toLowerCase(), pid = ss.get("sl_person_id");
+    return reqs.filter(r=>{
+      if(["Declined","Withdrawn","Received"].includes(r.status)) return r.status==="Declined" && r.requester_person_id===pid;
+      const n = nextStep(r); return n && (n.assigned_person_name||"").toLowerCase()===me;
+    });
+  };
+  const ago = t => { const d = Math.floor((Date.now()-t)/86400000); return d<=0 ? "today" : d===1 ? "yesterday" : d+" days ago"; };
+  async function digest(reqs, data, client){
+    const out = [], WEEK = 7*86400000, now = Date.now();
+    // 1) needs action
+    const mine = needsMine(reqs);
+    const decl = mine.filter(r=>r.status==="Declined"), sign = mine.filter(r=>r.status!=="Declined");
+    let act = [];
+    decl.slice(0,4).forEach(r=>act.push(`• ${link(r)} <b>declined</b> — “${esc(declineReasonText(r))}”. Open it and press <b>Fix &amp; Resubmit in form</b>.`));
+    sign.slice(0,4).forEach(r=>{ const n = nextStep(r); act.push(`• ${link(r)} ${esc(r.project_name||"-")} is <b>waiting for your ${esc(n&&n.stage_name||"sign-off")}</b>.`); });
+    if(data && data.is_admin){
+      try{
+        const {data:pv} = await client.rpc("admin_list_pending_verifications", {p_admin_id: ss.get("sl_person_id"), p_admin_pin: ss.get("sl_pin")});
+        const n = pv && pv.success ? pv.requests.length : 0;
+        if(n) act.push(`• <b>${n} sign-up${n>1?"s":""} waiting for your verification</b> — they appear in a pop-up when you sign in (refresh the Dashboard to see it).`);
+      }catch(_){}
+    }
+    out.push(act.length ? `<b>⚠ Needs your action</b><br>${act.join("<br>")}` : `<b>✓ Nothing needs your action right now.</b>`);
+    // 2) new progress in the last 7 days
+    const ev = [];
+    reqs.forEach(r=>{
+      stepsOf(r).forEach(s=>{
+        const t = s.signed_at ? Date.parse(s.signed_at) : NaN, td = s.declined_at ? Date.parse(s.declined_at) : NaN;
+        if(s.status==="Signed" && now-t < WEEK) ev.push({t, r, txt:`${esc(s.stage_name)} signed by ${esc(s.assigned_person_name||"someone")}`});
+        if(s.status==="Declined" && now-td < WEEK) ev.push({t:td, r, txt:`declined at ${esc(s.stage_name)}`});
+      });
+      const c = Date.parse(String(r.form_date||"").slice(0,10)); if(!isNaN(c) && now-c < WEEK) ev.push({t:c, r, txt:"submitted"});
+    });
+    ev.sort((a,b)=>b.t-a.t);
+    if(ev.length) out.push(`<b>🆕 New progress (last 7 days)</b><br>` + ev.slice(0,6).map(e=>`• ${link(e.r)} ${esc(e.r.project_name||"-")} — ${e.txt} <span style="color:#6b7280">(${ago(e.t)})</span>`).join("<br>") + (ev.length>6?`<br>…and ${ev.length-6} more.`:""));
+    else out.push("<b>🆕 No new progress</b> in the last 7 days.");
+    // 3) open requisitions that have not moved for a while
+    const stale = reqs.filter(OPEN).map(r=>{
+      const last = Math.max(Date.parse(String(r.form_date||"").slice(0,10))||0, ...stepsOf(r).map(s=>s.signed_at?Date.parse(s.signed_at):0));
+      return {r, days: Math.floor((now-last)/86400000)};
+    }).filter(x=>x.days>=3).sort((a,b)=>b.days-a.days);
+    if(stale.length) out.push(`<b>⏳ Not moving</b><br>` + stale.slice(0,3).map(x=>{ const n = nextStep(x.r); return `• ${link(x.r)} ${esc(x.r.project_name||"-")} — ${x.days} days, waiting for ${esc(n?(n.assigned_person_name||n.stage_name):"approval")}`; }).join("<br>") + `<br><span style="color:#6b7280">A gentle reminder to them may help.</span>`);
+    out.push(`<a href="dashboard.html"><b>Open Dashboard →</b></a>`);
+    return out.join("<br><br>");
+  }
+  const declineReasonText = r => r.decline_reason || (stepsOf(r).find(s=>s.status==="Declined")||{}).decline_reason || "no reason given";
   async function rules(q, client){
     const text = q.trim(), low = text.toLowerCase();
     const isHow = /^(how|what happens|can i|can we|where do|where can|why can|is it possible|who can|what is|what are)\b/.test(low);
@@ -204,6 +253,8 @@
         pool.slice(0,6).map(r=>{ const n = nextStep(r); return `• ${link(r)} ${esc(r.project_name||"-")} — <b>${esc(r.status)}</b>${n&&OPEN(r)?", waiting for "+esc(n.stage_name)+(n.assigned_person_name?" ("+esc(n.assigned_person_name)+")":""):""}`; }).join("<br>") +
         (pool.length>6?`<br>…and ${pool.length-6} more on the Dashboard.`:"") + "<br>Ask about one for details, for example “where is REQ-00031?”.";
     }
+
+    if(reqs && !m && DIGEST_RE.test(low) && !keywordsOf(text).length) return await digest(reqs, data, client);
 
     // analytics-style questions (trends, rankings, averages): the Analytics page answers these with charts
     if(!m && (hasWord(low, ANALYTICS_WORDS) || ANALYTICS_RE.test(low)) && !/how (do|can) i/.test(low)){
@@ -375,7 +426,7 @@
       if(!started){ started = true;
         add("Hi! Ask me where a requisition is, what needs your signature, or how to do something in the system.", "bot");
         const chips = panel.querySelector("#asChips");
-        ["What needs my action?","Show my declined requisitions","Give me a summary","How do I withdraw a requisition?"].forEach(t=>{
+        ["Any update for me?","What needs my action?","Show my declined requisitions","How do I withdraw a requisition?"].forEach(t=>{
           const b=document.createElement("button"); b.type="button"; b.textContent=t; b.onclick=()=>send(t); chips.appendChild(b); });
       }
       setTimeout(()=>input.focus(),50);
