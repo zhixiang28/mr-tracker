@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — My Drafts</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:#eef1f6; --surface:#ffffff; --ink:#1f2933; --ink2:#52606d; --muted:#7b8794; --line:#d7dbe0; --soft:#f4f6fa;
+    --accent:#2f6fed; --accent-dark:#2050bd; --bad:#b91c1c;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--page); color:var(--ink); font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:22px 18px 80px; }
+  .pagehead{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:6px 0 16px; }
+  .pagehead h1{ margin:0; font-size:22px; letter-spacing:-.3px; }
+  .sub{ font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5; }
+  button, a.btn{ font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-block; }
+  button:hover, a.btn:hover{ background:var(--soft); }
+  a.btn.primary, .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  a.btn.primary:hover, .primary:hover{ background:var(--accent-dark); }
+  .danger{ color:var(--bad); border-color:#fecaca; }
+  .list{ display:grid; gap:10px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .card .t{ font-weight:700; font-size:14.5px; }
+  .card .m{ font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
+  .card .m b{ color:var(--ink2); }
+  .card .acts{ display:flex; gap:8px; flex:none; }
+  .empty{ text-align:center; color:var(--muted); padding:50px 16px; background:var(--surface); border:1px dashed var(--line); border-radius:12px; line-height:1.6; }
+  .note{ font-size:12px; color:var(--muted); margin-top:14px; line-height:1.5; }
+  .msg{ font-size:12.5px; color:var(--bad); min-height:18px; margin-top:8px; }
+  @media(max-width:720px){
+    .wrap{ padding:12px 12px 60px; }
+    .pagehead{ align-items:stretch; }
+    .pagehead .btns, .pagehead .btns a{ width:100%; text-align:center; }
+    .card{ flex-direction:column; align-items:stretch; gap:10px; padding:12px 14px; }
+    .card .acts{ display:flex; } .card .acts > *{ flex:1; padding:10px 12px; text-align:center; }
+  }
+</style>
+<script src="session.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div id="appbar"></div>
+  <div class="pagehead">
+    <div>
+      <h1>My Drafts</h1>
+      <div class="sub">Forms you started but have not sent. The form saves itself while you type, so you can leave and pick up where you stopped.</div>
+    </div>
+    <div class="btns"><a class="btn primary" href="index.html">+ New requisition</a></div>
+  </div>
+  <div id="msg" class="msg"></div>
+  <div id="list" class="list"><div class="empty">Loading…</div></div>
+  <div class="note">A draft disappears from this list once you send it for approval.</div>
+</div>
+
+<script src="dates.js"></script>
+<script src="appbar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+AppBar.mount("appbar", {active:"dashboard", client:supabaseClient});
+const myId = sessionStorage.getItem("sl_person_id");
+const myPin = sessionStorage.getItem("sl_pin");
+if(!myId || !myPin){ window.location.href = "login.html?redirect=" + encodeURIComponent("drafts.html"); }
+
+const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const money = n => "$" + Number(n||0).toLocaleString("en-SG",{minimumFractionDigits:2, maximumFractionDigits:2});
+const when = iso => { try{ return new Date(iso).toLocaleString("en-SG",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(_){ return ""; } };
+
+async function load(){
+  const el = document.getElementById("list");
+  const {data, error} = await supabaseClient.rpc("list_my_drafts", {p_person_id: myId, p_pin: myPin});
+  if(error || !data || !data.success){ el.innerHTML = `<div class="empty">${esc((data&&data.error)||(error&&error.message)||"Could not load your drafts.")}</div>`; return; }
+  const drafts = data.drafts || [];
+  if(!drafts.length){ el.innerHTML = `<div class="empty"><b>No drafts yet.</b><br>Start a requisition and add an item — it is saved here automatically.<br><br><a class="btn primary" href="index.html">+ New requisition</a></div>`; return; }
+  el.innerHTML = drafts.map(d => {
+    const h = d.header || {}, n = Number(d.item_count || 0);
+    const bits = [`<b>${n}</b> item${n===1?"":"s"}`, n ? money(d.total) : "", h.projectLocation ? esc(h.projectLocation) : ""].filter(Boolean).join(" · ");
+    return `<div class="card" data-id="${esc(d.id)}">
+      <div><div class="t">${esc(d.label || h.projectName || "Untitled draft")}</div>
+        <div class="m">${bits}<br>Last saved ${esc(when(d.updated_at))}</div></div>
+      <div class="acts"><a class="btn primary" href="index.html?draftId=${encodeURIComponent(d.id)}">Continue</a>
+        <button type="button" class="danger" data-del="${esc(d.id)}">Delete</button></div>
+    </div>`;
+  }).join("");
+}
+document.getElementById("list").addEventListener("click", async e => {
+  const id = e.target && e.target.getAttribute && e.target.getAttribute("data-del"); if(!id) return;
+  if(!confirm("Delete this draft? This can't be undone.")) return;
+  const {data, error} = await supabaseClient.rpc("delete_draft", {p_person_id: myId, p_pin: myPin, p_draft_id: id});
+  if(error || !data || !data.success){ document.getElementById("msg").textContent = (data&&data.error)||(error&&error.message)||"Could not delete the draft."; return; }
+  document.getElementById("msg").textContent = "";
+  load();
+});
+if(myId && myPin) load();
+</script>
+</body>
+</html>

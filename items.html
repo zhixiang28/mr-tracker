@@ -70,6 +70,29 @@
   .reorder-bar{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line); padding:12px 18px; display:none; align-items:center; gap:12px; justify-content:center; box-shadow:0 -6px 18px rgba(15,23,42,.08); z-index:20; }
   .reorder-bar.on{ display:flex; }
   @media(max-width:860px){ .cols{ grid-template-columns:1fr; } .hide-sm{ display:none; } .detail td{ padding-left:14px; } }
+  /* phones: every row becomes a card that shows all of its details (nothing hidden); the small tables inside scroll sideways */
+  @media(max-width:720px){
+    .wrap{ padding:12px 12px 90px; }
+    .sheet table, .sheet tbody{ display:block; width:100%; }
+    .sheet thead{ display:none; }
+    .sheet tr.row{ display:grid; gap:6px 10px; padding:12px 14px; border-bottom:1px solid #eef0f2; }
+    .sheet tr.row > td{ display:block !important; padding:0; border:0; width:auto !important; min-width:0; text-align:left; }
+    .sheet tr.row > td[data-l]::before{ content:attr(data-l); display:block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:2px; }
+    tr.irow{ grid-template-columns:26px 1fr 1fr; grid-template-areas:"chk name name" ". last price" ". best badge" ". add add"; }
+    tr.irow .c-chk{ grid-area:chk; } tr.irow .c-name{ grid-area:name; } tr.irow .c-last{ grid-area:last; } tr.irow .c-price{ grid-area:price; }
+    tr.irow .c-best{ grid-area:best; } tr.irow .c-badge{ grid-area:badge; } tr.irow .c-add{ grid-area:add; } .sheet tr.irow > td.c-chev{ display:none !important; }
+    tr.irow .c-add button{ width:100%; padding:9px 12px; }
+    tr.srow{ grid-template-columns:1fr 1fr; grid-template-areas:"name name" "items buys" "spend last"; }
+    tr.srow .s-name{ grid-area:name; } tr.srow .s-items{ grid-area:items; } tr.srow .s-buys{ grid-area:buys; } tr.srow .s-spend{ grid-area:spend; } tr.srow .s-last{ grid-area:last; } .sheet tr.srow > td.s-chev{ display:none !important; }
+    .idesc{ max-width:none; white-space:normal; }
+    tr.detail, tr.detail > td{ display:block; width:100%; }
+    .detail td{ padding:12px 14px 16px; }
+    .detail table.mini{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .detail table.mini .hide-sm{ display:table-cell; }
+    .detail table.mini th, .detail table.mini td{ white-space:nowrap; }
+    .filters input[type=text]{ min-width:0; width:100%; flex:1 1 100%; }
+    .count{ margin-left:0; }
+  }
 </style>
 <script src="session.js"></script>
 </head>
@@ -262,15 +285,15 @@ function drawItems(lines){
       : g.gap<=0.005 ? `<span class="badge best" title="You paid the lowest price we've seen">Best price</span>`
       : `<span class="badge ${g.gap>0.1?"up":"mid"}" title="Last price compared with the cheapest we've paid">+${(g.gap*100).toFixed(0)}% vs cheapest</span>`;
     const extra = [`bought ${g.times}×`, g.variants.length>1 ? `${g.variants.length} name variants` : "", sg.length ? `<span style="color:var(--warn)">possible duplicate</span>` : ""].filter(Boolean).join(" · ");
-    const main = `<tr class="row" onclick="toggle('${kq(g.key)}')">
-      <td style="width:34px" onclick="event.stopPropagation()"><input type="checkbox" ${selected.has(g.key)?"checked":""} onchange="pick('${kq(g.key)}',this.checked)" aria-label="Select ${esc(g.name)}"></td>
-      <td><div class="iname">${esc(g.name)}</div><div class="sub">${extra}</div></td>
-      <td class="hide-sm">${esc(fmtDMY(g.last.item_date))}<div class="sub">qty ${g.last.qty}</div></td>
-      <td class="num"><b>${money(g.last.unit)}</b><div class="sub"><span class="sup">${esc(g.last.supplier)}</span></div></td>
-      <td class="num hide-sm">${g.best?money(g.best.unit):"—"}${g.best?`<div class="sub">${esc(g.best.supplier)}</div>`:""}</td>
-      <td>${badge}</td>
-      <td class="num" onclick="event.stopPropagation()"><button onclick="reorderOne('${kq(g.key)}')" title="Add this item to a new requisition">Add to requisition</button></td>
-      <td style="width:22px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
+    const main = `<tr class="row irow" onclick="toggle('${kq(g.key)}')">
+      <td class="c-chk" style="width:34px" onclick="event.stopPropagation()"><input type="checkbox" ${selected.has(g.key)?"checked":""} onchange="pick('${kq(g.key)}',this.checked)" aria-label="Select ${esc(g.name)}"></td>
+      <td class="c-name"><div class="iname">${esc(g.name)}</div><div class="sub">${extra}</div></td>
+      <td class="hide-sm c-last" data-l="Last bought">${esc(fmtDMY(g.last.item_date))}<div class="sub">qty ${g.last.qty}</div></td>
+      <td class="num c-price" data-l="Last price"><b>${money(g.last.unit)}</b><div class="sub"><span class="sup">${esc(g.last.supplier)}</span></div></td>
+      <td class="num hide-sm c-best" data-l="Cheapest paid">${g.best?money(g.best.unit):"—"}${g.best?`<div class="sub">${esc(g.best.supplier)}</div>`:""}</td>
+      <td class="c-badge" data-l="Price check">${badge}</td>
+      <td class="num c-add" onclick="event.stopPropagation()"><button onclick="reorderOne('${kq(g.key)}')" title="Add this item to a new requisition">Add to requisition</button></td>
+      <td class="c-chev" style="width:22px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
     return main + (open ? `<tr class="detail"><td colspan="8">${detailHtml(g, sg)}</td></tr>` : "");
   }).join("");
   view.innerHTML = `<table><thead><tr><th></th><th>Item</th><th class="hide-sm">Last bought</th><th class="num">Last price</th><th class="num hide-sm">Cheapest paid</th><th>Price check</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -323,9 +346,9 @@ function drawSuppliers(lines){
   const total = list.reduce((a,e)=>a+e.spend,0) || 1;
   const rows = list.map(e=>{
     const k = "sup:"+e.name, open = openRows.has(k);
-    const main = `<tr class="row" onclick="toggle('${esc(k).replace(/'/g,"&#39;")}')"><td><span class="sup">${esc(e.name)}</span>${e.host?`<div class="sub">${esc(e.host)}</div>`:""}</td>
-      <td class="num">${e.items.size}</td><td class="num">${e.lines.length}</td><td class="num"><b>${money(e.spend)}</b><div class="sub">${(e.spend/total*100).toFixed(0)}% of spend</div></td>
-      <td class="hide-sm">${esc(fmtDMY(new Date(e.last).toISOString().slice(0,10)))}</td><td style="width:26px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
+    const main = `<tr class="row srow" onclick="toggle('${esc(k).replace(/'/g,"&#39;")}')"><td class="s-name"><span class="sup">${esc(e.name)}</span>${e.host?`<div class="sub">${esc(e.host)}</div>`:""}</td>
+      <td class="num s-items" data-l="Different items">${e.items.size}</td><td class="num s-buys" data-l="Purchases">${e.lines.length}</td><td class="num s-spend" data-l="Total spend"><b>${money(e.spend)}</b><div class="sub">${(e.spend/total*100).toFixed(0)}% of spend</div></td>
+      <td class="hide-sm s-last" data-l="Last used">${esc(fmtDMY(new Date(e.last).toISOString().slice(0,10)))}</td><td class="s-chev" style="width:26px"><span class="chev ${open?"open":""}">›</span></td></tr>`;
     let detail = "";
     if(open){
       const gs = groupItems(e.lines).sort((a,b)=>b.spend-a.spend);
