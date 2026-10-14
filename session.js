@@ -59,6 +59,7 @@
   var st = d.createElement("style");
   // dark = invert the page and turn the hues back, then put pictures right again (works for every colour on the page)
   st.textContent = "html.dark[data-theme-ok]{filter:invert(1) hue-rotate(180deg) brightness(.94) contrast(.92);background:#eef1f6}" +
+    "@media print{html.dark[data-theme-ok]{filter:none !important;background:#fff !important}html.dark[data-theme-ok] img,html.dark[data-theme-ok] canvas{filter:none !important}}" +
     "html.dark[data-theme-ok] img, html.dark[data-theme-ok] video, html.dark[data-theme-ok] canvas, html.dark[data-theme-ok] .keep-colors{filter:invert(1) hue-rotate(180deg)}";
   (d.head || d.documentElement).appendChild(st);
   apply();

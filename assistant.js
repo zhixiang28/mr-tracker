@@ -39,7 +39,7 @@
     {k:"search find filter requisition dashboard stage", go:["Open the dashboard","dashboard.html"], a:"On the dashboard use the search box (REQ number, project or requester), the stage boxes, the <b>All stages</b> filter or the <b>Needs action</b> button."},
     {k:"phone mobile simple full version missing hidden where analytics admin export desktop computer", a:"On a phone you get the <b>simple view</b>: dashboard, sign/approve, new requisition, drafts, purchase prices and notifications. Analytics, Admin, Projects, exports and a few extras are hidden. To see everything, open your name menu → <b>Switch to full version</b> (switch back the same way), or use a computer."},
     {k:"install phone app home screen pwa qr download mobile app", a:"Open your name menu → <b>Get the phone app</b> on a computer and scan the QR code with your phone. iPhone: Safari → Share → <b>Add to Home Screen</b>. Android: Chrome → ⋮ → <b>Install app</b>. Then sign in and turn on alerts in Settings → Notifications."},
-    {k:"dark mode light theme night appearance black", go:["Open Settings","settings.html"], a:"Name menu → <b>Settings</b> → <b>Account</b> → <b>Appearance</b>: choose <b>Auto</b> (follows your device), <b>Light</b> or <b>Dark</b>. The requisition form and signing pages always stay light."},
+    {k:"dark mode light theme night appearance black", go:["Open Settings","settings.html"], a:"Name menu → <b>Settings</b> → <b>Account</b> → <b>Appearance</b>: choose <b>Auto</b> (follows your device), <b>Light</b> or <b>Dark</b>.."},
     {k:"hover preview point mouse", go:["Open the dashboard","dashboard.html"], a:"Rest your mouse on a row or card to preview its items and who has signed. Click it to open the full form."},
     {k:"date format ddmmyyyy dd/mm/yyyy", go:["Open the form","index.html"], a:"Dates are shown and typed as dd/mm/yyyy, for example 25/08/2026."},
     {k:"chinese csv excel garbled characters", go:["Read more in the Manual","manual.html#faq"], a:"Export CSV opens correctly in Excel with Chinese text. If you still see odd characters, open it from Excel with <b>Data → From Text/CSV</b> and choose UTF-8."},
@@ -432,7 +432,7 @@
   .as-fab{ position:fixed; right:18px; bottom:18px; z-index:900; border:0; border-radius:999px; background:#2f6fed; color:#fff; font:inherit; font-size:13px; font-weight:700; padding:11px 18px; box-shadow:0 8px 24px rgba(15,23,42,.3); cursor:pointer; }
   .as-fab:hover{ background:#2050bd; }
   .as-panel{ position:fixed; right:18px; bottom:18px; z-index:901; width:360px; max-width:calc(100vw - 24px); height:520px; max-height:calc(100vh - 36px); background:var(--surface,#fff); color:var(--ink,#1f2933); border:1px solid var(--line,#d7dbe0); border-radius:16px; box-shadow:0 20px 60px rgba(15,23,42,.35); display:none; flex-direction:column; overflow:hidden; font-family:inherit; }
-  .as-panel.open{ display:flex; }
+  .as-panel.open{ display:flex; } .as-panel.kb .as-chips{ display:none; }
   .as-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--line,#d7dbe0); }
   .as-head b{ font-size:14px; } .as-head span{ display:block; font-size:11px; color:var(--muted,#6b7280); font-weight:500; }
   .as-x{ border:0; background:none; font-size:20px; line-height:1; cursor:pointer; color:var(--muted,#6b7280); }
@@ -484,11 +484,15 @@
     const fit = ()=>{
       const vv = window.visualViewport, phone = window.matchMedia("(max-width:720px)").matches;
       if(!vv || !phone || !panel.classList.contains("open")){ panel.style.top = panel.style.height = panel.style.bottom = ""; return; }
-      const h = Math.min(vv.height - 16, 470);
+      const kb = document.activeElement === input || window.innerHeight - vv.height > 120;   // on-screen keyboard is up: drop the suggestion chips so the conversation keeps the room
+      panel.classList.toggle("kb", kb);
+      const h = Math.min(vv.height - 16, kb ? vv.height - 16 : 470);
       panel.style.height = h + "px"; panel.style.bottom = "auto"; panel.style.top = (vv.offsetTop + vv.height - h - 8) + "px";
+      log.scrollTop = log.scrollHeight;
     };
     if(window.visualViewport){ visualViewport.addEventListener("resize", fit); visualViewport.addEventListener("scroll", fit); }
     window.addEventListener("orientationchange", fit);
+    input.addEventListener("focus", ()=>setTimeout(fit, 250)); input.addEventListener("blur", ()=>setTimeout(fit, 250));
     const close = ()=>{ panel.classList.remove("open"); fab.style.display=""; fit(); };
     fab.onclick = open; panel.querySelector(".as-x").onclick = close;
     panel.addEventListener("keydown", e=>{ if(e.key==="Escape") close(); });

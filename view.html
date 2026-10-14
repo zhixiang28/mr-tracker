@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-ok>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,6 +51,14 @@
   .action-bar .btn-danger.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
   .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin:-12px 0 12px; }
   @media(max-width:640px){ .ab-sep{ display:none; } .ab-spacer{ display:none; } }
+  /* phones: the action buttons share a tidy two-column grid instead of one button per line */
+  @media(max-width:720px){
+    .action-bar{ display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:8px; margin-bottom:14px; }
+    .action-bar .ab-group{ display:contents; }
+    .action-bar button, .action-bar a.btn{ width:100%; padding:9px 6px; font-size:12.5px; margin:0; }
+    .action-bar .ab-del{ margin:0; padding-left:6px; border-left:0; }
+    .action-bar > *:only-child, .action-bar a{ grid-column:auto; }
+  }
   .authnote{ margin:0 0 12px; padding:10px 12px; border:1.5px solid #bcd0fa; background:#eef4ff; border-radius:10px; font-size:12.5px; line-height:1.5; }
   .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .sign-card{ border:1.5px solid var(--line); border-radius:10px; padding:14px; }
