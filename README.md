@@ -119,8 +119,8 @@ New requisitions have **3 signing steps**: *Verified by* the manager the amount 
 - **$50,000+** needs the vendor quotation ref and PO number; **$150,000+** also an LOA number unless ticked *supply of goods only* (checked in the database when submitting; the revise path calls `set_requisition_details` first).
 - **Supply date**: the form warns if it is less than 3 working days ahead; an hourly job tells the requester (event *Overdue reminders*) when the supply date is tomorrow/today/past and the items are not received.
 
-### Procurement contacts
-Admin → People can mark anyone as a **procurement contact** (`people.is_procurement`, `admin_set_procurement`). When the verification step is signed and nobody is named for Procurement, every contact gets an "is ready for Procurement" notification (Telegram / email / device, per their own Settings) with the signing link. Each contact must turn on a channel in Settings → Notifications to receive it.
+### Procurement role
+Admin → People can give anyone the **Procurement role** (`people.is_procurement`, `admin_set_procurement`). The *Procurement* box in Admin → Notifications decides whether they are told; when it is ticked and the verification step is signed, every person with the role gets an "is ready for Procurement" notification (Telegram / email / device, per their own Settings) with the signing link. Each contact must turn on a channel in Settings → Notifications to receive it.
 
 ### Notification routing (Admin → "Notifications — who gets what")
 `notify_rules` holds, for each event (`submitted`, `verified`, `purchased`, `received`, `declined`, `overdue`, `supply_date`), an on/off switch, recipient groups (`requester`, `assigned` verifier, `assigned_next`, `procurement` contacts, `buyer`, `admins`) and extra named people. `rule_recipients()` resolves them; `trg_notify_steps()` and the hourly `notify_run_reminders()` use it. Defaults reproduce the old behaviour. Each person still chooses their own channels and can mute types in Settings → Notifications. SQL applied live; see the migrations `notify_rules_a_*` / `notify_rules_b_*`.
