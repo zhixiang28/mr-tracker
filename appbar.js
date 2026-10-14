@@ -161,16 +161,15 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.14";
-  const NOTICE_ID = "upgrade-2026-10f";
+  const VERSION = "2026.10.15";
+  const NOTICE_ID = "upgrade-2026-10g";
   const NOTICE = [
-    ["One simple way to sign", "There is now just one button on the form: Submit for approval. You get one link; each approver opens it, taps their box and either draws a signature or declines with a reason."],
-    ["Sign in with your email", "Use your company email and PIN — just type the first part, @spacelogic.com.sg is added for you. After 5 wrong PINs an account is locked for 15 minutes."],
-    ["Signed in? Sign as yourself", "If you are signed in, signing asks for your PIN and links the signature to your account, so it shows on your Dashboard."],
-    ["Clear result cards", "Submitting, signing, declining, withdrawing and other actions now end with a short card that tells you what happened and what's next."],
-    ["Quick tour", "New here? Your name menu → Quick tour points at each part of the Dashboard."],
-    ["Ask MR Tracker", "The blue Ask button answers questions like “where is REQ-00031?”, “did my screws arrive?” or “which supplier did we use for cable?”."],
-    ["Your profile", "You can change your name in Settings. Your email is your sign-in ID, so an admin changes it if needed."]
+    ["Three signatures", "The form now has three signature boxes: Verified by → Procurement (approves and buys) → Received by. The person who receives the items signs when they arrive."],
+    ["Who has to sign, by amount", "The form shows who must verify your total and lets you pick them; the Approval rules button shows the full table. Orders of $50,000+ ask for the vendor quotation and PO number (LOA from $150,000), and you are warned if the supply date is under 3 working days away."],
+    ["Notifications", "Get messages on Telegram, by email or as a phone alert — and choose what you hear about. Open your name menu → Settings → Notifications."],
+    ["Everything in Settings", "Your profile, PIN, saved signature, notifications and reminder limits are all in one place: name menu → Settings."],
+    ["Roles & access (admins)", "Admins can give people roles (such as Procurement), choose what each role can see, and decide who is notified about each step — all in Admin Settings."],
+    ["Ask MR Tracker", "The blue Ask button now also answers “who must approve $450?”, “where is REQ-00031?” and “any update?”."]
   ];
   function showNotice(force){
     if(!force){ try{ if(localStorage.getItem("sl_notice_seen")===NOTICE_ID) return; }catch(_){} }
