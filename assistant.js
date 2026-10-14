@@ -14,7 +14,7 @@
     {k:"withdraw cancel stop requisition remove", go:["Open your requisitions","dashboard.html"], a:"Open the requisition (click it on the dashboard) and press <b>Withdraw</b>. The requester or an admin can do this until it has been <b>Purchased</b>. You will be asked to confirm twice."},
     {k:"declined rejected fix resubmit revise edit again", go:["Your requisitions (use Needs action)","dashboard.html"], a:"A declined requisition shows the reason on the dashboard. Open it and press <b>Fix &amp; Resubmit in form</b>, change what was flagged and resubmit. Approval restarts from the Team Manager."},
     {k:"edit change modify submitted after", go:["Your requisitions","dashboard.html"], a:"A submitted requisition can't be edited by the requester unless it is declined. Ask an approver to decline it with a reason, then use <b>Fix &amp; Resubmit in form</b>. Admins can use <b>Edit in form</b>."},
-    {k:"sign approve link send forward next approver", go:["Your requisitions","dashboard.html"], a:"After you press <b>Submit for approval</b> you get <b>one link</b> that works for every step. Send it to the Team Manager first; after each signature it opens on the next person's turn, so keep forwarding the same link."},
+    {k:"sign approve link send forward next approver", go:["Your requisitions","dashboard.html"], a:"After you press <b>Submit for approval</b> you get <b>one link</b> that works for every step. Send it to the person who must verify it (the form shows who, based on the total, and you can pick them there); after each signature it opens on the next person's turn: Procurement, then Received."},
     {k:"lost link regenerate new link old link", go:["Your requisitions","dashboard.html"], a:"Open the requisition and press <b>Regenerate link</b>. The old link stops working straight away, so the app asks you to confirm twice."},
     {k:"pin sign pdf sign difference which how to sign approve decline signature", a:"There is one way to sign: open the link, tap the box next to your role, then <b>Approve &amp; sign</b> (draw your signature — plus your PIN if you are signed in) or <b>Decline</b> with a reason."},
     {k:"forgot pin reset password", go:["Read more in the Manual","manual.html#faq"], a:"PINs can't be looked up. Ask an admin to delete your account in <b>Admin Settings</b> and sign you up again with a new PIN. You keep your name on past requisitions."},
@@ -288,6 +288,15 @@
     }
 
     if(reqs && !m && DIGEST_RE.test(low) && !keywordsOf(text).length) return await digest(reqs, data, client);
+
+    // "who must approve $450?" — the Authorisation Limit (same table as the Approval rules button on the form)
+    const amt = low.match(/\$\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b)?|\b(\d[\d,]*(?:\.\d+)?)\s*(k\b|dollars?|sgd)/);
+    if(!m && amt && /(approv|verif|sign|authori[sz]|limit|which manager|top management|division head|section manager|team manager)/.test(low)){
+      let v = parseFloat((amt[1]||amt[3]).replace(/,/g,"")); if(amt[2]||(amt[4]==="k")) v *= 1000;
+      const who = v<=300?"a Section Manager or above": v<=500?"a Team Manager or above": v<=1000?"a Division Head or above":"Top Management";
+      const doc = v>=150000?"<br>Quotes of $150,000 and above also need an <b>LOA</b>.": v>=50000?"<br>Quotes of $50,000 and above also need a <b>PO</b> (and the vendor quotation reference).":"";
+      return `A requisition of <b>$${v.toLocaleString("en-SG")}</b> must be verified by <b>${who}</b>.${doc}<br><small>Limits: Section Manager up to $300 · Team Manager up to $500 · Division Head up to $1,000 · Top Management above. On the form, the <b>Approval rules</b> button shows the full table.</small>`;
+    }
 
     // analytics-style questions (trends, rankings, averages): the Analytics page answers these with charts
     if(!m && (hasWord(low, ANALYTICS_WORDS) || ANALYTICS_RE.test(low)) && !/how (do|can) i/.test(low)){
