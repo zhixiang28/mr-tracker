@@ -121,3 +121,6 @@ New requisitions have **3 signing steps**: *Verified by* the manager the amount 
 
 ### Procurement contacts
 Admin → People can mark anyone as a **procurement contact** (`people.is_procurement`, `admin_set_procurement`). When the verification step is signed and nobody is named for Procurement, every contact gets an "is ready for Procurement" notification (Telegram / email / device, per their own Settings) with the signing link. Each contact must turn on a channel in Settings → Notifications to receive it.
+
+### Notification routing (Admin → "Notifications — who gets what")
+`notify_rules` holds, for each event (`submitted`, `verified`, `purchased`, `received`, `declined`, `overdue`, `supply_date`), an on/off switch, recipient groups (`requester`, `assigned` verifier, `assigned_next`, `procurement` contacts, `buyer`, `admins`) and extra named people. `rule_recipients()` resolves them; `trg_notify_steps()` and the hourly `notify_run_reminders()` use it. Defaults reproduce the old behaviour. Each person still chooses their own channels and can mute types in Settings → Notifications. SQL applied live; see the migrations `notify_rules_a_*` / `notify_rules_b_*`.

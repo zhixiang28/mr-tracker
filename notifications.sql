@@ -260,3 +260,6 @@ grant execute on function public.set_email_notifications(uuid, text, boolean) to
 
 -- ---------- the requester is always told when a step is signed (applied live) ----------
 -- trg_notify_steps no longer skips the 'progress' message when the signer is the requester (e.g. testing alone).
+
+-- ---------- notification routing (applied live): notify_rules table, rule_recipients(), admin_get_notify_rules / admin_set_notify_rule;
+-- trg_notify_steps and notify_run_reminders now read the recipients from notify_rules (defaults = previous behaviour) ----------

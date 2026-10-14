@@ -42,6 +42,16 @@
   .apptbar{ margin:0 0 14px; padding:12px 14px; background:#f3f6fc; border-radius:10px; font-size:13px; }
   .sw2{ display:flex; gap:10px; align-items:flex-start; cursor:pointer; } .sw2 input{ width:auto; margin-top:3px; } .sw2 small{ color:#6b7280; line-height:1.5; }
   .apptsel{ display:inline-flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; font-weight:700; color:#6b7280; } .apptsel select{ padding:6px 8px; border:1px solid #d7dbe0; border-radius:8px; font:inherit; font-size:12.5px; color:#1f2933; background:#fff; width:auto; }
+  .nrule{ border:1px solid #e3e8f0; border-radius:12px; padding:14px 16px; margin:0 0 12px; background:#fff; } .nrule.off{ opacity:.6; }
+  .nrule-top{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; } .ndesc{ font-size:12px; color:#6b7280; margin-top:2px; line-height:1.45; }
+  .nlabel{ font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#6b7280; margin:12px 0 6px; }
+  .nchips{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .chip{ display:inline-flex; gap:7px; align-items:center; padding:6px 11px; border:1px solid #d7dbe0; border-radius:99px; font-size:12.5px; cursor:pointer; background:#f8fafc; } .chip input{ width:auto; margin:0; } .chip small{ color:#6b7280; }
+  .pchip{ display:inline-flex; gap:6px; align-items:center; padding:5px 6px 5px 11px; border-radius:99px; background:#eaf1ff; color:#1e3a8a; font-size:12.5px; font-weight:600; } .pchip button{ margin:0; padding:0 7px; border:0; background:none; color:#1e3a8a; font-size:16px; line-height:1; cursor:pointer; }
+  .nchips select{ width:auto; padding:6px 10px; border:1px solid #d7dbe0; border-radius:99px; font:inherit; font-size:12.5px; background:#fff; }
+  .nsw{ position:relative; width:44px; height:25px; flex:none; } .nsw input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1; }
+  .nsw i{ position:absolute; inset:0; background:#cbd2dc; border-radius:99px; transition:background .15s; } .nsw i::after{ content:""; position:absolute; left:3px; top:3px; width:19px; height:19px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .15s; }
+  .nsw input:checked + i{ background:#2f6fed; } .nsw input:checked + i::after{ transform:translateX(19px); }
 </style>
 <script src="session.js"></script>
 </head>
@@ -97,6 +107,13 @@
       <button class="secondary" onclick="toggleAddForm()">Cancel</button>
       <div class="msg" id="addPersonMsg"></div>
     </div>
+  </div>
+
+  <div class="card" id="notifCard" style="display:none">
+    <h2>Notifications — who gets what</h2>
+    <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement contacts</b> are set per person in the list above (<i>Make procurement</i>).</div>
+    <div id="notifRules"></div>
+    <div class="msg" id="notifMsg"></div>
   </div>
 
   <div style="text-align:center;margin-top:10px"><a href="dashboard.html">← Back to Dashboard</a></div>
@@ -162,6 +179,8 @@ async function doLogin(){
   document.getElementById("manageCard").style.display="block";
   document.getElementById("loggedInName").textContent = who.name || "";
   await loadFullPeopleList();
+  document.getElementById("notifCard").style.display = "block";
+  loadNotifRules();
 }
 
 let fullPeopleList = [];
@@ -172,6 +191,7 @@ async function loadFullPeopleList(){
   fullPeopleList = data.people || [];
   renderPeopleList();
   loadEnforce();
+  if(Object.keys(NOTIF_RULES).length) renderNotifRules();
 }
 
 function renderPeopleList(){
@@ -250,6 +270,60 @@ async function deletePerson(targetId, name){
   await loadFullPeopleList();
   await loadPeople();
 }
+
+/* ---------------- notification routing ---------------- */
+const R_REQ = ["requester","Requester"], R_ADM = ["admins","All admins"];
+const NOTIF_EVENTS = [
+  {key:"submitted",   title:"A request is sent for verification", desc:"The first signer is told it is waiting (only when a verifier was picked on the form).", roles:[["assigned","The person picked as verifier"], R_ADM]},
+  {key:"verified",    title:"The manager has signed (verified)",  desc:"Tell Procurement it is their turn, and let the requester know.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement contacts"], R_ADM]},
+  {key:"purchased",   title:"Procurement has signed (items bought)", desc:"The requester is asked to sign “Received” when the items arrive.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement contacts"], R_ADM]},
+  {key:"received",    title:"Items received", desc:"The record is complete.", roles:[R_REQ, ["buyer","Whoever signed for Procurement"], ["procurement","Procurement contacts"], R_ADM]},
+  {key:"declined",    title:"A request is declined", desc:"With the reason.", roles:[R_REQ, R_ADM]},
+  {key:"overdue",     title:"A stage is taking too long", desc:"Uses each requester's own limits (Settings → Reminders).", roles:[R_REQ, R_ADM]},
+  {key:"supply_date", title:"Supply date is here and nothing is received", desc:"Sent once, when the supply date is tomorrow or already past.", roles:[R_REQ, R_ADM]}
+];
+let NOTIF_RULES = {}, NOTIF_PEOPLE = [];
+async function loadNotifRules(){
+  const {data, error} = await supabaseClient.rpc("admin_get_notify_rules", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin});
+  if(error || !data || !data.success){ document.getElementById("notifMsg").textContent = (data&&data.error) || "Could not load notification settings."; return; }
+  NOTIF_RULES = {}; (data.rules||[]).forEach(r=>{ NOTIF_RULES[r.key] = r; }); NOTIF_PEOPLE = data.people || [];
+  renderNotifRules();
+}
+function renderNotifRules(){
+  const contacts = (fullPeopleList||[]).filter(p=>p.is_procurement).map(p=>p.name);
+  document.getElementById("notifRules").innerHTML = NOTIF_EVENTS.map(ev=>{
+    const r = NOTIF_RULES[ev.key] || {enabled:true, roles:[], people:[]};
+    const chosen = new Set(r.people || []);
+    const roleBoxes = ev.roles.map(([k,label])=>`<label class="chip"><input type="checkbox" data-role="${k}" ${r.roles.includes(k)?"checked":""} onchange="saveNotifRule('${ev.key}')"> ${escHtml(label)}${k==="procurement" ? ` <small>(${contacts.length ? escHtml(contacts.join(", ")) : "none set"})</small>` : ""}</label>`).join("");
+    const chips = (r.people||[]).map(id=>{ const pp = NOTIF_PEOPLE.find(x=>x.id===id); return `<span class="pchip">${escHtml(pp ? pp.name : "?")} <button type="button" title="Remove" onclick="removeNotifPerson('${ev.key}','${id}')">×</button></span>`; }).join("");
+    const opts = NOTIF_PEOPLE.filter(pp=>!chosen.has(pp.id)).map(pp=>`<option value="${pp.id}">${escHtml(pp.name)}</option>`).join("");
+    return `<div class="nrule ${r.enabled?"":"off"}" data-key="${ev.key}">
+      <div class="nrule-top">
+        <div><b>${escHtml(ev.title)}</b><div class="ndesc">${escHtml(ev.desc)}</div></div>
+        <label class="nsw" title="Turn this notification on or off"><input type="checkbox" data-enabled ${r.enabled?"checked":""} onchange="saveNotifRule('${ev.key}')"><i></i></label>
+      </div>
+      <div class="nlabel">Send to</div>
+      <div class="nchips">${roleBoxes}</div>
+      <div class="nlabel">Also send to</div>
+      <div class="nchips">${chips}<select onchange="addNotifPerson('${ev.key}', this)"><option value="">＋ Add a person…</option>${opts}</select></div>
+    </div>`;
+  }).join("");
+}
+function notifState(key){
+  const el = document.querySelector(`.nrule[data-key="${key}"]`);
+  return {enabled: el.querySelector("[data-enabled]").checked, roles: [...el.querySelectorAll("[data-role]")].filter(c=>c.checked).map(c=>c.dataset.role), people: (NOTIF_RULES[key]||{}).people || []};
+}
+async function saveNotifRule(key, override){
+  const st = Object.assign(notifState(key), override || {});
+  const msgEl = document.getElementById("notifMsg"); msgEl.className = "msg"; msgEl.textContent = "Saving…";
+  const {data, error} = await supabaseClient.rpc("admin_set_notify_rule", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_key: key, p_enabled: st.enabled, p_roles: st.roles, p_people: st.people});
+  if(error || !data || !data.success){ msgEl.className = "msg error"; msgEl.textContent = (data&&data.error) || (error&&error.message) || "Could not save."; await loadNotifRules(); return; }
+  NOTIF_RULES[key] = {key, enabled: st.enabled, roles: st.roles, people: st.people};
+  msgEl.className = "msg ok"; msgEl.textContent = "Saved ✓";
+  renderNotifRules();
+}
+function addNotifPerson(key, sel){ if(!sel.value) return; const st = notifState(key); saveNotifRule(key, {people: [...st.people, sel.value]}); }
+function removeNotifPerson(key, id){ const st = notifState(key); saveNotifRule(key, {people: st.people.filter(x=>x!==id)}); }
 
 async function setProcurement(targetId, on){
   const {data, error} = await supabaseClient.rpc("admin_set_procurement", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_person_id: targetId, p_on: on});
