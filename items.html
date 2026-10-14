@@ -135,7 +135,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_
 AppBar.mount("appbar", {active:"items", client:supabaseClient});
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
-if(!myId || !myPin){ window.location.href = "login.html?redirect=items.html"; }
+if(!myId || !myPin){ window.location.href = "login.html?redirect=" + encodeURIComponent("items.html" + location.search); }
 
 const BOUGHT = ["Purchased","Received"];
 let RAW = [], ALIASES = [], RESOLVER = null;
@@ -396,6 +396,7 @@ function exportCSV(){
   a.download = "purchase_history.csv"; a.click(); URL.revokeObjectURL(a.href);
 }
 
+{ const pre = new URLSearchParams(location.search).get("q"); if(pre) document.getElementById("q").value = pre; }   // opened from the assistant: search is pre-filled
 if(myId && myPin){ setTab("items"); load(); }
 </script>
 </body>
