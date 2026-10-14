@@ -105,7 +105,7 @@
       <option value="spend">Sort: highest total spend</option>
       <option value="gap">Sort: biggest price gap</option>
     </select>
-    <label class="chk" title="Also show items on requisitions that are still waiting for approval or purchase"><input type="checkbox" id="incl" onchange="draw()"> Include not yet purchased</label>
+    <label class="chk" title="Also show items on requisitions that are still waiting for approval or purchase"><input type="checkbox" id="incl" checked onchange="draw()"> Include not yet purchased</label>
     <label class="chk" id="dupWrap" style="display:none" title="Items that look similar to another item"><input type="checkbox" id="dupOnly" onchange="draw()"> Possible duplicates <span class="dupn" id="dupCount"></span></label>
     <span class="count" id="count"></span>
   </div>
@@ -250,7 +250,7 @@ function drawItems(lines){
   groups.sort(cmp);
   const view = document.getElementById("view");
   if(!groups.length){
-    view.innerHTML = `<div class="empty"><b>Nothing found.</b><br>Try fewer or shorter words (for example “screw” instead of “M3 screw 10mm”),<br>clear the supplier or period filter, or tick “Include not yet purchased”.</div>`;
+    view.innerHTML = `<div class="empty"><b>Nothing found.</b><br>Try fewer or shorter words (for example “screw” instead of “M3 screw 10mm”),<br>or clear the supplier or period filter.</div>`;
     return;
   }
   const kq = k => esc(k).replace(/'/g,"&#39;");
