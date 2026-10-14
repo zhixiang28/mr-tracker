@@ -217,6 +217,27 @@
 
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
+
+  /* phones: stage counts in one swipeable row; each requisition as a compact card */
+  @media (max-width:720px){
+    .app{ margin:14px auto; padding:0 12px 60px; }
+    .pipeline{ display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; border-radius:12px; margin-bottom:14px; }
+    .pipeline::-webkit-scrollbar{ display:none; }
+    .stage-cell{ flex:0 0 auto; min-width:108px; padding:11px 12px; }
+    .stage-count{ font-size:20px; margin-top:4px; }
+    #reqTable, #reqTable tbody{ display:block; width:100%; }
+    #reqTable thead{ display:none; }
+    #reqTable tr.group-row{ display:block; } #reqTable tr.group-row td{ display:block; }
+    #reqTable tr.req-row{ display:grid; grid-template-columns:1fr auto; grid-template-areas:"trk total" "proj proj" "by date" "stage stage"; gap:4px 10px; padding:12px 14px; border-bottom:1px solid var(--line); }
+    #reqTable tr.req-row td{ display:block; padding:0; border:0; }
+    #reqTable tr.req-row td:nth-child(1){ grid-area:trk; } #reqTable tr.req-row td:nth-child(2){ grid-area:proj; }
+    #reqTable tr.req-row td:nth-child(3){ grid-area:by; font-size:12.5px; color:var(--muted); }
+    #reqTable tr.req-row td:nth-child(4){ grid-area:date; text-align:right; font-size:12.5px; }
+    #reqTable tr.req-row td:nth-child(5){ grid-area:total; text-align:right; font-weight:800; }
+    #reqTable tr.req-row td:nth-child(6){ grid-area:stage; margin-top:4px; }
+    .cards{ grid-template-columns:1fr !important; }
+    .hover-pop{ display:none !important; }
+  }
 </style>
 <script src="session.js"></script>
 </head>

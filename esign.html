@@ -74,6 +74,19 @@
   .mlock{ background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:10px; padding:12px; font-size:13px; line-height:1.5; }
   .slot .pinsig{ color:#166534; font-weight:700; font-size:12px; padding-bottom:6px; }
   .slot .decl{ color:var(--danger); font-weight:700; font-size:12px; padding-bottom:6px; }
+
+  @media (max-width:720px){
+    .bar{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:8px 10px; gap:6px; }
+    .bar::-webkit-scrollbar{ display:none; }
+    .bar > *{ flex:none; } .bar .title{ min-width:0; max-width:46vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+    .bar button{ padding:8px 11px; font-size:12.5px; }
+  }
+  .msignbar{ display:none; }
+  @media (max-width:720px){
+    .msignbar:not([hidden]){ display:block; position:fixed; left:0; right:0; bottom:0; z-index:15; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.96); border-top:1px solid var(--line); box-shadow:0 -6px 18px rgba(15,23,42,.08); }
+    .msignbar button{ width:100%; padding:13px; font-size:15px; font-weight:800; border-radius:10px; }
+    .stage{ padding-bottom:84px; }
+  }
 </style>
 <script src="session.js"></script>
 </head>
@@ -87,6 +100,7 @@
   <button class="primary" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
 </div>
 <div id="banner"></div>
+<div class="msignbar" id="mSignBar" hidden><button type="button" class="primary" onclick="openModal(activeOrder)">Sign or decline</button></div>
 <div class="stage" id="stage"><div class="paper" id="paper" style="display:none"></div></div>
 
 <div class="modal" id="signModal">
@@ -199,6 +213,8 @@ function render(){
   }
 
   activeOrder = currentSlot();
+  const mbar = document.getElementById("mSignBar");      // phones: a big button for the box that is waiting
+  if(mbar){ mbar.hidden = !activeOrder; if(activeOrder) mbar.querySelector("button").textContent = "Sign or decline: " + ((SLOTS[activeOrder-1]||{}).label||"").replace(/ :$/,""); }
   const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
   const slotHtml = o => {
     const s = stepBy(o);

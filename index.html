@@ -429,6 +429,22 @@
     .sig-box,.assign-box{border-color:#000; min-height:100px; background:#fff!important}
     @page{size:A4 landscape;margin:8mm}
   }
+
+  /* phones: fields stack, the materials table scrolls sideways inside its own box */
+  @media (max-width:720px){
+    .app{ margin:0; padding:0 10px 70px; }
+    .sheet{ padding:12px; overflow:visible; }
+    .header, .section-title, .meta, .footer, .hint, .status{ min-width:0 !important; }
+    .header{ padding:14px 16px; } .title{ font-size:15px; }
+    .meta{ grid-template-columns:1fr; gap:2px; }
+    .field{ grid-template-columns:1fr; gap:3px; padding:6px 0; }
+    .items-wrap{ min-width:0; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -12px; padding:0 12px 6px; }
+    .items-wrap table{ min-width:860px; }
+    .items-wrap::before{ content:"Swipe the table sideways to see every column →"; display:block; font-size:11px; color:#6b7280; margin:0 0 6px; }
+    .flow li{ font-size:11px; }
+    .sign-choice{ min-width:0; width:100%; margin:6px 0; }
+    .action-toolbar, .toolbar{ max-width:none; }
+  }
 </style>
 <script src="session.js"></script>
 </head>

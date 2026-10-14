@@ -445,6 +445,10 @@
   .as-form input{ flex:1; border:1px solid var(--line,#d7dbe0); border-radius:10px; padding:9px 12px; font:inherit; font-size:13px; background:var(--surface,#fff); color:var(--ink,#1f2933); }
   .as-form button{ border:0; background:#2f6fed; color:#fff; border-radius:10px; font:inherit; font-weight:700; font-size:13px; padding:0 14px; cursor:pointer; }
   .as-form button:disabled{ opacity:.5; cursor:default; }
+  @media (max-width:720px){
+    .as-fab{ right:12px; bottom:12px; padding:9px 14px; font-size:12.5px; box-shadow:0 6px 16px rgba(15,23,42,.25); }
+    .as-panel{ left:8px; right:8px; bottom:8px; width:auto; max-width:none; height:auto; top:64px; max-height:none; border-radius:14px; }
+  }
   @media print{ .as-fab,.as-panel{ display:none!important; } }`;
 
   function mount(client){

@@ -48,6 +48,23 @@
   .wn-foot label{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink,#1f2933); cursor:pointer; }
   .wn-foot button{ font:inherit; font-size:13px; font-weight:700; padding:10px 22px; border-radius:8px; border:1px solid #2f6fed; background:#2f6fed; color:#fff; cursor:pointer; }
   .wn-foot button:hover{ background:#2050bd; }
+  /* phones: brand + avatar on one line, menu links in one swipeable row */
+  @media (max-width:720px){
+    .appbar{ position:relative; display:block; margin:0 0 14px; }
+    .appbar .ab-brand{ display:block; font-size:17px; line-height:38px; padding-right:64px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .appbar .ab-nav{ flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; margin:6px -4px 0; padding:0 0 2px; gap:2px; }
+    .appbar .ab-nav::-webkit-scrollbar{ display:none; }
+    .appbar .ab-nav a, .appbar .ab-nav button.ab-ico{ flex:none; white-space:nowrap; padding:8px 11px; }
+    .appbar .ab-user{ position:absolute; top:0; right:0; }
+    .appbar .ab-userbtn{ padding:5px 8px 5px 5px; gap:5px; }
+    .appbar .ab-userbtn > span:nth-child(2), .appbar .ab-role{ display:none; }
+    .appbar .ab-menu{ min-width:220px; }
+    .pagehead{ align-items:flex-start; gap:10px; margin-bottom:12px; }
+    .pagehead h1{ font-size:21px; }
+    .pagehead .btns{ width:100%; }
+    .pagehead .btns button, .pagehead .btns a.btn{ padding:9px 13px; }
+    .wn-head, .wn-body, .wn-foot{ padding-left:18px; padding-right:18px; }
+  }
   @media print{ .appbar, .pagehead .btns, .wn-back{ display:none !important; } }
   `;
   const NAV = [
