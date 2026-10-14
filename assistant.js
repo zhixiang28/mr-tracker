@@ -38,6 +38,7 @@
     {k:"share email send form pdf", go:["Open the form","index.html"], a:"On the form press <b>Share</b> to send the PDF through your device's share menu, or <b>Export PDF</b> to download it."},
     {k:"search find filter requisition dashboard stage", go:["Open the dashboard","dashboard.html"], a:"On the dashboard use the search box (REQ number, project or requester), the stage boxes, the <b>All stages</b> filter or the <b>Needs action</b> button."},
     {k:"phone mobile simple full version missing hidden where analytics admin export desktop computer", a:"On a phone you get the <b>simple view</b>: dashboard, sign/approve, new requisition, drafts, purchase prices and notifications. Analytics, Admin, Projects, exports and a few extras are hidden. To see everything, open your name menu → <b>Switch to full version</b> (switch back the same way), or use a computer."},
+    {k:"install phone app home screen pwa qr download mobile app", a:"Open your name menu → <b>Get the phone app</b> on a computer and scan the QR code with your phone. iPhone: Safari → Share → <b>Add to Home Screen</b>. Android: Chrome → ⋮ → <b>Install app</b>. Then sign in and turn on alerts in Settings → Notifications."},
     {k:"dark mode light theme night appearance black", go:["Open Settings","settings.html"], a:"Name menu → <b>Settings</b> → <b>Account</b> → <b>Appearance</b>: choose <b>Auto</b> (follows your device), <b>Light</b> or <b>Dark</b>. The requisition form and signing pages always stay light."},
     {k:"hover preview point mouse", go:["Open the dashboard","dashboard.html"], a:"Rest your mouse on a row or card to preview its items and who has signed. Click it to open the full form."},
     {k:"date format ddmmyyyy dd/mm/yyyy", go:["Open the form","index.html"], a:"Dates are shown and typed as dd/mm/yyyy, for example 25/08/2026."},
@@ -470,7 +471,7 @@
     const add = (html, who, tag)=>{ const d=document.createElement("div"); d.className="as-m "+who; d.innerHTML = tab(html) + (tag?`<span class="as-tag">${esc(tag)}</span>`:""); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; };
     let started = false;
     const open = ()=>{
-      panel.classList.add("open"); fab.style.display="none";
+      panel.classList.add("open"); fab.style.display="none"; fit();
       if(!started){ started = true;
         add("Hi! Ask me where a requisition is, what needs your signature, or how to do something in the system.", "bot");
         const chips = panel.querySelector("#asChips");
@@ -479,7 +480,16 @@
       }
       setTimeout(()=>input.focus(),50);
     };
-    const close = ()=>{ panel.classList.remove("open"); fab.style.display=""; };
+    // phones: keep the panel inside the visible area, above the on-screen keyboard
+    const fit = ()=>{
+      const vv = window.visualViewport, phone = window.matchMedia("(max-width:720px)").matches;
+      if(!vv || !phone || !panel.classList.contains("open")){ panel.style.top = panel.style.height = panel.style.bottom = ""; return; }
+      const h = Math.min(vv.height - 16, 470);
+      panel.style.height = h + "px"; panel.style.bottom = "auto"; panel.style.top = (vv.offsetTop + vv.height - h - 8) + "px";
+    };
+    if(window.visualViewport){ visualViewport.addEventListener("resize", fit); visualViewport.addEventListener("scroll", fit); }
+    window.addEventListener("orientationchange", fit);
+    const close = ()=>{ panel.classList.remove("open"); fab.style.display=""; fit(); };
     fab.onclick = open; panel.querySelector(".as-x").onclick = close;
     panel.addEventListener("keydown", e=>{ if(e.key==="Escape") close(); });
     async function send(q){
