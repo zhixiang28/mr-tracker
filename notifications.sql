@@ -257,3 +257,6 @@ grant execute on function public.set_email_notifications(uuid, text, boolean) to
 -- alter function get_esign_notification(text,text) rename to get_esign_notification_legacy;  (same for get_notification_target)
 -- both names now return {"success": false} so no automatic email is sent; people opt in to email in Settings instead.
 -- trg_notify_steps also tells the purchaser ('progress') when step 4 (Received) is signed.
+
+-- ---------- the requester is always told when a step is signed (applied live) ----------
+-- trg_notify_steps no longer skips the 'progress' message when the signer is the requester (e.g. testing alone).
