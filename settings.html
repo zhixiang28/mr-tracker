@@ -19,6 +19,7 @@
   .tabs{ display:flex; gap:4px; background:#e3e8f0; padding:4px; border-radius:12px; margin-bottom:16px; }
   .tabs button{ flex:1; border:0; background:none; padding:10px 8px; border-radius:9px; color:var(--muted); }
   .tabs button[aria-selected=true]{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  @media (max-width:720px){ .row:has(.seg){ flex-wrap:wrap; } .row .seg{ flex:1 1 100%; } .row .seg button{ flex:1; padding:10px 8px; } }
   .seg{ display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; flex:none; }
   .seg button{ border:0; border-radius:0; background:#fff; padding:8px 14px; font-size:12.5px; }
   .seg button + button{ border-left:1px solid var(--line); }

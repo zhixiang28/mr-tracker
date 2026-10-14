@@ -104,6 +104,33 @@
     });
   }
 
+  /* "Get the phone app": QR code + the steps to add it to a phone's Home Screen (it installs from the browser, no app store) */
+  function showApp(){
+    if(document.getElementById("abApp")) return;
+    const url = new URL("dashboard.html", location.href).href;
+    const back = document.createElement("div"); back.id = "abApp"; back.className = "wn-back";
+    back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","Get the phone app");
+    back.innerHTML = `<div class="wn-box" style="max-width:560px">
+      <div class="wn-head"><h2>Use MR Tracker on your phone</h2><div class="wn-sub">It installs like an app — no app store. Sign, approve and get alerts on the go.</div></div>
+      <div class="wn-body" style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start;padding-top:14px;padding-bottom:10px">
+        <div style="text-align:center"><div id="abQr" class="keep-colors" style="width:170px;height:170px;background:#fff;padding:8px;border:1px solid var(--line,#d7dbe0);border-radius:12px"></div><div style="font-size:11.5px;color:var(--muted,#6b7280);margin-top:6px">Scan with your phone camera</div></div>
+        <div style="flex:1;min-width:220px;font-size:13px;line-height:1.55">
+          <b>iPhone</b> — open the link in <b>Safari</b> → Share → <b>Add to Home Screen</b>. (Alerts on iPhone only work from the Home Screen app.)<br><br>
+          <b>Android</b> — open it in <b>Chrome</b> → ⋮ menu → <b>Install app</b> / Add to Home screen.<br><br>
+          Then sign in and turn on alerts in Settings → Notifications.
+          <div style="display:flex;gap:6px;margin-top:12px"><input id="abUrl" readonly value="${esc(url)}" style="flex:1;min-width:0;font:inherit;font-size:12px;padding:8px 10px;border:1px solid var(--line,#d7dbe0);border-radius:8px;background:var(--surface,#fff);color:inherit"><button type="button" id="abCopy" style="font:inherit;font-size:12.5px;font-weight:700;padding:8px 12px;border:1px solid var(--line,#d7dbe0);border-radius:8px;background:var(--surface,#fff);color:inherit;cursor:pointer">Copy</button></div>
+        </div>
+      </div>
+      <div class="wn-foot" style="justify-content:flex-end"><button type="button" id="abAppOk">Close</button></div></div>`;
+    const close = ()=>{ back.remove(); document.removeEventListener("keydown", onKey); };
+    const onKey = e=>{ if(e.key==="Escape") close(); };
+    back.addEventListener("click", e=>{ if(e.target===back || e.target.id==="abAppOk") close(); });
+    back.querySelector("#abCopy").addEventListener("click", ()=>{ const i=back.querySelector("#abUrl"); i.select(); try{ navigator.clipboard.writeText(url); }catch(_){ document.execCommand("copy"); } back.querySelector("#abCopy").textContent="Copied"; });
+    document.addEventListener("keydown", onKey); document.body.appendChild(back);
+    const draw = ()=>{ try{ const q = qrcode(0,"M"); q.addData(url); q.make(); back.querySelector("#abQr").innerHTML = q.createSvgTag({cellSize:4, margin:0, scalable:true}); const s=back.querySelector("#abQr svg"); if(s){ s.style.width="100%"; s.style.height="100%"; } }catch(_){ back.querySelector("#abQr").textContent = "Open the link below on your phone."; } };
+    if(window.qrcode) draw(); else { const sc=document.createElement("script"); sc.src="qrcode.js"; sc.onload=draw; sc.onerror=draw; document.head.appendChild(sc); }
+  }
+
   /* desktop-only pages (Analytics, Projects, Admin) in the simple phone view: offer the full version instead */
   function desktopOnly(){
     if(!(window.UIMode && UIMode.simple()) || document.getElementById("abDesk")) return;
@@ -136,6 +163,7 @@
           <button class="ab-userbtn" data-act="menu" aria-haspopup="true"><span class="ab-avatar">${esc((name||"?").trim().charAt(0).toUpperCase())}</span><span>${esc(name)}</span>${state.isAdmin?'<span class="ab-role">Admin</span>':""} ▾</button>
           <div class="ab-menu" id="abMenu">
             <button data-act="settings">Settings</button>
+            ${!phone ? `<button data-act="getapp">Get the phone app</button>` : ""}
             ${phone ? `<button data-act="uimode">${simple ? "Switch to full version" : "Switch to simple phone view"}</button>` : ""}
             <hr>
             <button data-act="tour">Quick tour</button>
@@ -182,6 +210,7 @@
       else if(act==="tour") runTour();
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="settings") go("settings.html", o.newTab);
+      else if(act==="getapp") showApp();
       else if(act==="uimode"){ UIMode.set(UIMode.simple() ? "full" : "simple"); location.reload(); }
     });
     document.addEventListener("click", ()=>{ const m=document.getElementById("abMenu"); if(m) m.classList.remove("open"); });
@@ -192,9 +221,10 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.15";
-  const NOTICE_ID = "upgrade-2026-10g";
+  const VERSION = "2026.10.16";
+  const NOTICE_ID = "upgrade-2026-10h";
   const NOTICE = [
+    ["Phone app", "Install MR Tracker on your phone — open your name menu → Get the phone app and scan the code. The phone view keeps the everyday features and has a Full version switch. There is also a light / dark setting in Settings."],
     ["Three signatures", "The form now has three signature boxes: Verified by → Procurement (approves and buys) → Received by. The person who receives the items signs when they arrive."],
     ["Who has to sign, by amount", "The form shows who must verify your total and lets you pick them; the Approval rules button shows the full table. Orders of $50,000+ ask for the vendor quotation and PO number (LOA from $150,000), and you are warned if the supply date is under 3 working days away."],
     ["Notifications", "Get messages on Telegram, by email or as a phone alert — and choose what you hear about. Open your name menu → Settings → Notifications."],
