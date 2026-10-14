@@ -14,8 +14,8 @@
     --mark-dim:#c3c2b7;      /* de-emphasis gray for "everything else" */
     --good:#006300; --bad:#d03b3b; --accent:#2f6fed;
   }
-  @media (prefers-color-scheme: dark){
-    :root:where(:not([data-theme="light"])){
+  @media all{
+    html.dark:root{
       color-scheme: dark;
       --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
       --grid:#2c2c2a; --axis:#383835; --line:#2c2c2a;

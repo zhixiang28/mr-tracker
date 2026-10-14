@@ -72,7 +72,29 @@
     .sheet{ box-shadow:none; border-radius:0; padding:0; }
   }
 
-  @media (max-width:720px){ table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; } }
+  @media (max-width:720px){
+    table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    /* phones: every item is a card, so nothing is cut off or needs sideways scrolling */
+    table.items-t{ overflow:visible; }
+    .items-t thead{ display:none; }
+    .items-t, .items-t tbody, .items-t tfoot{ display:block; width:100%; }
+    .items-t tr.itm{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px 10px; padding:11px 12px; margin-bottom:9px; border:1px solid var(--line); border-radius:12px; background:var(--paper,#fff); }
+    .items-t tr.itm td{ display:block; padding:0; border:0; text-align:left; min-width:0; }
+    .items-t td.c-sn{ grid-column:1; font-size:11px; font-weight:800; color:var(--muted); }
+    .items-t td.c-sn::before{ content:"Item "; }
+    .items-t td.c-nm{ grid-column:1/-1; font-weight:800; font-size:14px; }
+    .items-t td.c-ds{ grid-column:1/-1; color:var(--muted); font-size:12.5px; }
+    .items-t td.c-ds:empty{ display:none; }
+    .items-t td[data-l]::before{ content:attr(data-l); display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); margin-bottom:1px; }
+    .items-t td.c-t{ grid-column:1/-1; display:flex !important; justify-content:space-between; align-items:baseline; border-top:1px dashed var(--line) !important; padding-top:7px !important; font-weight:800; font-size:14px; }
+    .items-t td.c-t::before{ margin:0; }
+    .items-t tr.itm td.c-sn{ order:-1; }
+    .items-t tfoot tr{ display:flex; justify-content:space-between; padding:5px 4px; }
+    .items-t tfoot td{ display:block; padding:0; border:0; }
+    .items-t tfoot td[colspan]{ flex:1; }
+    .items-t tfoot tr:last-child{ border-top:2px solid var(--ink); margin-top:4px; padding-top:8px; font-size:15px; }
+    .meta-grid{ grid-template-columns:1fr; }
+  }
 </style>
 <script src="session.js"></script>
 </head>
@@ -85,8 +107,8 @@
       <div class="sub">Full form view</div>
     </div>
     <div class="btns">
-      <button type="button" onclick="window.print()">Print</button>
-      <button type="button" onclick="exportCSV()">Export CSV</button>
+      <button type="button" data-full onclick="window.print()">Print</button>
+      <button type="button" data-full onclick="exportCSV()">Export CSV</button>
       <button type="button" onclick="exportPDF()">Export PDF</button>
     </div>
   </div>
@@ -279,14 +301,14 @@ function render(req){
   const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);
 
   const itemRows = items.map(it=>`
-    <tr>
-      <td>${it.sn}</td>
-      <td>${escHtml(it.name)}${it.link?` — <a href="${escHtml(it.link)}" target="_blank">link ↗</a>`:""}</td>
-      <td>${escHtml(it.description)}</td>
-      <td class="num">${it.qty}</td>
-      <td class="num">${money(it.unit_price)}</td>
-      <td class="num">${money(it.delivery_tax)}</td>
-      <td class="num">${money(it.total)}</td>
+    <tr class="itm">
+      <td class="c-sn">${it.sn}</td>
+      <td class="c-nm">${escHtml(it.name)}${it.link?` — <a href="${escHtml(it.link)}" target="_blank">link ↗</a>`:""}</td>
+      <td class="c-ds">${escHtml(it.description)}</td>
+      <td class="num c-q" data-l="Qty">${it.qty}</td>
+      <td class="num c-u" data-l="Unit price">${money(it.unit_price)}</td>
+      <td class="num c-d" data-l="Delivery / tax">${money(it.delivery_tax)}</td>
+      <td class="num c-t" data-l="Total">${money(it.total)}</td>
     </tr>`).join("");
 
   document.getElementById("content").innerHTML = `
@@ -311,7 +333,7 @@ function render(req){
       <div class="meta-row"><span class="k">PM In-Charge</span><span class="v">${escHtml(req.pm_incharge||"-")}</span></div>
     </div>
 
-    <table>
+    <table class="items-t">
       <thead><tr><th>S/N</th><th>Name</th><th>Description</th><th class="num">Qty</th><th class="num">Unit Price</th><th class="num">Delv/Tax</th><th class="num">Total</th></tr></thead>
       <tbody>${itemRows || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">No line items</td></tr>'}</tbody>
       <tfoot>

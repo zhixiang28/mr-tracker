@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme-ok>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,6 +19,10 @@
   .tabs{ display:flex; gap:4px; background:#e3e8f0; padding:4px; border-radius:12px; margin-bottom:16px; }
   .tabs button{ flex:1; border:0; background:none; padding:10px 8px; border-radius:9px; color:var(--muted); }
   .tabs button[aria-selected=true]{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .seg{ display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; flex:none; }
+  .seg button{ border:0; border-radius:0; background:#fff; padding:8px 14px; font-size:12.5px; }
+  .seg button + button{ border-left:1px solid var(--line); }
+  .seg button[aria-checked="true"]{ background:var(--accent); color:#fff; }
   .card{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:6px 20px; margin-bottom:14px; }
   .card > h2{ font-size:11.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); margin:16px 0 4px; }
   .row{ display:flex; align-items:center; gap:14px; padding:15px 0; border-top:1px solid #eef0f4; } .row:first-of-type{ border-top:0; }
@@ -136,6 +140,14 @@
       <div class="row"><div class="ico">✍️</div><div class="txt"><b>Signature <span class="badge" id="sigBadge">…</span></b><span id="sigNote">Checking…</span></div><button type="button" id="sigRemove" hidden onclick="removeSavedSig()">Remove</button></div>
     </div>
 
+    <div class="card">
+      <h2>Appearance</h2>
+      <div class="row"><div class="ico">🌓</div><div class="txt"><b>Light or dark</b><span id="thNote">Auto follows your phone or computer.</span></div>
+        <div class="seg" role="radiogroup" aria-label="Appearance">
+          <button type="button" role="radio" data-th="auto">Auto</button><button type="button" role="radio" data-th="light">Light</button><button type="button" role="radio" data-th="dark">Dark</button>
+        </div></div>
+    </div>
+
     <form class="card" onsubmit="changeMyPin(); return false;" novalidate>
       <h2>Change PIN</h2>
       <div class="note" style="padding-top:8px">Your PIN is 4 digits. You use it to sign in and to approve requisitions.</div>
@@ -167,6 +179,12 @@ const auth = () => ({p_person_id: myId, p_pin: sessionStorage.getItem("sl_pin")}
 let prefs = null, here = null, tgTimer = null, toastT = null;
 
 function toast(msg, bad){ const t = $("toast"); t.textContent = msg; t.className = "save show" + (bad ? " err" : ""); clearTimeout(toastT); toastT = setTimeout(()=>{ t.className = "save"; }, 2200); }
+function paintTheme(){
+  const m = Theme.mode();
+  document.querySelectorAll(".seg [data-th]").forEach(b => b.setAttribute("aria-checked", b.dataset.th === m));
+  $("thNote").textContent = m === "auto" ? "Auto follows your phone or computer (now " + (Theme.isDark() ? "dark" : "light") + ")." : m === "dark" ? "Dark on this device." : "Light on this device.";
+}
+document.querySelectorAll(".seg [data-th]").forEach(b => b.addEventListener("click", () => { Theme.set(b.dataset.th); paintTheme(); }));
 function showTab(n){
   ["notifications","reminders","account"].forEach(k=>{ $("pane"+k[0].toUpperCase()+k.slice(1)).hidden = k !== n; $("tab"+k[0].toUpperCase()+k.slice(1)).setAttribute("aria-selected", k === n); });
   history.replaceState(null, "", "settings.html?tab=" + n);
@@ -361,7 +379,7 @@ async function changeMyPin(){
 (function init(){
   if(!myId || !myPin) return;
   const q = new URLSearchParams(location.search), tab = q.get("tab");
-  showTab(["notifications","reminders"].includes(tab) ? tab : "account");
+  paintTheme(); showTab(["notifications","reminders"].includes(tab) ? tab : "account");
   loadPrefs(); loadReminders(); loadProfile();
   if(q.get("from") === "prompt") supabaseClient.rpc("mark_notify_prompted", auth()).then(()=>{});   // they came from the post-submit offer: don't ask again
 })();
