@@ -121,13 +121,16 @@
     <ul>
       <li><a href="#dashboard">Using the dashboard</a></li>
       <li><a href="#analytics">Analytics</a></li>
-      <li><a href="#reminders">Reminder settings</a></li>
+      <li><a href="#limits">Who signs, by amount</a></li>
+      <li><a href="#reminders">Settings &amp; notifications</a></li>
       <li><a href="#export">Exporting &amp; printing</a></li>
       <li><a href="#profile">Your profile &amp; PIN</a></li>
     </ul>
     <h4>Admins</h4>
     <ul>
       <li><a href="#admin">Managing people</a></li>
+      <li><a href="#roles">Roles &amp; access</a></li>
+      <li><a href="#routing">Who gets which notification</a></li>
     </ul>
     <h4>Help</h4>
     <ul>
@@ -193,7 +196,7 @@
     <div class="sec" id="declined">
       <h2>If your requisition is declined</h2>
       <p>It is flagged on your dashboard, and the reason and the person who declined it show right on the row or card. Click it to open the full form, then press <b>Fix &amp; Resubmit in form</b> — this reopens the complete form with everything you already entered, ready to fix.</p>
-      <div class="callout"><b>Good to know:</b> resubmitting restarts the whole approval chain from the Team Manager, even if the decline happened later at Procurement or Purchase. This ensures everyone re-confirms the revised request.</div>
+      <div class="callout"><b>Good to know:</b> resubmitting restarts the whole approval chain from the Team Manager, even if the decline happened later at Procurement. This ensures everyone re-confirms the revised request.</div>
     </div>
 
     <div class="sec" id="withdraw">
@@ -213,12 +216,13 @@
       </ol>
       <p>If a step is already tied to someone's account, only that person (signed in) can sign it.</p>
       <figure><img src="images/manual-esign.png" alt="Signing screen: approve and sign, or decline"><figcaption>The signing screen — draw your signature to approve, or switch to Decline and give a reason</figcaption></figure>
-      <p>After you sign, forward the same link to the next person — it always opens on whoever's turn it is. Signing happens only through the link; the dashboard is for tracking.</p>
+      <p>After you sign, the same link opens on the next person's turn. If you picked a verifier on the form they were notified automatically, and when the manager signs, everyone with the <b>Procurement</b> role is notified (if they turned notifications on). Otherwise just forward the link. Signing happens only through the link; the dashboard is for tracking.</p>
+      <p>If your admin turned on <b>Check appointments when signing</b>, the verification box can only be signed by someone who is signed in and whose appointment covers the amount; others see a message saying who is needed.</p>
     </div>
 
     <div class="sec" id="dashboard">
       <h2>Using the dashboard</h2>
-      <p>The dashboard is where everything lives: your own submissions, anything waiting on your signature, and — if you're an admin — every requisition in the system.</p>
+      <p>The dashboard is where everything lives: your own submissions, anything waiting on your signature, and — if your role allows it (for example Admin or Procurement) — every requisition in the system.</p>
       <figure><img src="images/manual-dashboard.png" alt="The dashboard in List layout"><figcaption>The dashboard (List layout) — every stage, every requisition, at a glance</figcaption></figure>
       <ul>
         <li><b>Stage boxes</b> — show counts by stage, and double as a filter. Click any stage to see just those requisitions.</li>
@@ -248,14 +252,34 @@
 
     <div class="sec" id="analytics">
       <h2>Analytics</h2>
-      <p>Spending, approval speed and price insights. You see your own requisitions; admins see everyone's.</p>
+      <p>Spending, approval speed and price insights. You see your own requisitions; people whose role allows it (for example Admin or Procurement) see everyone's. The page is hidden for roles that do not include it.</p>
+    </div>
+
+    <div class="sec" id="limits">
+      <h2>Who signs, by amount</h2>
+      <p>The total of the requisition decides who must <b>verify</b> it (the first signature). The form shows this as soon as you add items, and the <b>Approval rules</b> button opens the full table:</p>
+      <ul class="steps" style="list-style:disc;padding-left:20px">
+        <li>up to <b>$300</b> — Section Manager (or above)</li>
+        <li>up to <b>$500</b> — Team Manager (or above); for the ID team, above $500 needs Top Management until a Division Head is appointed</li>
+        <li>up to <b>$1,000</b> — Division Head (or above)</li>
+        <li>above <b>$1,000</b> — Top Management</li>
+      </ul>
+      <p>Orders of <b>$50,000 and above</b> also need the <b>vendor quotation reference</b> and the <b>PO number</b>; from <b>$150,000</b> an <b>LOA number</b> as well (unless it is supply of goods only, such as furniture or lighting). The form will not submit without them.</p>
+      <p>Procurement then approves <i>and</i> buys, and the requester signs <b>Received by</b> when the items arrive. The <b>supply date</b> should be at least 3 working days after you submit — the form warns you if it is sooner, and you get a reminder when the supply date arrives and nothing is received.</p>
     </div>
 
     <div class="sec" id="reminders">
-      <h2>Reminder settings</h2>
+      <h2>Settings &amp; notifications</h2>
       <p>Click your name → <b>Settings</b>. Everything you can change lives there, in three tabs: <b>Account</b> (profile, saved signature, PIN), <b>Notifications</b> and <b>Reminders</b>.</p>
       <p><b>Reminders:</b> set your own overdue limit for each stage, in hours or days. If one of your own submissions waits longer, it shows as overdue on your dashboard and in the assistant. Switch a stage off to stop checking it.</p>
       <p><b>Notifications:</b> get a message when something needs you. Press <b>Connect</b> next to Telegram, then <b>Start</b> in Telegram; switch on <b>Email</b> to get the same messages in your inbox; and/or switch on <b>This device</b> for a pop-up alert on this phone or computer (on iPhone, first use Share → Add to Home Screen and open the app from there). Then choose what to be told about: needs my action, progress on my requests, declined, or overdue reminders. <b>Send me a test</b> checks it works. If you have never set this up, you are offered it after you send out a form.</p>
+      <figure><img src="images/manual-settings.png" alt="Settings, Notifications tab"><figcaption>Settings → Notifications — choose where and what</figcaption></figure>
+    </div>
+
+    <div class="sec" id="routing">
+      <h2>Who gets which notification (admins)</h2>
+      <p>In <b>Admin Settings → Notifications — who gets what</b>, each event has an on/off switch, tick boxes for who is told (the requester, the person picked as verifier, the next signer if named, <b>Procurement</b>, whoever bought it, all admins) and an <b>Also send to</b> list for specific people. The events are: request sent for verification · manager signed · procurement signed · items received · declined · a stage is overdue · supply date reached.</p>
+      <p><b>Procurement</b> means everyone who has the Procurement role. To hand the job to someone else, give them the role (Roles button on their name) and remove it from the previous person. Each person still chooses their own channels in Settings, so remind new contacts to switch Telegram, Email or device alerts on.</p>
     </div>
 
     <div class="sec" id="roles">
@@ -281,9 +305,10 @@
       <ul>
         <li><b>Add Person</b> — pre-create an account for someone directly, without waiting for them to sign up themselves.</li>
         <li><b>Delete</b> — remove an account. Their name stays attached to any past requisitions; only the login itself is removed.</li>
-        <li><b>Make/Remove admin</b> — grant or revoke admin access. There must always be at least one admin.</li>
+        <li><b>Roles</b> — give a person roles such as <b>Admin</b> or <b>Procurement</b> (or roles you create); see <a href="#roles">Roles &amp; access</a>. There must always be at least one admin.</li>
+        <li><b>Appointment</b> — Section Manager, Team Manager, Division Head or Top Management. It decides which amounts they can verify (see <a href="#limits">Who signs, by amount</a>).</li>
       </ul>
-      <figure><img src="images/manual-admin.png" alt="Admin people directory"><figcaption>The admin panel — every account, in one place</figcaption></figure>
+      <figure><img src="images/manual-admin.png" alt="Admin people directory"><figcaption>The admin panel — every account with its roles and appointment, plus the Roles &amp; access table</figcaption></figure>
       <p>Admins can open any requisition and click <b>Edit in form</b> — the changes are made in the form itself. Next to it is <b>Reject</b>, which sends it back with a reason so the requester can fix and resubmit. <b>Withdraw</b> and <b>Delete</b> are on the other side, kept apart. Reject and withdraw are available until it's purchased. Admins can also manage the <b>Projects</b> list.</p>
     </div>
 
@@ -315,18 +340,22 @@
       <div class="cat">Submitting &amp; tracking</div>
 
       <details>
+        <summary>Who has to sign my requisition?</summary>
+        <p>The total decides who verifies it (Section Manager up to $300, Team Manager up to $500, Division Head up to $1,000, Top Management above). The form shows it as you add items and you can pick the person to send it to. Then Procurement approves and buys, and you sign <b>Received by</b> when the items arrive. The <b>Approval rules</b> button shows the full table.</p>
+      </details>
+      <details>
         <summary>Can I edit a requisition after submitting it?</summary>
         <p>Not directly, unless it gets declined. If you need changes before anyone has approved it, ask that person to decline it with a reason, then use <b>Fix &amp; Resubmit in form</b> to fix and resend it.</p>
       </details>
 
       <details>
         <summary>What happens when a requisition is declined?</summary>
-        <p>It's flagged on your dashboard with the reason. Open it, click <b>Fix &amp; Resubmit in form</b>, fix what was flagged, and resubmit. This restarts the entire approval chain from the Team Manager — even if it was declined later at Procurement or Purchase — so everyone re-confirms the revised request.</p>
+        <p>It's flagged on your dashboard with the reason. Open it, click <b>Fix &amp; Resubmit in form</b>, fix what was flagged, and resubmit. This restarts the entire approval chain from the Team Manager — even if it was declined later at Procurement — so everyone re-confirms the revised request.</p>
       </details>
 
       <details>
         <summary>Can I withdraw a requisition after submitting it?</summary>
-        <p>Yes, any time before it's been purchased — at Submitted, Manager Approved, or Procurement Approved stages, or if it was declined. Open it from your dashboard and click <b>Withdraw</b>. The original requester (or an admin) can do this. Once it reaches the <b>Purchased</b> stage, withdrawal is no longer available.</p>
+        <p>Yes, any time before it's been purchased — at Submitted or Manager Approved (before Procurement has bought it), or if it was declined. Open it from your dashboard and click <b>Withdraw</b>. The original requester (or an admin) can do this. Once it reaches the <b>Purchased</b> stage, withdrawal is no longer available.</p>
       </details>
 
       <details>
@@ -434,25 +463,33 @@
       <div class="cat">Notifications</div>
 
       <details>
-        <summary>Why didn't I receive an email notification?</summary>
-        <p>A few possibilities: you don't have an email saved on your profile yet (ask an admin to add one), the email landed in spam, or — for very new systems — a company mail filter is still learning to trust the sending address. Check your spam folder first, and let an admin know if it keeps happening.</p>
+        <summary>Why didn't I receive a notification?</summary>
+        <p>Work down this list: <b>1)</b> in Settings → Notifications, is at least one of <b>Telegram</b>, <b>Email</b> or <b>This device</b> switched on? Nothing is sent until you turn one on (Email is off by default). <b>2)</b> Is that type switched on under “What to tell me”? <b>3)</b> Press <b>Send me a test</b>. <b>4)</b> Ask an admin to check Admin → <i>Notifications — who gets what</i> that you are included for that event. <b>5)</b> For email, check your spam folder. On iPhone, device alerts only work once the site is added to the Home Screen.</p>
       </details>
 
       <details>
-        <summary>Who gets emailed, and when?</summary>
-        <p>Emails are no longer sent automatically. Switch on <b>Email</b> in <b>Settings → Notifications</b> to be emailed when something needs you, moves forward, is declined or is overdue. You can also manually email any sign-off link to someone directly from the copy-link screen.</p>
+        <summary>Who gets notified, and when?</summary>
+        <p>Nothing is sent automatically any more — each person chooses in <b>Settings → Notifications</b> where to be told (Telegram, email, this device) and about what (needs my action, progress on my requests, declined, overdue). Admins decide who each event goes to in Admin → <i>Notifications — who gets what</i>. By default: you are told when you submit and when each step is signed; the verifier you pick is told it is waiting for them; Procurement is told when the manager has signed; you are told if it is declined. You can also manually email any sign-off link from the copy-link screen.</p>
+      </details>
+      <details>
+        <summary>How do I get notifications on my phone?</summary>
+        <p>Two ways, both in Settings → Notifications. <b>Telegram:</b> press Connect, then Open Telegram and press Start — messages arrive in Telegram with an Open button. <b>This device:</b> switch it on and allow notifications; on an iPhone first tap Share → Add to Home Screen and open MR Tracker from there. Use <b>Send me a test</b> to check it works.</p>
+      </details>
+      <details>
+        <summary>Why does the form ask for a PO or vendor quotation?</summary>
+        <p>Orders of $50,000 and above need the vendor quotation reference and PO number, and from $150,000 an LOA number (unless it is supply of goods only). Fill them in where the form shows the yellow box under the total. See <a href="#limits">Who signs, by amount</a>.</p>
       </details>
 
       <div class="cat">Security</div>
 
       <details>
         <summary>Is my data secure? Who can see my requisitions?</summary>
-        <p>You see your own submissions and anything assigned to you for signing. Admins see everything. This is enforced at the database level, not just hidden in the screen — so it can't be bypassed by guessing a link or URL.</p>
+        <p>You see your own submissions and anything assigned to you for signing. Admins — and anyone whose role includes “See everyone's requisitions”, such as Procurement — see everything. This is enforced at the database level, not just hidden in the screen — so it can't be bypassed by guessing a link or URL.</p>
       </details>
 
       <details>
         <summary>How do I become an admin?</summary>
-        <p>An existing admin needs to grant you admin access from <b>Admin Settings</b>. There must always be at least one admin in the system.</p>
+        <p>An existing admin gives you the <b>Admin</b> role in Admin Settings (button <b>Roles</b> on your name). There must always be at least one admin in the system.</p>
       </details>
 
       <details>
