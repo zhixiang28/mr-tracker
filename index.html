@@ -108,6 +108,15 @@
   .flow li{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151;position:relative;text-transform:none;letter-spacing:0}
   .flow li span{width:30px;height:30px;border-radius:50%;background:#e8eefc;color:#2050bd;display:flex;align-items:center;justify-content:center;font-weight:800;position:relative;z-index:1}
   .flow li+li::before{content:"";position:absolute;top:15px;right:50%;width:100%;height:2px;background:#d6e0f5}
+  .vrow{ margin:0 0 12px; } .vrow label{ display:block; font-size:12px; font-weight:700; margin-bottom:5px; }
+  .vrow select{ width:100%; padding:9px 10px; border:1px solid #d7dbe0; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+  .vnote{ font-size:11.5px; color:#6b7280; margin-top:4px; line-height:1.45; } .vnote.warn{ color:#b45309; }
+  .quotebox{ margin:0 0 12px; padding:12px; border:1.5px solid #f3d28b; background:#fffbeb; border-radius:10px; }
+  .quotebox .qt{ font-weight:800; font-size:12.5px; color:#92400e; margin-bottom:8px; }
+  .qgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px; } .qgrid label{ font-size:12px; font-weight:700; } .qgrid input{ display:block; width:100%; margin-top:4px; padding:8px 10px; border:1px solid #d7dbe0; border-radius:8px; font:inherit; font-size:13px; font-weight:400; }
+  .quotebox .chk{ display:flex; gap:8px; align-items:flex-start; font-size:12px; cursor:pointer; } .quotebox .chk input{ margin-top:2px; }
+  .authbox a.rules{ display:inline-block; margin-top:4px; font-weight:700; color:#2050bd; cursor:pointer; }
+  @media(max-width:560px){ .qgrid{ grid-template-columns:1fr; } }
   .whosigns{ margin:10px 0 2px; display:grid; gap:7px; }
   .whosigns div{ display:flex; gap:10px; align-items:center; background:#f3f6fc; border-radius:10px; padding:8px 10px; font-size:12.5px; }
   .whosigns i{ flex:none; width:22px; height:22px; border-radius:50%; background:#2f6fed; color:#fff; font-style:normal; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
@@ -524,6 +533,19 @@
           <li><span>1</span>Verified by <b id="flowWho">Team Manager</b></li><li><span>2</span>Procurement<br><small style="font-weight:500;color:#6b7280">approves &amp; buys</small></li><li><span>3</span>Received<br><small style="font-weight:500;color:#6b7280">you sign on arrival</small></li>
         </ol>
         <div class="authbox" id="authBox"></div>
+        <div class="vrow" id="verifierRow">
+          <label for="verifierSel">Send it for verification to</label>
+          <select id="verifierSel"><option value="">— I will send the link myself —</option></select>
+          <div class="vnote" id="verifierNote"></div>
+        </div>
+        <div class="quotebox" id="quoteBox" hidden>
+          <div class="qt">Order of $50,000 or more — vendor details are required</div>
+          <div class="qgrid"><label>Vendor quotation ref. *<input id="quoteRef" maxlength="80" placeholder="e.g. Q-2026-118"></label><label>PO number *<input id="poNo" maxlength="60"></label></div>
+          <div id="loaRow" hidden>
+            <div class="qgrid"><label>LOA number *<input id="loaNo" maxlength="60"></label></div>
+            <label class="chk"><input type="checkbox" id="loaExempt"> Supply of goods only (e.g. furniture, lightings) or consultancy — LOA not required</label>
+          </div>
+        </div>
         <p class="flow-note">When you submit, you get <b>one signing link</b>. Send it to the person who must verify it (shown above). Each person opens the form, then approves by drawing their signature (plus their PIN if they are signed in) — or declines with a reason. After each signature the same link opens on the next person's turn.</p>
       </div>
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
@@ -795,8 +817,33 @@ function updateAuthBox(grand){
   const box = document.getElementById("authBox"), who = document.getElementById("flowWho"); if(!box || !window.MRF) return;
   const t = MRF.requiredText(grand), r = MRF.required(grand);
   if(who) who.textContent = t;
-  box.innerHTML = `Total <b>${MRF.money(grand)}</b> → needs verification by <b>${t}</b> (limit for this amount: ${r.upTo===Infinity?"above $1,000":"up to "+MRF.money(r.upTo).replace(".00","")}).` +
-    (r.idNote ? `<span style="display:block;font-size:11.5px;color:#6b7280">${r.idNote}</span>` : "") + (r.doc ? `<span class="doc">${r.doc}</span>` : "");
+  box.innerHTML = `Total <b>${MRF.money(grand)}</b> → needs verification by <b>${t}</b>.` +
+    (r.idNote ? `<span style="display:block;font-size:11.5px;color:#6b7280">${r.idNote}</span>` : "") + (r.doc ? `<span class="doc">${r.doc}</span>` : "") +
+    `<br><a class="rules" onclick="MRF.showRules(currentGrand())">View approval rules</a>`;
+  document.getElementById("quoteBox").hidden = grand < 50000;
+  document.getElementById("loaRow").hidden = grand < 150000;
+  loadVerifiers(grand);
+}
+const currentGrand = () => parseFloat(document.getElementById("grandTotal").textContent) || 0;
+// people whose appointment allows them to verify this amount (the list changes only when the amount moves to another level)
+let verifTimer = null, verifKey = "";
+function loadVerifiers(grand){
+  clearTimeout(verifTimer);
+  verifTimer = setTimeout(async ()=>{
+    let id, pin; try{ id = requesterId; pin = requesterPin; }catch(_){ return; }
+    const sel = document.getElementById("verifierSel"), note = document.getElementById("verifierNote");
+    if(!sel || !id || !pin || !supabaseClient) return;
+    if(!(grand > 0)){ note.textContent = "Add your items to see who can verify it."; note.className = "vnote"; return; }
+    const key = MRF.required(grand).who; if(key === verifKey && sel.options.length > 1) return;
+    const {data} = await supabaseClient.rpc("list_verifiers", {p_person_id:id, p_pin:pin, p_amount:grand});
+    if(!data || !data.success) return;
+    verifKey = key;
+    const keep = sel.value;
+    sel.innerHTML = '<option value="">— I will send the link myself —</option>' + (data.people||[]).map(p=>`<option value="${p.id}">${escHtml(p.name)} · ${escHtml(p.appointment)}</option>`).join("");
+    if([...sel.options].some(o=>o.value===keep)) sel.value = keep;
+    if((data.people||[]).length){ note.textContent = "Pick the person and they are notified automatically (if they turned notifications on) — or leave it and send the link yourself."; note.className = "vnote"; }
+    else { note.textContent = "No one has the " + key + " appointment (or higher) yet. An admin can set appointments in Admin → People. You can still send the link yourself."; note.className = "vnote warn"; }
+  }, 350);
 }
 
 function collect(){
@@ -1053,6 +1100,7 @@ async function loadForEdit(requisitionId){
     rows: items.map(it=>[it.name||"", it.description||"", it.qty, it.unit_price, it.delivery_tax, it.link||""])
   });
 
+  document.getElementById("quoteRef").value = req.vendor_quote_ref || ""; document.getElementById("poNo").value = req.po_no || ""; document.getElementById("loaNo").value = req.loa_no || ""; document.getElementById("loaExempt").checked = !!req.loa_exempt;
   const declinedStep = (req.approval_steps||[]).find(s=>s.status==="Declined");
   const banner = document.createElement("div");
   banner.id = "declineReviseBanner";
@@ -1172,6 +1220,9 @@ function newForm(){
   setDateField("supplyDate", "");
   document.getElementById("itemsBody").innerHTML="";
   addRow();
+  ["quoteRef","poNo","loaNo"].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=""; });
+  const lx=document.getElementById("loaExempt"); if(lx) lx.checked=false;
+  const vs=document.getElementById("verifierSel"); if(vs) vs.value="";
   currentRequisitionId=null;
   currentDraftId=null;
   updateSubmitBtnLabel();
@@ -1341,6 +1392,18 @@ async function submitToDashboard(){
   const realRows = rows.filter(r=>r[0] || r[1]);
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
 
+  // vendor details for big orders, and the 3-working-day supply date
+  const gNow = currentGrand();
+  if(gNow >= 50000){
+    if(!val("quoteRef").trim() || !val("poNo").trim()){ setStatus("Orders of $50,000 and above need the vendor quotation reference and the PO number."); document.getElementById("quoteBox").scrollIntoView({block:"center"}); return; }
+    if(gNow >= 150000 && !document.getElementById("loaExempt").checked && !val("loaNo").trim()){ setStatus("Orders of $150,000 and above need an LOA number — or tick “Supply of goods only”."); document.getElementById("quoteBox").scrollIntoView({block:"center"}); return; }
+  }
+  const wd = MRF.workingDaysUntil(meta.supplyDate);
+  if(meta.supplyDate && wd !== null && wd < 3){
+    const when = wd < 0 ? "The supply date has already passed." : `The supply date is only ${wd} working day${wd===1?"":"s"} away.`;
+    if(!confirm(`${when}\n\nThe form asks for a supply date at least 3 working days after you submit, so procurement has time to buy.\n\nSubmit anyway?`)) return;
+  }
+
   const btn=document.getElementById("submitBtn");
   btn.disabled=true; btn.textContent="Saving...";
 
@@ -1357,7 +1420,10 @@ async function submitToDashboard(){
       form_date: meta.formDate || null,
       pc_no: meta.pcNo || null,
       pm_incharge: meta.pmIncharge || null,
-      materials_subtotal: itemsTotal, delivery_tax_subtotal: dtaxTotal, grand_total: grand
+      materials_subtotal: itemsTotal, delivery_tax_subtotal: dtaxTotal, grand_total: grand,
+      verifier_id: val("verifierSel") || null,
+      vendor_quote_ref: grand >= 50000 ? val("quoteRef").trim() || null : null, po_no: grand >= 50000 ? val("poNo").trim() || null : null,
+      loa_no: grand >= 150000 ? val("loaNo").trim() || null : null, loa_exempt: grand >= 150000 && document.getElementById("loaExempt").checked
     };
     const items = realRows.map((r,i)=>({
       sn:i+1, name:r[0]||"", description:r[1]||"",
@@ -1382,6 +1448,9 @@ async function submitToDashboard(){
     }
 
     if(editRequisitionId){
+      const {data: dd, error: de} = await supabaseClient.rpc("set_requisition_details", {p_person_id: requesterId, p_pin: requesterPin, p_requisition_id: editRequisitionId, p_header: header});
+      if(de) throw de;
+      if(!dd.success) throw new Error(dd.error || "Could not save the vendor details.");
       const {data, error} = await supabaseClient.rpc("requester_resubmit", {
         p_person_id: requesterId, p_pin: requesterPin, p_requisition_id: editRequisitionId,
         p_header: header, p_items: items
@@ -1403,7 +1472,7 @@ async function submitToDashboard(){
     if(!data.success) throw new Error(data.error || "Unknown error");
 
     currentRequisitionId = data.requisition_id;
-    showSubmitResult(data.tracking_no, data.first_token, grand);
+    showSubmitResult(data.tracking_no, data.first_token, grand, data.verifier);
     if(currentDraftId){
       // This draft has now been submitted — remove it from the drafts list
       supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
@@ -1444,14 +1513,14 @@ function resetFormForNext(){
   updateLoginBar();
 }
 
-function showSubmitResult(trackingNo, firstToken, grand){
+function showSubmitResult(trackingNo, firstToken, grand, verifierName){
   const link = new URL("esign.html", window.location.href);
   link.searchParams.set("token", firstToken);
   const who = MRF.requiredText(grand), r = MRF.required(grand);
   copyText(link.toString()).then(copied=>{
-    showLinkResult({title:"Request submitted!", sub:`${trackingNo} (${MRF.money(grand)}) is now waiting for ${who}.`, link:link.toString(), copied, role:who,
-      intro:`<b>Send this one link</b> to the person who signs first. The same link then moves to the next person automatically.
-        <div class="whosigns"><div><i>1</i><span><b>Verified by ${who}</b> — required for ${MRF.money(grand)}</span></div><div><i>2</i><span><b>Procurement</b> approves and buys</span></div><div><i>3</i><span><b>You</b> sign when the items are received</span></div></div>` +
+    showLinkResult({title:"Request submitted!", sub:`${trackingNo} (${MRF.money(grand)}) is now waiting for ${verifierName || who}.`, link:link.toString(), copied, role:who,
+      intro:`${verifierName ? `It is assigned to <b>${escHtml(verifierName)}</b> — they are notified if they turned notifications on. You can also <b>send them the link</b> below.` : `<b>Send this one link</b> to the person who signs first.`} The same link then moves to the next person automatically.
+        <div class="whosigns"><div><i>1</i><span><b>Verified by ${verifierName ? escHtml(verifierName) : who}</b> — ${MRF.money(grand)} needs ${who}</span></div><div><i>2</i><span><b>Procurement</b> approves and buys</span></div><div><i>3</i><span><b>You</b> sign when the items are received</span></div></div>` +
         (r.doc ? `<p style="color:#b45309;font-weight:700;margin:6px 0 0">${r.doc}.</p>` : "")});
   });
 }
@@ -1802,7 +1871,6 @@ function buildPDF(){
   doc.setFontSize(8);
   doc.setTextColor(...muted);
   doc.text("Signatures are captured digitally through the approval chain — see the tracking dashboard for signer names and dates.", margin, finalY+sigBoxH+16);
-  MRF.drawLimitsPage(doc, grand, {margin});       // page 2: Authorisation Limit
 
   return doc;
 }

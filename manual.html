@@ -182,7 +182,7 @@
       </ol>
       <figure><img src="images/manual-form.png" alt="The requisition form, filled in"><figcaption>The requisition form — project details, line items, and running totals</figcaption></figure>
       <p>Once submitted, you'll see who has to sign (based on the total) and get a link for the first person. You can copy it, or use the built-in <b>send by email</b> box to email it directly — no login needed for them to open it.</p>
-      <div class="callout">The order is fixed: <b>Verified by manager → Procurement (approves and buys) → Received</b>. Each person's signature reveals the next link automatically. The form tells you which manager the total needs; the full table is page 2 of the form and of the PDF. Requisitions made before this change keep their older four steps.</div>
+      <div class="callout">The order is fixed: <b>Verified by manager → Procurement (approves and buys) → Received</b>. Each person's signature reveals the next link automatically. The form tells you which manager the total needs, lets you pick the person to send it to, and has an <b>Approval rules</b> button with the full table (it is a reference, not part of the signed form). Requisitions made before this change keep their older four steps.</div>
     </div>
 
     <div class="sec" id="drafts">
@@ -461,9 +461,9 @@
 
 <script>
 const STAGES = [
-  { label:"Submit", title:"1. Submit", body:"The requester fills in project details and line items, then submits. The form shows who must verify it for that total (page 2 of the form, the Authorisation Limit) and gives one signing link to send to that person." },
+  { label:"Submit", title:"1. Submit", body:"The requester fills in project details and line items, then submits. The form shows who must verify it for that total (the “Approval rules” button shows the Authorisation Limit table) and gives one signing link to send to that person." },
   { label:"Verified by\nManager", title:"2. Verified by the right manager", body:"The manager the amount requires (Section Manager up to $300, Team Manager up to $500, Division Head up to $1,000, Top Management above) reviews and signs. Declining sends it back to the requester with a reason; approving reveals the next link." },
-  { label:"Procurement\n(approve & buy)", title:"3. Procurement", body:"Procurement checks budget and sourcing, signs, and buys the items — the form's “Procurement Dept” and “Processed by” are the same sign-off. The requester is notified." },
+  { label:"Procurement\n(approve & buy)", title:"3. Procurement", body:"Procurement checks budget and sourcing, signs, and buys the items — the form's “Procurement Dept” is one sign-off for both. The requester is notified." },
   { label:"Received", title:"4. Received", body:"When the items physically arrive, the person receiving signs “Received by” on the same link — completing the record permanently, signatures and all." },
 ];
 

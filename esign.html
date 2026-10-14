@@ -41,8 +41,6 @@
   .slot .locked{ color:#9ca3af; font-size:11px; padding-bottom:6px; }
   .who{ margin-left:12px; font-size:10.5px; color:var(--muted); padding-bottom:3px; }
   .srow .lbl .req{ display:block; font-weight:600; font-size:10px; color:var(--muted); margin-top:2px; }
-  .slot.nosig .pname{ font-size:12px; padding-bottom:6px; }
-  .page2{ margin-top:34px; padding-top:22px; border-top:2px dashed #b8c0cc; position:relative; } .page2 .pg{ position:absolute; top:-10px; left:0; background:#fff; padding:0 8px 0 0; font-size:10px; font-weight:800; color:#9ca3af; letter-spacing:.6px; text-transform:uppercase; }
   .ph-head{ font-weight:800; text-decoration:underline; font-size:11.5px; margin:12px 0 4px; }
   .modal{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:20; padding:14px; }
   .modal.open{ display:flex; }
@@ -85,6 +83,7 @@
   <div class="title" id="barTitle">Materials Requisition Form</div>
   <button onclick="loadDoc()" title="Reload to see the latest signatures">↻ Refresh</button>
   <button id="csvBtn" onclick="exportCSV()" disabled>Export CSV</button>
+  <button id="rulesBtn" onclick="MRF.showRules(doc ? doc.requisition.grand_total || 0 : 0)">Approval rules</button>
   <button class="primary" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
 </div>
 <div id="banner"></div>
@@ -244,10 +243,8 @@ function render(){
       <div class="srow"><div class="lbl">${SLOTS[3].label}</div>${slotHtml(4)}</div>` : `
       <div class="srow"><div class="lbl">${SLOTS[0].label}<span class="req">Required: ${esc(MRF.requiredText(total))}</span></div>${slotHtml(1)}</div>
       <div class="srow"><div class="lbl">${SLOTS[1].label}</div>${slotHtml(2)}</div>
-      <div class="srow"><div class="lbl">PROCESSED BY :</div><div class="slot nosig"><span class="pname">${esc((stepBy(2).status==="Signed" && stepBy(2).assigned_person_name) || "")}</span></div></div>
       <div class="srow"><div class="lbl">${SLOTS[2].label}</div>${slotHtml(3)}</div>`}
-    </div>
-    <div class="page2"><div class="pg">Page 2</div>${MRF.limitsHtml(total)}</div>`;
+    </div>`;
 
   document.getElementById("paper").style.display = "block";
   fitPaper();
@@ -604,17 +601,11 @@ async function buildPDF(){
     pdf.text("Required: " + MRF.requiredText(total), lx, fy+19, {maxWidth:94}); pdf.setTextColor(0,0,0);
     fy += 44;
     await sigRow(2, "PROCUREMENT DEPT :", false, fy); fy += 44;
-    // PROCESSED BY: the Procurement signer
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(8.5); pdf.text("PROCESSED BY :", lx, fy);
-    pdf.setLineWidth(1.2); pdf.line(lvx, fy+10, lend, fy+10);
-    const pb = stepBy(2); if(pb.status==="Signed" && pb.assigned_person_name){ drawText(pdf, pb.assigned_person_name, lvx+4, fy+7, 9, "normal", {maxWidth:lend-lvx-8}); }
-    fy += 44;
     await sigRow(3, "RECEIVED BY :", false, fy);
   }
 
   pdf.setFont("helvetica","normal"); pdf.setFontSize(7); pdf.setTextColor(120,120,120);
   pdf.text(`Tracking no. ${r.tracking_no||""}`, m, 842-18);
-  if(!MRF.isLegacy(doc.steps)) MRF.drawLimitsPage(pdf, total, {margin:m});       // page 2: Authorisation Limit
   return pdf;
 }
 

@@ -319,7 +319,7 @@ function render(req){
       </tfoot>
     </table>
 
-    ${MRF.isLegacy(steps) ? "" : `<div class="authnote">This requisition is <b>${money(req.grand_total)}</b> → verification by <b>${escHtml(MRF.requiredText(req.grand_total))}</b>${MRF.required(req.grand_total).doc ? ` · <b>${escHtml(MRF.required(req.grand_total).doc)}</b>` : ""}. Procurement then approves and buys, and the items are signed for when received.</div>`}
+    ${MRF.isLegacy(steps) ? "" : `<div class="authnote">This requisition is <b>${money(req.grand_total)}</b> → verification by <b>${escHtml(MRF.requiredText(req.grand_total))}</b>${MRF.required(req.grand_total).doc ? ` · <b>${escHtml(MRF.required(req.grand_total).doc)}</b>` : ""}. Procurement then approves and buys, and the items are signed for when received. <a href="#" onclick="MRF.showRules(currentReq.grand_total);return false" style="color:#2050bd;font-weight:700">View approval rules</a></div>`}
     <div class="sign-grid">
       ${steps.map(st=>signCard(st)).join("")}
     </div>
@@ -492,7 +492,6 @@ function exportPDF(){
   doc.setFontSize(7); doc.setTextColor(150);
   doc.text(`Exported ${fmtDateTime(new Date())} from SPACElogic MR Tracker`, margin, 820);
 
-  if(!MRF.isLegacy(steps)) MRF.drawLimitsPage(doc, Number(req.grand_total)||0, {margin});       // page 2: Authorisation Limit
   doc.save(`${req.tracking_no}_${(req.project_name||"requisition").replace(/[^a-z0-9]/gi,"_")}.pdf`);
 }
 
