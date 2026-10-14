@@ -263,3 +263,7 @@ grant execute on function public.set_email_notifications(uuid, text, boolean) to
 
 -- ---------- notification routing (applied live): notify_rules table, rule_recipients(), admin_get_notify_rules / admin_set_notify_rule;
 -- trg_notify_steps and notify_run_reminders now read the recipients from notify_rules (defaults = previous behaviour) ----------
+
+-- ---------- QA hardening (applied live) ----------
+-- revoke all on function public.trg_notify_steps() from public, anon, authenticated;
+-- alter function public.appointment_rank(text) / required_rank(numeric) / rank_name(int) / perm_catalog() set search_path = public;
