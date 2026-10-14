@@ -290,6 +290,7 @@
 
 <script src="dates.js"></script>
 <script src="notify.js"></script>
+<script src="mrf.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -310,7 +311,8 @@ async function sendEmail(to, subject, html){
   }catch(e){ return false; }
 }
 
-const STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
+const ALL_STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
+let STAGES = ALL_STAGES.slice();      // "Procurement Approved" only exists for requisitions made before the 3-step flow; hidden when there are none
 const STAGE_VARS = { "Submitted":"--submitted","Manager Approved":"--manager","Procurement Approved":"--procurement","Purchased":"--purchased","Received":"--received","Declined":"--declined","Withdrawn":"--withdrawn" };
 
 let allReqs = [];
@@ -359,6 +361,7 @@ function isCurrentlyActionableStep(r, s, idx, prevSignedUpTo){
 
 const STAGE_HOURS_KEY = {
   "Manager Approval": "remind_manager_hours",
+  "Procurement": "remind_procurement_hours",
   "Procurement Approval": "remind_procurement_hours",
   "Purchase": "remind_purchase_hours",
   "Received": "remind_received_hours"
@@ -444,6 +447,8 @@ async function loadData(){
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not load data."); return; }
   iAmAdmin = !!data.is_admin;
   allReqs = data.requisitions || [];
+  STAGES = ALL_STAGES.filter(st=>st!=="Procurement Approved" || allReqs.some(r=>r.status===st));
+  const _opt=[...document.querySelectorAll("#stageFilter option")].find(o=>o.value==="Procurement Approved"||o.textContent==="Procurement Approved"); if(_opt) _opt.hidden = !STAGES.includes("Procurement Approved");
   document.getElementById("pageSub").textContent = iAmAdmin ? "Every requisition in the system" : "Everything you submitted or are asked to sign";
   AppBar.setAdmin(iAmAdmin);
   document.getElementById("emptyStateText").textContent = iAmAdmin
@@ -638,21 +643,21 @@ function render(){
   }).join("");
 }
 
-const STEP_SHORT = {1:"Manager", 2:"Approve", 3:"Purchase", 4:"Received"};
-// Stage pill + four progress dots (one per sign-off) + a one-line "what's next"
+const stepShortOf = (x, r) => MRF.stepShort(x, r.approval_steps);
+// Stage pill + progress dots (one per sign-off) + a one-line "what's next"
 function renderProgressCell(r){
   const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
   const next = steps.find(x=>x.status!=="Signed");
   const dots = steps.map(x=>{
     const cls = x.status==="Signed" ? "done" : x.status==="Declined" ? "bad" : (next && x.step_order===next.step_order && r.status!=="Declined" && r.status!=="Withdrawn") ? "now" : "";
     const who = x.status==="Signed" ? `signed by ${x.assigned_person_name||"?"}` : x.status==="Declined" ? "declined" : "waiting";
-    return `<i class="pd ${cls}" title="${escapeHtml((STEP_SHORT[x.step_order]||x.stage_name)+": "+who)}"></i>`;
+    return `<i class="pd ${cls}" title="${escapeHtml(stepShortOf(x, r)+": "+who)}"></i>`;
   }).join("");
   let note = "";
   if(r.status==="Declined") note = "Declined" + (r.declined_by?` by ${r.declined_by}`:"");
   else if(r.status==="Withdrawn") note = "Withdrawn";
   else if(!next) note = "All signed";
-  else note = `Next: ${STEP_SHORT[next.step_order]||next.stage_name}` + (next.assigned_person_name?` (${next.assigned_person_name})`:"");
+  else note = `Next: ${stepShortOf(next, r)}` + (next.assigned_person_name?` (${next.assigned_person_name})`:"");
   return `<span class="pill" style="background:var(${STAGE_VARS[r.status]||'--submitted'})">${escapeHtml(r.status)}</span>
     <div class="pdots">${dots}</div><div class="muted" style="margin-top:2px">${escapeHtml(note)}</div>`;
 }
@@ -757,7 +762,7 @@ function hoverHtml(r){
   const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order).map(x=>{
     const ic = x.status==="Signed" ? "✓" : x.status==="Declined" ? "✕" : "○";
     const cls = x.status==="Signed" ? "ok" : x.status==="Declined" ? "bad" : "";
-    return `<div class="hp-st ${cls}"><span>${ic} ${escapeHtml(STEP_SHORT[x.step_order]||x.stage_name)}</span><span>${escapeHtml(x.assigned_person_name||"—")}${x.signed_at?" · "+fmtDMY(x.signed_at):""}</span></div>`;
+    return `<div class="hp-st ${cls}"><span>${ic} ${escapeHtml(stepShortOf(x, r))}</span><span>${escapeHtml(x.assigned_person_name||"—")}${x.signed_at?" · "+fmtDMY(x.signed_at):""}</span></div>`;
   }).join("");
   return `<div class="hp-h"><b>${escapeHtml(r.tracking_no||"-")}</b><span>${fmtMoney(r.grand_total)}</span></div>
     <div class="hp-sub">${escapeHtml(r.project_name||"-")}${r.project_location?" · "+escapeHtml(r.project_location):""}</div>

@@ -39,6 +39,9 @@
   .btn-danger:hover{ background:#fef2f2; }
   .add-person-form{ display:none; margin-top:14px; padding-top:14px; border-top:1px dashed var(--line); }
   .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+  .apptbar{ margin:0 0 14px; padding:12px 14px; background:#f3f6fc; border-radius:10px; font-size:13px; }
+  .sw2{ display:flex; gap:10px; align-items:flex-start; cursor:pointer; } .sw2 input{ width:auto; margin-top:3px; } .sw2 small{ color:#6b7280; line-height:1.5; }
+  .apptsel{ display:inline-flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; font-weight:700; color:#6b7280; } .apptsel select{ padding:6px 8px; border:1px solid #d7dbe0; border-radius:8px; font:inherit; font-size:12.5px; color:#1f2933; background:#fff; width:auto; }
 </style>
 <script src="session.js"></script>
 </head>
@@ -76,6 +79,9 @@
   <div class="card" id="manageCard" style="display:none">
     <h2>People &amp; admin access</h2>
     <div class="desc">Logged in as <strong id="loggedInName"></strong>.</div>
+    <div class="apptbar">
+      <label class="sw2"><input type="checkbox" id="enforceSw" onchange="setEnforce(this)"> <span><b>Check appointments when signing</b><br><small>When on, only people whose appointment covers the amount can sign the “verified by” box (Section Manager up to $300, Team Manager up to $500, Division Head up to $1,000, Top Management above). Set everyone’s appointment first.</small></span></label>
+    </div>
     <div id="peopleList"></div>
     <button type="button" onclick="toggleAddForm()">＋ Add Person</button>
 
@@ -165,6 +171,7 @@ async function loadFullPeopleList(){
   if(error || !data.success){ alert((data&&data.error)||(error&&error.message)||"Could not load people."); return; }
   fullPeopleList = data.people || [];
   renderPeopleList();
+  loadEnforce();
 }
 
 function renderPeopleList(){
@@ -183,6 +190,10 @@ function renderPeopleList(){
           <span class="person-name">${escHtml(p.name)}</span>
           ${p.is_admin ? '<span class="badge">Admin</span>' : ''}
           <div class="person-meta">${metaParts.map(escHtml).join(" · ")}</div>
+          <label class="apptsel">Appointment
+            <select onchange="setAppointment('${p.id}', this.value)">
+              ${["","Section Manager","Team Manager","Division Head","Top Management"].map(v=>`<option value="${v}" ${(p.appointment||"")===v?"selected":""}>${v||"— none (staff) —"}</option>`).join("")}
+            </select></label>
         </div>
         <div class="person-actions">
           <button class="secondary" onclick="editEmail('${p.id}','${escHtml(p.email||"").replace(/'/g,"\\'")}')">Edit email</button>
@@ -237,6 +248,22 @@ async function deletePerson(targetId, name){
   if(error || !data.success){ alert((data&&data.error)||(error&&error.message)||"Failed."); return; }
   await loadFullPeopleList();
   await loadPeople();
+}
+
+async function setAppointment(targetId, level){
+  const {data, error} = await supabaseClient.rpc("admin_set_appointment", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_person_id: targetId, p_level: level || null});
+  if(error || !data || !data.success){ alert((data&&data.error) || (error&&error.message) || "Could not save the appointment."); }
+  await loadFullPeopleList();
+}
+async function loadEnforce(){
+  const {data} = await supabaseClient.rpc("get_app_flags");
+  document.getElementById("enforceSw").checked = !!(data && data.enforce_appointment);
+}
+async function setEnforce(box){
+  const on = box.checked;
+  if(on && !fullPeopleList.some(p=>p.appointment) && !confirm("Nobody has an appointment yet, so nobody could sign the verification box. Turn it on anyway?")){ box.checked = false; return; }
+  const {data, error} = await supabaseClient.rpc("admin_set_enforce", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_on: on});
+  if(error || !data || !data.success){ box.checked = !on; alert((data&&data.error) || (error&&error.message) || "Could not save."); }
 }
 
 async function toggleRole(targetId, makeAdmin){

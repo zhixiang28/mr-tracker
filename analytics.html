@@ -387,7 +387,9 @@ function draw(){
   /* ---- approval funnel ---- */
   const base = R.filter(r=>r.status!=="Withdrawn");
   const signed = r => (r.approval_steps||[]).filter(s=>s.status==="Signed").length;
-  const reached = FUNNEL.map((_,k)=> k===0 ? base.length : base.filter(r=>signed(r)>=k).length);
+  // requisitions made with the 3-step flow skip the separate "Procurement approved" stage: Procurement signing = bought
+  const level = r => { const n = signed(r), legacy = (r.approval_steps||[]).length >= 4; return legacy ? n : [0,1,3,4][n] ?? n; };
+  const reached = FUNNEL.map((_,k)=> k===0 ? base.length : base.filter(r=>level(r)>=k).length);
   const funnelRows = FUNNEL.map((n,k)=>({label:n, value:reached[k], text:`${reached[k]} · ${base.length?Math.round(reached[k]/base.length*100):0}%`, tip:k===0?"All submitted (withdrawn excluded)":`${n} — ${reached[k-1]?Math.round(reached[k]/reached[k-1]*100):0}% of those that reached the previous stage`}));
   hbars(document.getElementById("c-funnel"), funnelRows);
   dataTable(document.getElementById("d-funnel"), ["Stage","Requisitions","% of submitted","% of previous stage"], FUNNEL.map((n,k)=>[n, String(reached[k]), (base.length?Math.round(reached[k]/base.length*100):0)+"%", k===0?"—":(reached[k-1]?Math.round(reached[k]/reached[k-1]*100):0)+"%"]));
@@ -396,11 +398,18 @@ function draw(){
   const per = [[],[],[],[]];
   R.forEach(r=>{
     let prevT = r.created_at ? new Date(r.created_at) : null;
-    for(let i=1;i<=4;i++){ const t=stepTime(r,i); if(t && prevT){ const h=(t-prevT)/3600000; if(h>=0) per[i-1].push(h); } if(t) prevT=t; else break; }
+    const bucketOf = st => /Manager/.test(st.stage_name||"") ? 0 : /^Procurement/.test(st.stage_name||"") ? 1 : st.stage_name==="Purchase" ? 2 : 3;
+    for(const st of (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order)){
+      if(st.status!=="Signed" || !st.signed_at) break;
+      const t = new Date(st.signed_at);
+      if(prevT){ const h=(t-prevT)/3600000; if(h>=0) per[bucketOf(st)].push(h); }
+      prevT = t;
+    }
   });
-  const timeRowsStep = STEP_NAMES.map((n,i)=>({label:n, value:mean(per[i])||0, text:fmtHours(mean(per[i])), tip:`${n} · median ${fmtHours(median(per[i]))} · 90th percentile ${fmtHours(pct(per[i],.9))} · ${per[i].length} requisitions`}));
+  const shownSteps = STEP_NAMES.map((n,i)=>i).filter(i=>i!==2 || per[2].length);
+  const timeRowsStep = shownSteps.map(i=>({n:STEP_NAMES[i], i})).map(({n,i})=>({label:n, value:mean(per[i])||0, text:fmtHours(mean(per[i])), tip:`${n} · median ${fmtHours(median(per[i]))} · 90th percentile ${fmtHours(pct(per[i],.9))} · ${per[i].length} requisitions`}));
   hbars(document.getElementById("c-time"), timeRowsStep, {dimExceptMax:true});
-  dataTable(document.getElementById("d-time"), ["Step","Average","Median","90th percentile","Based on"], STEP_NAMES.map((n,i)=>[n, fmtHours(mean(per[i])), fmtHours(median(per[i])), fmtHours(pct(per[i],.9)), per[i].length+" requisitions"]));
+  dataTable(document.getElementById("d-time"), ["Step","Average","Median","90th percentile","Based on"], shownSteps.map(i=>[STEP_NAMES[i], fmtHours(mean(per[i])), fmtHours(median(per[i])), fmtHours(pct(per[i],.9)), per[i].length+" requisitions"]));
 
   /* ---- value by project (+ concentration) ---- */
   const byProj = groupSum(live, r=>r.project_name||"(no project)", reqTotal);

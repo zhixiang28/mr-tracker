@@ -126,6 +126,7 @@
       <div class="fld"><label for="pfName">Name</label><input id="pfName" maxlength="80" autocomplete="name" oninput="profileDirty()"><div class="hint" id="pfNameNote">Shown on your requisitions and sign-offs. Signed records keep the name they were signed under.</div></div>
       <div class="fld"><label for="pfPos">Position <i>(optional)</i></label><input id="pfPos" placeholder="e.g. Site Engineer" maxlength="80" autocomplete="organization-title" oninput="profileDirty()"></div>
       <div class="fld"><label for="pfDept">Team / department <i>(optional)</i></label><input id="pfDept" placeholder="e.g. Operations" maxlength="80" oninput="profileDirty()"></div>
+      <div class="fld"><label>Appointment</label><input id="pfAppt" readonly placeholder="—"><div class="hint">Decides which amounts you can verify. Set by an admin.</div></div>
       <div class="fld"><label for="pfEmail">Company email</label><input id="pfEmail" type="email" readonly><div class="hint">This is your sign-in email, so it can’t be changed here. Ask an admin if it needs correcting.</div></div>
       <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="pfMsg"></span><button type="submit" class="primary" id="pfSave" disabled>Save changes</button></div>
     </form>
@@ -259,7 +260,7 @@ async function tgToggle(){
 function tgCancel(quiet){ clearInterval(tgTimer); $("tgSteps").hidden = true; $("tgBtn").hidden = false; }
 
 /* ---------------- reminders ---------------- */
-const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement approval","remind_procurement_hours","how long procurement may take"],["Purchase","remind_purchase_hours","from approval until it is bought"],["Received","remind_received_hours","from bought until it arrives"]];
+const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement (approve & buy)","remind_procurement_hours","how long procurement may take to sign and buy"],["Purchase (older requests)","remind_purchase_hours","only for requests made before the new form"],["Received","remind_received_hours","from bought until it arrives"]];
 let mySettings = null;
 function split(h){ return h == null ? {on:false, n:2, u:"days"} : (h >= 24 && h % 24 === 0) ? {on:true, n:h/24, u:"days"} : {on:true, n:h, u:"hours"}; }
 async function loadReminders(){
@@ -289,7 +290,7 @@ async function loadProfile(){
   const {data} = await supabaseClient.rpc("get_my_profile", auth());
   if(data && data.success){
     profileOrig = {name, position: data.position || "", department: data.department || ""};
-    $("pfPos").value = profileOrig.position; $("pfDept").value = profileOrig.department; $("pfEmail").value = data.email || "";
+    $("pfPos").value = profileOrig.position; $("pfDept").value = profileOrig.department; $("pfEmail").value = data.email || ""; $("pfAppt").value = data.appointment || "Staff (no appointment)";
   } else msg("pfMsg", (data && data.error) || "Could not load your profile.", "err");
   profileDirty(); refreshSig();
 }

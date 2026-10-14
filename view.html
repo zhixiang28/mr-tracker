@@ -51,6 +51,7 @@
   .action-bar .btn-danger.del{ background:#fef2f2; border-color:#f87171; font-weight:700; }
   .actions-msg{ font-size:12px; color:var(--accent); min-height:16px; margin:-12px 0 12px; }
   @media(max-width:640px){ .ab-sep{ display:none; } .ab-spacer{ display:none; } }
+  .authnote{ margin:0 0 12px; padding:10px 12px; border:1.5px solid #bcd0fa; background:#eef4ff; border-radius:10px; font-size:12.5px; line-height:1.5; }
   .sign-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
   .sign-card{ border:1.5px solid var(--line); border-radius:10px; padding:14px; }
   .sign-role{ font-size:11px; font-weight:700; text-transform:uppercase; color:var(--muted); letter-spacing:.4px; margin-bottom:8px; }
@@ -92,6 +93,7 @@
 
 <script src="dates.js"></script>
 <script src="notify.js"></script>
+<script src="mrf.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -317,11 +319,9 @@ function render(req){
       </tfoot>
     </table>
 
+    ${MRF.isLegacy(steps) ? "" : `<div class="authnote">This requisition is <b>${money(req.grand_total)}</b> → verification by <b>${escHtml(MRF.requiredText(req.grand_total))}</b>${MRF.required(req.grand_total).doc ? ` · <b>${escHtml(MRF.required(req.grand_total).doc)}</b>` : ""}. Procurement then approves and buys, and the items are signed for when received. <a href="#" onclick="MRF.showRules(currentReq.grand_total);return false" style="color:#2050bd;font-weight:700">View approval rules</a></div>`}
     <div class="sign-grid">
-      ${signCard(byOrder[1])}
-      ${signCard(byOrder[2])}
-      ${signCard(byOrder[3])}
-      ${signCard(byOrder[4])}
+      ${steps.map(st=>signCard(st)).join("")}
     </div>
   `;
 }
