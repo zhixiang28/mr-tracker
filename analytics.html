@@ -152,6 +152,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 AppBar.mount("appbar", {active:"analytics", client:supabaseClient});
+AppBar.guard("view_analytics");
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=analytics.html"; }
@@ -293,7 +294,7 @@ async function load(){
     msg.style.display="block"; msg.textContent = (data&&data.error) || (error&&error.message) || "Could not load data.";
     return;
   }
-  IS_ADMIN = !!data.is_admin;   // admins see every requisition; everyone else sees only the ones they submitted or are asked to sign
+  IS_ADMIN = !!(data.view_all !== undefined ? data.view_all : data.is_admin);   // admins see every requisition; everyone else sees only the ones they submitted or are asked to sign
   ALL = data.requisitions || [];
   let aliases = [];
   try{ const ar = await supabaseClient.rpc("list_item_aliases", {p_person_id: myId, p_pin: myPin}); if(ar.data && ar.data.success) aliases = ar.data.aliases || []; }catch(_){}

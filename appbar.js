@@ -52,17 +52,44 @@
   `;
   const NAV = [
     {id:"dashboard", label:"Dashboard",        href:"dashboard.html"},
-    {id:"items",     label:"Purchase History", href:"items.html"},
-    {id:"analytics", label:"Analytics",        href:"analytics.html"},
+    {id:"items",     label:"Purchase History", href:"items.html",     perm:"view_purchase_history"},
+    {id:"analytics", label:"Analytics",        href:"analytics.html", perm:"view_analytics"},
     {id:"projects",  label:"Projects",         href:"projects.html"},
     {id:"admin",     label:"Admin Settings",   href:"admin.html", admin:true}
   ];
   const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  let state = {opts:{}, isAdmin:false, root:null};
+  let state = {opts:{}, isAdmin:false, root:null, access:null};
+
+  /* what this person's roles allow (get_my_access); cached for the tab so the menu does not flicker */
+  function cachedAccess(){ try{ return JSON.parse(sessionStorage.getItem("sl_access") || "null"); }catch(_){ return null; } }
+  const can = perm => { const a = state.access || cachedAccess(); return !a || a.is_admin || (a.permissions||[]).includes(perm); };   // unknown = allowed (the server still decides)
+  let accessP = null;
+  function loadAccess(){
+    const c = state.opts.client, id = sessionStorage.getItem("sl_person_id"), pin = sessionStorage.getItem("sl_pin");
+    if(!c || !id || !pin) return Promise.resolve(cachedAccess());
+    if(accessP) return accessP;
+    accessP = c.rpc("get_my_access", {p_person_id:id, p_pin:pin}).then(r=>{
+      const d = r && r.data;
+      if(d && d.success){ try{ sessionStorage.setItem("sl_access", JSON.stringify(d)); }catch(_){} const changed = JSON.stringify(state.access) !== JSON.stringify(d); state.access = d; if(changed && state.root) render(); return d; }
+      return cachedAccess();
+    }).catch(()=>cachedAccess());
+    return accessP;
+  }
+  // pages call this to show a clear message when the person's roles do not include the page
+  function guard(perm){
+    return loadAccess().then(a=>{
+      if(!a || a.is_admin || (a.permissions||[]).includes(perm)) return true;
+      if(document.getElementById("abDenied")) return false;
+      const d = document.createElement("div"); d.id = "abDenied";
+      d.style.cssText = "position:fixed;inset:78px 0 0 0;background:var(--bg,#eef1f6);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:60px 18px;";
+      d.innerHTML = '<div style="background:#fff;border:1px solid #d7dbe0;border-radius:16px;padding:30px 28px;max-width:440px;text-align:center;font-family:inherit"><div style="font-size:34px">🔒</div><h2 style="margin:8px 0 6px">You do not have access to this page</h2><p style="color:#6b7280;font-size:14px;line-height:1.5;margin:0 0 16px">Your role does not include it. If you need it, ask an admin to change your role in Admin Settings.</p><a href="dashboard.html" style="display:inline-block;background:#2f6fed;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:9px">Back to the Dashboard</a></div>';
+      document.body.appendChild(d); return false;
+    });
+  }
 
   function isAdminCached(){ try{ return sessionStorage.getItem("sl_is_admin")==="1"; }catch(_){ return false; } }
   function logout(){
-    ["sl_person_id","sl_person_name","sl_pin","sl_is_admin"].forEach(k=>{ try{ sessionStorage.removeItem(k); }catch(_){} });
+    ["sl_person_id","sl_person_name","sl_pin","sl_is_admin","sl_access"].forEach(k=>{ try{ sessionStorage.removeItem(k); }catch(_){} });
     try{ window.Session && Session.forget(); }catch(_){}
     const here = location.pathname.split("/").pop() || "dashboard.html";
     location.href = "login.html?redirect=" + encodeURIComponent(here);
@@ -71,7 +98,7 @@
 
   function render(){
     const o = state.opts, name = (function(){ try{ return sessionStorage.getItem("sl_person_name")||""; }catch(_){ return ""; } })();
-    const links = NAV.filter(n=>!n.admin || state.isAdmin).map(n=>`<a href="${n.href}" class="${o.active===n.id?"on":""}">${esc(n.label)}</a>`).join("");
+    const links = NAV.filter(n=>(!n.admin || state.isAdmin) && (!n.perm || can(n.perm))).map(n=>`<a href="${n.href}" class="${o.active===n.id?"on":""}">${esc(n.label)}</a>`).join("");
     state.root.innerHTML = `<div class="appbar">
       <a class="ab-brand" href="dashboard.html"${o.newTab?' target="_blank" rel="noopener"':""}>SPACE<span>logic</span> — MR Tracker</a>
       <div class="ab-nav">
@@ -106,7 +133,9 @@
     state.root = typeof id==="string" ? document.getElementById(id) : id;
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
+    state.access = cachedAccess();
     render();
+    loadAccess();
     if(state.opts.notice !== false){ firstRun(); if(isAdminCached()) setTimeout(checkVerifications, 900); }
     if(state.opts.client && state.opts.assistant !== false){
       const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
@@ -279,5 +308,5 @@
     reject:{title:"Reject this requisition?", lines:["It goes back to the requester with your reason, and the approval chain stops.","The requester can then fix it and resubmit."], finalTitle:"Really reject it?", finalText:"The requester will be told and the signing links will stop working until they resubmit.", confirmLabel:"Yes, reject it"},
     del:{title:"Delete this requisition?", lines:["The requisition and all its items and signatures will be permanently removed.","Nobody will be able to open it again."], finalTitle:"Really delete it for good?", finalText:"This is permanent and cannot be undone. If you only want to stop it, use Withdraw instead.", confirmLabel:"Yes, delete it"}
   };
-  w.AppBar = {mount, setAdmin, confirmTwice, CONFIRM};
+  w.AppBar = {mount, setAdmin, confirmTwice, CONFIRM, guard, can};
 })(window);

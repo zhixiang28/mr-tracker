@@ -133,6 +133,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 AppBar.mount("appbar", {active:"items", client:supabaseClient});
+AppBar.guard("view_purchase_history");
 const myId = sessionStorage.getItem("sl_person_id");
 const myPin = sessionStorage.getItem("sl_pin");
 if(!myId || !myPin){ window.location.href = "login.html?redirect=" + encodeURIComponent("items.html" + location.search); }

@@ -52,6 +52,10 @@
   .nsw{ position:relative; width:44px; height:25px; flex:none; } .nsw input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1; }
   .nsw i{ position:absolute; inset:0; background:#cbd2dc; border-radius:99px; transition:background .15s; } .nsw i::after{ content:""; position:absolute; left:3px; top:3px; width:19px; height:19px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .15s; }
   .nsw input:checked + i{ background:#2f6fed; } .nsw input:checked + i::after{ transform:translateX(19px); }
+  .tblwrap{ overflow-x:auto; } .rtable{ width:100%; border-collapse:collapse; font-size:13px; } .rtable th{ text-align:center; font-size:11.5px; color:#6b7280; padding:8px 6px; border-bottom:2px solid #e3e8f0; } .rtable th:first-child{ text-align:left; }
+  .rtable td{ padding:10px 6px; border-bottom:1px solid #eef0f4; vertical-align:top; } .rtable td.pc{ text-align:center; } .rtable td.pc input{ width:18px; height:18px; } .rtable tr.off{ opacity:.55; }
+  .addrole{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; } .addrole input{ flex:1; min-width:180px; padding:9px 11px; border:1px solid #d7dbe0; border-radius:8px; font:inherit; font-size:13px; }
+  .rolepanel{ margin-top:6px; }
 </style>
 <script src="session.js"></script>
 </head>
@@ -109,9 +113,21 @@
     </div>
   </div>
 
+  <div class="card" id="rolesCard" style="display:none">
+    <h2>Roles &amp; access — who can see and do what</h2>
+    <div class="desc">Everyone is a <b>Member</b>. Give people more roles in the list above (button <i>Roles</i>). A person gets everything their roles allow. Admins can do everything, including this page.</div>
+    <div id="rolesMatrix"></div>
+    <div class="addrole">
+      <input id="newRoleName" placeholder="New role name, e.g. Site Manager" maxlength="40">
+      <input id="newRoleDesc" placeholder="What it is for (optional)" maxlength="200">
+      <button class="primary" type="button" onclick="addRole()">＋ Add role</button>
+    </div>
+    <div class="msg" id="rolesMsg"></div>
+  </div>
+
   <div class="card" id="notifCard" style="display:none">
     <h2>Notifications — who gets what</h2>
-    <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement</b> means everyone given the Procurement role in the list above (<i>Make procurement</i>) — untick it here to pause, and give the role to someone else when you are ready.</div>
+    <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement</b> means everyone given the Procurement role in the list above (button <i>Roles</i> → Procurement) — untick it here to pause, and give the role to someone else when you are ready.</div>
     <div id="notifRules"></div>
     <div class="msg" id="notifMsg"></div>
   </div>
@@ -180,6 +196,7 @@ async function doLogin(){
   document.getElementById("loggedInName").textContent = who.name || "";
   await loadFullPeopleList();
   document.getElementById("notifCard").style.display = "block";
+  document.getElementById("rolesCard").style.display = "block";
   loadNotifRules();
 }
 
@@ -192,6 +209,7 @@ async function loadFullPeopleList(){
   renderPeopleList();
   loadEnforce();
   if(Object.keys(NOTIF_RULES).length) renderNotifRules();
+  await loadRoles();
 }
 
 function renderPeopleList(){
@@ -208,17 +226,17 @@ function renderPeopleList(){
       <div class="person-top">
         <div>
           <span class="person-name">${escHtml(p.name)}</span>
-          ${p.is_admin ? '<span class="badge">Admin</span>' : ''}${p.is_procurement ? ' <span class="badge" style="background:#ede9fe;color:#6d28d9">Procurement</span>' : ''}
+          ${roleChips(p)}
           <div class="person-meta">${metaParts.map(escHtml).join(" · ")}</div>
           <label class="apptsel">Appointment
             <select onchange="setAppointment('${p.id}', this.value)">
               ${["","Section Manager","Team Manager","Division Head","Top Management"].map(v=>`<option value="${v}" ${(p.appointment||"")===v?"selected":""}>${v||"— none (staff) —"}</option>`).join("")}
             </select></label>
+          <div class="rolepanel" id="rp_${p.id}" hidden>${rolePanel(p)}</div>
         </div>
         <div class="person-actions">
           <button class="secondary" onclick="editEmail('${p.id}','${escHtml(p.email||"").replace(/'/g,"\\'")}')">Edit email</button>
-          <button class="secondary" onclick="setProcurement('${p.id}', ${!p.is_procurement})" title="People with the Procurement role are notified when the manager has signed">${p.is_procurement ? "Remove Procurement role" : "Give Procurement role"}</button>
-          <button class="secondary" onclick="toggleRole('${p.id}', ${!p.is_admin})">${p.is_admin ? "Remove admin" : "Make admin"}</button>
+          <button class="secondary" onclick="toggleRolePanel('${p.id}')">Roles</button>
           <button class="btn-danger" onclick="deletePerson('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}')">Delete</button>
         </div>
       </div>
@@ -269,6 +287,66 @@ async function deletePerson(targetId, name){
   if(error || !data.success){ alert((data&&data.error)||(error&&error.message)||"Failed."); return; }
   await loadFullPeopleList();
   await loadPeople();
+}
+
+/* ---------------- roles & access ---------------- */
+const PERMS = [
+  {key:"view_all_requisitions", label:"See everyone’s requisitions", desc:"Dashboard, Purchase History, Analytics and the form view show every requisition, not only the person’s own."},
+  {key:"view_analytics",        label:"Analytics page",              desc:"Can open Analytics (what they see there follows “See everyone’s requisitions”)."},
+  {key:"view_purchase_history", label:"Purchase History page",       desc:"Can open Purchase History."},
+  {key:"manage_projects",       label:"Manage projects",             desc:"Add, edit, archive and import shared projects (everyone can still pick and add projects)."}
+];
+let ROLES = [], ASSIGN = {};
+async function loadRoles(){
+  const {data, error} = await supabaseClient.rpc("admin_get_roles", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin});
+  if(error || !data || !data.success){ document.getElementById("rolesMsg").textContent = (data&&data.error) || "Could not load roles."; return; }
+  ROLES = data.roles || []; ASSIGN = data.assignments || {};
+  renderRoles(); renderPeopleList();
+}
+const roleById = id => ROLES.find(r=>r.id===id);
+function roleChips(p){
+  const ids = (ASSIGN[p.id]||[]); const names = ["Member"].concat(ids.map(id=>(roleById(id)||{}).name).filter(Boolean));
+  return names.map(n=>`<span class="badge" style="${n==="Admin"?"":n==="Member"?"background:#eef0f4;color:#6b7280":"background:#ede9fe;color:#6d28d9"}">${escHtml(n)}</span>`).join(" ");
+}
+function rolePanel(p){
+  const mine = new Set(ASSIGN[p.id]||[]);
+  const opts = ROLES.filter(r=>r.active && r.name!=="Member");
+  return `<div class="nlabel" style="margin-top:8px">Roles</div><div class="nchips">${opts.map(r=>`<label class="chip" title="${escHtml(r.description||"")}"><input type="checkbox" ${mine.has(r.id)?"checked":""} onchange="savePersonRoles('${p.id}')" data-role-id="${r.id}"> ${escHtml(r.name)}</label>`).join("")}</div>`;
+}
+function toggleRolePanel(id){ const el = document.getElementById("rp_"+id); if(el) el.hidden = !el.hidden; }
+async function savePersonRoles(personId){
+  const ids = [...document.querySelectorAll(`#rp_${personId} [data-role-id]`)].filter(c=>c.checked).map(c=>c.dataset.roleId);
+  const {data, error} = await supabaseClient.rpc("admin_set_person_roles", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_person_id: personId, p_role_ids: ids});
+  if(error || !data || !data.success){ alert((data&&data.error) || (error&&error.message) || "Could not save."); }
+  await loadFullPeopleList();
+  const el = document.getElementById("rp_"+personId); if(el) el.hidden = false;
+}
+function renderRoles(){
+  const head = `<tr><th>Role</th>${PERMS.map(pm=>`<th title="${escHtml(pm.desc)}">${escHtml(pm.label)}</th>`).join("")}<th></th></tr>`;
+  const rows = ROLES.map(r=>{
+    const locked = r.name==="Admin";
+    return `<tr class="${r.active?"":"off"}"><td><b>${escHtml(r.name)}</b>${r.system?' <span class="badge" style="background:#eef0f4;color:#6b7280">built-in</span>':""}${r.active?"":' <span class="badge" style="background:#fee2e2;color:#991b1b">archived</span>'}<div class="ndesc">${escHtml(r.description||"")}</div></td>
+      ${PERMS.map(pm=>`<td class="pc"><input type="checkbox" ${r.permissions.includes(pm.key)||locked?"checked":""} ${locked||!r.active?"disabled":""} onchange="saveRoleRow('${r.id}')" data-perm="${pm.key}"></td>`).join("")}
+      <td>${r.system?"":`<button class="secondary" type="button" onclick="setRoleActive('${r.id}', ${!r.active})">${r.active?"Archive":"Restore"}</button>`}</td></tr>`;
+  }).join("");
+  document.getElementById("rolesMatrix").innerHTML = `<div class="tblwrap"><table class="rtable"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    <div class="ndesc" style="margin-top:8px">${PERMS.map(pm=>`<b>${escHtml(pm.label)}</b> — ${escHtml(pm.desc)}`).join("<br>")}<br><b>Admin only (not a tickbox):</b> approve or move anything, reject / withdraw / delete, edit requisitions, people, appointments, notifications and this page.</div>`;
+}
+function roleRowState(id){
+  const tr = [...document.querySelectorAll("#rolesMatrix tbody tr")][ROLES.findIndex(r=>r.id===id)];
+  return [...tr.querySelectorAll("[data-perm]")].filter(c=>c.checked).map(c=>c.dataset.perm);
+}
+async function callSaveRole(id, name, desc, perms, active){
+  const m = document.getElementById("rolesMsg"); m.className = "msg"; m.textContent = "Saving…";
+  const {data, error} = await supabaseClient.rpc("admin_save_role", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_id: id, p_name: name, p_description: desc, p_permissions: perms, p_active: active});
+  if(error || !data || !data.success){ m.className = "msg error"; m.textContent = (data&&data.error) || (error&&error.message) || "Could not save."; await loadRoles(); return false; }
+  m.className = "msg ok"; m.textContent = "Saved ✓"; await loadRoles(); return true;
+}
+function saveRoleRow(id){ const r = roleById(id); callSaveRole(id, r.name, r.description, roleRowState(id), r.active); }
+function setRoleActive(id, on){ const r = roleById(id); callSaveRole(id, r.name, r.description, r.permissions, on); }
+async function addRole(){
+  const n = document.getElementById("newRoleName"), d = document.getElementById("newRoleDesc");
+  if(await callSaveRole(null, n.value, d.value, ["view_analytics","view_purchase_history"], true)){ n.value = ""; d.value = ""; }
 }
 
 /* ---------------- notification routing ---------------- */

@@ -446,12 +446,13 @@ async function loadData(){
   const {data, error} = await supabaseClient.rpc("list_my_requisitions", {p_person_id: myId, p_pin: myPin});
   if(error || !data.success){ setStatus((data&&data.error)||(error&&error.message)||"Could not load data."); return; }
   iAmAdmin = !!data.is_admin;
+  const iSeeAll = !!(data.view_all !== undefined ? data.view_all : data.is_admin);
   allReqs = data.requisitions || [];
   STAGES = ALL_STAGES.filter(st=>st!=="Procurement Approved" || allReqs.some(r=>r.status===st));
   const _opt=[...document.querySelectorAll("#stageFilter option")].find(o=>o.value==="Procurement Approved"||o.textContent==="Procurement Approved"); if(_opt) _opt.hidden = !STAGES.includes("Procurement Approved");
-  document.getElementById("pageSub").textContent = iAmAdmin ? "Every requisition in the system" : "Everything you submitted or are asked to sign";
+  document.getElementById("pageSub").textContent = iSeeAll ? "Every requisition in the system" : "Everything you submitted or are asked to sign";
   AppBar.setAdmin(iAmAdmin);
-  document.getElementById("emptyStateText").textContent = iAmAdmin
+  document.getElementById("emptyStateText").textContent = iSeeAll
     ? "No requisitions have been submitted yet."
     : "Requisitions you submit, or are asked to sign, will show up here.";
   setStatus("");
