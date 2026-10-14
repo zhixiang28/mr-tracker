@@ -5,6 +5,7 @@ Three pages backed by one Supabase database (already fully set up — see "Datab
 - **`index.html`** — the requisition form. Manager / Approved By / Purchased By / Received By are now dropdowns pulled from a shared people directory (with a "+ Add new person" option to register someone new with a 4-digit PIN). Submitting creates the requisition and a 4-step approval chain, then shows you a link to send to the first signer (the Manager).
 - **`sign.html`** — the e-signature page. Whoever gets a link opens it, sees the requisition summary, and enters their name's PIN to **Approve** or **Decline** (with a reason). Only the person assigned to that step can sign it, and steps must be signed in order. Once someone signs, the page shows the next link to copy and send along.
 - **`dashboard.html`** — view-only for anyone with the link. Shows every requisition, its current stage, and — click a row — the full approval timeline (who signed, when, or why it was declined). Signing is done only through the sign link (PIN) or the PDF e-sign link; the dashboard has buttons to copy both.
+- **`drafts.html`** — full-page list of your saved drafts (item count, total, last saved) with Continue / Delete. The form (`index.html`) autosaves itself as a draft 2.5 s after you stop typing, once it has at least one named item; it stops autosaving while editing a submitted requisition or while submitting.
 
 ## How the chain works
 
