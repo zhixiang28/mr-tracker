@@ -118,7 +118,7 @@
     last:["latest","recent","last","newest"],
     projects:["project","projects"]
   };
-  const GENERIC = ["update","updates","what's","whats","today","new","news","anything","going","happening","attention","pay","know","important","urgent","miss","missed","catch","heads","notify","lately","history","before","previous","quote","quoted","sells","sell","sold","brand","model","ever","earlier","status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
+  const GENERIC = ["remind","reminds","reminder","reminders","update","updates","what's","whats","today","new","news","anything","going","happening","attention","pay","know","important","urgent","miss","missed","catch","heads","notify","lately","history","before","previous","quote","quoted","sells","sell","sold","brand","model","ever","earlier","status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
   const ALLW = [].concat(...Object.values(W), GENERIC);
   const keywordsOf = text => toks(text).filter(t=>!ALLW.some(w=>near(t,w))).map(t=>t.replace(/(es|s)$/,m=> t.length>4?"":m)).filter(t=>t.length>=3 || /[一-鿿]/.test(t));
   const supplierName = link => (w.supplierOf ? w.supplierOf(link).name : "(no link)");
@@ -172,7 +172,7 @@
   const ANALYTICS_WORDS = ["analytic","analytics","analysis","analyse","analyze","trend","trends","chart","charts","graph","graphs","insight","insights","kpi","statistics","stats","spending"];
   const ANALYTICS_RE = /((by|per) (month|week|year|supplier|project|requester|department)|monthly|weekly|yearly|top \d*\s*(suppliers?|items?|projects?|spenders?|requesters?)|biggest|highest|lowest|ranking|approval (time|speed)|turnaround|how long (does|do|did|is|are).*(approv|take)|average (approval|time|spend|spending|order|cost)|compare|comparison|over time|so far this (year|month))/;
   // ---- "any update?" / "what should I pay attention to?": what needs you + what moved recently ----
-  const DIGEST_RE = /(\b(any|got|there|what'?s|whats|is there)\b.*\b(updates?|news|new)\b|\bupdates?\b\s*\??$|^updates?\b|pay attention|should i (know|do|check|look|focus)|need to know|catch me up|heads[- ]up|what('?s| is) (going on|happening|up)\b|anything (for me|new|urgent|important|i (should|need|must))|any news|what did i miss|\burgent\b|\bimportant\b|what('?s| is) (urgent|important|pending)|notif(y|ication)s?|today\??$|what now)/;
+  const DIGEST_RE = /(\b(any|got|there|what'?s|whats|is there)\b.*\b(updates?|news|new)\b|\bupdates?\b\s*\??$|^updates?\b|pay attention|should i (know|do|check|look|focus)|need to know|catch me up|heads[- ]up|what('?s| is) (going on|happening|up)\b|anything (for me|new|urgent|important|i (should|need|must))|any news|what did i miss|\burgent\b|\bimportant\b|what('?s| is) (urgent|important|pending)|notif(y|ication)s?|remind(er)?s?\b|today\??$|what now)/;
   const needsMine = reqs => {
     const me = (ss.get("sl_person_name")||"").toLowerCase(), pid = ss.get("sl_person_id");
     return reqs.filter(r=>{
@@ -197,6 +197,12 @@
       }catch(_){}
     }
     out.push(act.length ? `<b>⚠ Needs your action</b><br>${act.join("<br>")}` : `<b>✓ Nothing needs your action right now.</b>`);
+    // your reminders: your own submissions that sat longer than the time you set in Reminder Settings
+    const settings = await loadSettings(client);
+    const late = overdueByReminder(reqs, settings);
+    if(late.length) out.push(`<b>⏰ Your reminders</b><br>` + late.slice(0,5).map(x=>`• ${link(x.r)} ${esc(x.r.project_name||"-")} — <b>${fmtH(x.hours)}</b> at ${esc(x.stage.stage_name)} (your limit is ${fmtH(x.limit)})${x.stage.assigned_person_name?", waiting for "+esc(x.stage.assigned_person_name):""}`).join("<br>") + (late.length>5?`<br>…and ${late.length-5} more.`:""));
+    else if(settings && !Object.keys(STAGE_KEY).some(k=>settings[STAGE_KEY[k]]!=null)) out.push(`<b>⏰ Reminders:</b> none set. Choose how long each stage may wait in <b>Reminder Settings</b> (your name menu) and I will flag anything overdue.`);
+    else if(settings) out.push(`<b>⏰ Your reminders:</b> nothing is overdue.`);
     // 2) new progress in the last 7 days
     const ev = [];
     reqs.forEach(r=>{
@@ -219,6 +225,31 @@
     out.push(`<a href="dashboard.html"><b>Open Dashboard →</b></a>`);
     return out.join("<br><br>");
   }
+  // the person's own reminder thresholds (Reminder Settings): hours a stage may wait before it counts as overdue
+  const STAGE_KEY = {"Manager Approval":"remind_manager_hours","Procurement Approval":"remind_procurement_hours","Purchase":"remind_purchase_hours","Received":"remind_received_hours"};
+  async function loadSettings(client){
+    try{
+      const {data} = await client.rpc("get_my_settings", {p_person_id: ss.get("sl_person_id"), p_pin: ss.get("sl_pin")});
+      return data && data.success ? data : null;
+    }catch(_){ return null; }
+  }
+  function overdueByReminder(reqs, settings){
+    const out = [], pid = ss.get("sl_person_id");
+    if(!settings) return out;
+    reqs.forEach(r=>{
+      if(r.requester_person_id!==pid || ["Withdrawn","Declined"].includes(r.status)) return;
+      const steps = stepsOf(r), idx = steps.findIndex(x=>x.status!=="Signed");
+      if(idx<0) return;
+      const hrs = settings[STAGE_KEY[steps[idx].stage_name]];
+      if(hrs==null) return;
+      const ref = idx===0 ? r.created_at : steps[idx-1].signed_at;
+      if(!ref) return;
+      const h = Math.floor((Date.now()-new Date(ref).getTime())/3600000);
+      if(h > hrs) out.push({r, stage: steps[idx], hours: h, limit: hrs});
+    });
+    return out.sort((a,b)=>b.hours-a.hours);
+  }
+  const fmtH = h => h>=48 ? Math.floor(h/24)+" days" : h+" hours";
   const declineReasonText = r => r.decline_reason || (stepsOf(r).find(s=>s.status==="Declined")||{}).decline_reason || "no reason given";
   async function rules(q, client){
     const text = q.trim(), low = text.toLowerCase();
