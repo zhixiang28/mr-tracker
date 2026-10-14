@@ -12,14 +12,14 @@
   }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--page); color:var(--ink); font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
-  .wrap{ max-width:900px; margin:0 auto; padding:22px 18px 80px; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:22px 18px 80px; }
   .pagehead{ display:flex; align-items:flex-end; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:6px 0 16px; }
   .pagehead h1{ margin:0; font-size:22px; letter-spacing:-.3px; }
   .sub{ font-size:13px; color:var(--ink2); margin-top:4px; line-height:1.5; }
   button, a.btn{ font:inherit; font-size:12.5px; font-weight:600; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; text-decoration:none; display:inline-block; }
   button:hover, a.btn:hover{ background:var(--soft); }
-  .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .primary:hover{ background:var(--accent-dark); }
+  a.btn.primary, .primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  a.btn.primary:hover, .primary:hover{ background:var(--accent-dark); }
   .danger{ color:var(--bad); border-color:#fecaca; }
   .list{ display:grid; gap:10px; }
   .card{ background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
