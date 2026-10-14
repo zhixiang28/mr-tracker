@@ -78,6 +78,7 @@
 </head>
 <body>
 <div class="bar">
+  <a id="dashBtn" href="dashboard.html" style="text-decoration:none"><button type="button" title="Go to your dashboard">← Dashboard</button></a>
   <div class="title" id="barTitle">Materials Requisition Form</div>
   <button onclick="loadDoc()" title="Reload to see the latest signatures">↻ Refresh</button>
   <button id="csvBtn" onclick="exportCSV()" disabled>Export CSV</button>
@@ -624,6 +625,14 @@ function exportCSV(){
   URL.revokeObjectURL(a.href);
 }
 
+(function(){
+  // signed out: the button takes them to sign in, then back to this signing link
+  if(!sessionStorage.getItem("sl_person_id")){
+    const a = document.getElementById("dashBtn");
+    a.href = "login.html?redirect=" + encodeURIComponent("esign.html" + location.search);
+    a.querySelector("button").textContent = "Sign in"; a.querySelector("button").title = "Sign in to see this on your dashboard";
+  }
+})();
 loadDoc();
 </script>
 </body>
