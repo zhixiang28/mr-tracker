@@ -83,6 +83,7 @@
     </div>
     <div class="btns">
       <button type="button" onclick="window.print()">Print</button>
+      <button type="button" onclick="exportCSV()">Export CSV</button>
       <button type="button" onclick="exportPDF()">Export PDF</button>
     </div>
   </div>
@@ -363,6 +364,31 @@ function drawText(doc, text, x, y, fontSize, fontStyle, opts={}){
     doc.setTextColor(...color);
     doc.text(text, x, y, opts.align ? {align:opts.align} : (opts.maxWidth ? {maxWidth:opts.maxWidth} : undefined));
   }
+}
+
+function exportCSV(){
+  if(!currentReq){ alert("Nothing loaded yet."); return; }
+  const r = currentReq;
+  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
+  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+  const n = v => Number(v||0), f = v => n(v).toFixed(2);
+  const rows = [
+    ["Tracking No.", r.tracking_no||""], ["Project Name", r.project_name||""], ["Project Location", r.project_location||""],
+    ["Request By", r.request_by||""], ["Date", fmtDMY(r.form_date)||""], ["Supply Date", fmtDMY(r.supply_date)||""],
+    ["PC No.", r.pc_no||""], ["PM Incharge", r.pm_incharge||""], ["Status", r.status||""], [],
+    ["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"],
+    ...items.map((it,i)=>[i+1, it.name||"", it.description||"", n(it.qty), f(it.unit_price), f(it.delivery_tax), it.link||"", f(n(it.qty)*n(it.unit_price)+n(it.delivery_tax))]),
+    ["","","","","","","Grand Total", f(items.reduce((a,it)=>a+n(it.qty)*n(it.unit_price)+n(it.delivery_tax),0))], [],
+    ["Sign-off","Status","Signed by","Date"],
+    ...steps.map(s=>[s.stage_name||"", s.status||"", s.status==="Signed"||s.status==="Declined" ? (s.assigned_person_name||"") : "", s.status==="Signed" ? fmtDateTime(s.signed_at) : s.status==="Declined" ? fmtDateTime(s.declined_at) : ""])
+  ];
+  const csv = rows.map(row=>row.map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"});   // BOM so Excel shows Chinese correctly
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `MRF_${String(r.project_name||"form").trim().replace(/[\\/:*?"<>|]/g,"").replace(/\s+/g,"_").slice(0,40)}_${String(r.form_date||"").replace(/^(\d{4})-(\d{2})-(\d{2}).*$/,(m,y,mo,d)=>y.slice(2)+mo+d)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
 }
 
 function exportPDF(){
