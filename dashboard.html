@@ -218,6 +218,8 @@
   .admin-panel{ margin-top:12px; border-top:1px dashed var(--admin); padding-top:10px; }
   .admin-panel-title{ font-weight:700; font-size:11.5px; color:var(--admin); margin-bottom:8px; }
 
+  .qchips{ display:none; }
+  .qa-btn{ display:none; }
   /* phones: stage counts in one swipeable row; each requisition as a compact card */
   @media (max-width:720px){
     .app{ margin:14px auto; padding:0 12px 60px; }
@@ -238,6 +240,19 @@
     #reqTable tr.req-row td.proj > .muted{ display:inline; margin-left:6px; font-size:11.5px; } #reqTable tr.req-row td.proj > .muted:empty{ display:none; }
     #reqTable tr.req-row td:nth-child(6) .pdots{ margin-top:0; }
     #reqTable tr.req-row td:nth-child(6) .muted{ margin-top:0 !important; font-size:11px; }
+    /* simple phone view: tap-to-filter chips replace the dropdowns; the search stays in reach; one-tap action on cards that need me */
+    html.ui-simple .pipeline{ display:none; }
+    html.ui-simple .qchips{ display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 -12px 8px; padding:2px 12px; }
+    html.ui-simple .qchips::-webkit-scrollbar{ display:none; }
+    .qc{ flex:none; display:inline-flex; align-items:center; gap:6px; padding:8px 13px; border-radius:999px; font-size:13px; font-weight:700; background:#fff; }
+    .qc span{ background:#e5e7eb; border-radius:999px; padding:0 7px; font-size:11.5px; }
+    .qc.on{ background:var(--accent); border-color:var(--accent); color:#fff; } .qc.on span{ background:rgba(255,255,255,.25); color:#fff; }
+    .qc.hot:not(.on){ border-color:#fbbf24; background:#fffbeb; color:#92400e; } .qc.hot:not(.on) span{ background:#fde68a; }
+    html.ui-simple .toolbar2 .lbl, html.ui-simple #groupMode, html.ui-simple #stageFilter, html.ui-simple #needsChip, html.ui-simple .count-note{ display:none; }
+    html.ui-simple .toolbar2{ position:sticky; top:0; z-index:20; background:var(--bg); margin:0 -12px 8px; padding:6px 12px; }
+    html.ui-simple .toolbar2 input[type=text]{ width:100%; min-width:0; }
+    html.ui-simple .qa-btn{ display:block; width:100%; margin-top:8px; text-align:center; text-decoration:none; background:var(--accent); color:#fff; font-weight:800; font-size:14px; padding:11px 14px; border-radius:10px; }
+    #reqTable tr.req-row td:nth-child(6) .qa-btn{ flex:1 0 100%; }
     .cards{ grid-template-columns:1fr !important; }
     .hover-pop{ display:none !important; }
   }
@@ -261,6 +276,7 @@
 
   <div class="pipeline" id="pipeline"></div>
 
+  <div class="qchips" id="qChips"></div>
   <div class="toolbar2">
     <input type="text" id="searchBox" placeholder="Search by REQ no., project or requester…" oninput="render()">
     <button type="button" class="needs-chip" id="needsChip" onclick="setQuick('needs')" title="Show only the requisitions that need you">Needs action <span class="nn" id="needsN">0</span></button>
@@ -395,17 +411,18 @@ function computeStats(){
   let mySubmissions=0, awaitingMySignature=0, completed=0, declinedNeedsFix=0;
   const overdueList = [];
   const attention = []; // one entry per requisition that needs me: {r, chips, meta}
-  const flag = (r, chip, meta)=>{
+  const flag = (r, chip, meta, act)=>{
     let e = attention.find(x=>x.r.id===r.id);
-    if(!e){ e = {r, chips:[], meta:""}; attention.push(e); }
+    if(!e){ e = {r, chips:[], meta:"", act:null}; attention.push(e); }
     e.chips.push(chip); if(meta && !e.meta) e.meta = meta;
+    if(act && !e.act) e.act = act;   // one-tap button shown on phone cards
   };
   allReqs.forEach(r=>{
     if(r.requester_person_id===myId) mySubmissions++;
     if(r.status==="Received") completed++;
     if(r.status==="Declined" && r.requester_person_id===myId){
       declinedNeedsFix++;
-      flag(r, {cls:"bad", text:"Declined — needs your fix"}, r.declined_by ? `by ${r.declined_by}` : "");
+      flag(r, {cls:"bad", text:"Declined — needs your fix"}, r.declined_by ? `by ${r.declined_by}` : "", {href:`index.html?editRequisition=${r.id}`, label:"Fix & resubmit"});
     }
 
     const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
@@ -415,7 +432,7 @@ function computeStats(){
     if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
       if(activeStep.assigned_person_id===myId){
         awaitingMySignature++;
-        flag(r, {cls:"warn", text:"Awaiting your signature"}, activeStep.stage_name);
+        flag(r, {cls:"warn", text:"Awaiting your signature"}, activeStep.stage_name, activeStep.token ? {href:`esign.html?token=${encodeURIComponent(activeStep.token)}`, label:"Review & sign"} : null);
       }
     }
 
@@ -522,7 +539,14 @@ function setGroupMode(m){
   try{ localStorage.setItem("sl_group_mode", m); }catch(_){}
   render();
 }
-function setQuick(k){ quickFilter = (quickFilter===k) ? "" : k; render(); }
+function renderQChips(needIds){
+  const el = document.getElementById("qChips"); if(!el) return;
+  const cnt = {all: allReqs.length}; STATUS_GROUPS.forEach(g=>cnt[g.key]=0);
+  allReqs.forEach(r=>{ cnt[statusGroupOf(r,needIds)]++; });
+  const defs = [["","All",cnt.all],["needs","Needs action",cnt.needs],["active","In progress",cnt.active],["done","Done",cnt.done],["closed","Declined",cnt.closed]];
+  el.innerHTML = defs.filter(d=>d[0]===""||d[2]>0||quickFilter===d[0]).map(d=>`<button type="button" class="qc ${quickFilter===d[0]?"on":""} ${d[0]==="needs"&&d[2]?"hot":""}" onclick="setQuick('${d[0]}',true)">${d[1]} <span>${d[2]}</span></button>`).join("");
+}
+function setQuick(k, force){ quickFilter = (!force && quickFilter===k) ? "" : k; render(); }
 function toggleGroup(key){
   if(collapsedGroups.has(key)) collapsedGroups.delete(key); else collapsedGroups.add(key);
   render();
@@ -598,7 +622,9 @@ function render(){
   const attention = computeStats().attention;
   const needIds = new Set(attention.map(x=>x.r.id));
   const chipsById = new Map(attention.map(x=>[x.r.id, x.chips]));
+  const actById = new Map(attention.filter(x=>x.act).map(x=>[x.r.id, x.act]));
   renderSummary(needIds);
+  renderQChips(needIds);
 
   let filtered = allReqs.filter(r=>matchesSearch(r,q) && (!stageSel || r.status===stageSel) && (!quickFilter || statusGroupOf(r,needIds)===quickFilter));
   filtered = applySort(filtered);
@@ -616,6 +642,7 @@ function render(){
   document.getElementById("emptyState").style.display = allReqs.length ? "none" : "block";
 
   const renderRow = r=>{
+    const act = actById.get(r.id);
     const chips = (chipsById.get(r.id)||[]).map(c=>`<span class="chip ${c.cls}">${escapeHtml(c.text)}</span>`).join("");
     const mainRow = `
       <tr class="req-row" data-rid="${r.id}" onclick="goFull('${r.id}')">
@@ -624,7 +651,7 @@ function render(){
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
-        <td>${renderProgressCell(r)}</td>
+        <td>${renderProgressCell(r)}${act?`<a class="qa-btn" href="${escapeHtml(act.href)}" onclick="event.stopPropagation()">${escapeHtml(act.label)} →</a>`:""}</td>
       </tr>`;
     return mainRow;
   };
