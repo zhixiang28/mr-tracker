@@ -25,7 +25,8 @@
     {k:"draft save later unfinished", a:"Press <b>Save Draft</b> on the form. Open your drafts with <b>My Drafts</b> from any device."},
     {k:"export pdf csv print download", go:["Open the form","index.html"], a:"Open the requisition's full form, then use <b>Print</b> or <b>Export PDF</b>. The form page also has Export PDF and Export CSV."},
     {k:"cards list layout view change dashboard group", go:["Open the dashboard","dashboard.html"], a:"On the dashboard use the <b>List / Cards</b> buttons. In List you can group by status, stage, project, requester or month. In Cards, click a stage title to fold the column."},
-    {k:"reminder overdue notification email remind", a:"Click your name, then <b>Reminder Settings</b> to set how long a stage may sit before it is flagged as overdue."},
+    {k:"telegram push notification notifications alert alerts phone whatsapp message ping", go:["Open Settings","settings.html?tab=notifications"], a:"Click your name → <b>Settings &amp; notifications</b>. Turn on <b>Telegram</b> (press Connect, then Start in Telegram) and/or <b>This device</b> for phone/browser alerts, then choose what you want to be told about. iPhone: add the site to your Home Screen first."},
+    {k:"reminder overdue notification email remind", a:"Click your name, then <b>Settings &amp; notifications</b>. In <b>Reminders</b> set how long a stage may sit before it is flagged as overdue; in <b>Notifications</b> choose Telegram or phone alerts and what to be told about."},
     {k:"admin become make access", go:["Read more in the Manual","manual.html#admin"], a:"An existing admin can grant admin access in <b>Admin Settings</b>. There must always be at least one admin."},
     {k:"stages stage workflow flow order approval process", go:["Read how it works in the Manual","manual.html#workflow"], a:"Every requisition goes <b>Submitted → Manager Approved → Procurement Approved → Purchased → Received</b>. It can also end as Declined or Withdrawn."},
     {k:"reject delete admin", go:["Your requisitions","dashboard.html"], a:"Admins can open a requisition and press <b>Reject</b> (with a reason; the requester can fix and resubmit), <b>Withdraw</b>, or <b>Delete</b> (permanent). Each asks you to confirm twice."},
@@ -165,7 +166,7 @@
   // turns the bold button/page names in help text into links to the right page
   const GO = {"Purchase History":"items.html","Possible duplicates":"items.html","Combine as one item":"items.html","Add to a new requisition":"items.html",
     "Projects":"projects.html","Analytics":"analytics.html","Admin Settings":"admin.html","Import from Excel":"projects.html",
-    "Reminder Settings":"dashboard.html?open=reminders","My Profile":"dashboard.html?open=profile","Change PIN":"dashboard.html?open=pin",
+    "Reminder Settings":"settings.html?tab=reminders","Notification Settings":"settings.html?tab=notifications","My Profile":"dashboard.html?open=profile","Change PIN":"dashboard.html?open=pin",
     "Save Draft":"index.html","My Drafts":"index.html","Duplicate":"index.html","Currency converter":"index.html","Save this project for everyone":"index.html","Export PDF":"index.html","Export CSV":"index.html","Share":"index.html","Submit for approval":"index.html"};
   const linkify = html => html.replace(/<b>([^<]+)<\/b>/g,(all,t)=>{ const h = GO[t.replace(/&amp;/g,"&")]; return h ? `<a href="${h}"><b>${t}</b></a>` : all; });
   const phLink = kw => `<br><a href="items.html${kw&&kw.length?"?q="+encodeURIComponent(kw.join(" ")):""}"><b>Open Purchase History${kw&&kw.length?" for “"+esc(kw.join(" "))+"”":""} →</b></a>`;
@@ -201,7 +202,7 @@
     const settings = await loadSettings(client);
     const late = overdueByReminder(reqs, settings);
     if(late.length) out.push(`<b>⏰ Your reminders</b><br>` + late.slice(0,5).map(x=>`• ${link(x.r)} ${esc(x.r.project_name||"-")} — <b>${fmtH(x.hours)}</b> at ${esc(x.stage.stage_name)} (your limit is ${fmtH(x.limit)})${x.stage.assigned_person_name?", waiting for "+esc(x.stage.assigned_person_name):""}`).join("<br>") + (late.length>5?`<br>…and ${late.length-5} more.`:""));
-    else if(settings && !Object.keys(STAGE_KEY).some(k=>settings[STAGE_KEY[k]]!=null)) out.push(`<b>⏰ Reminders:</b> none set. Choose how long each stage may wait in <b>Reminder Settings</b> (your name menu) and I will flag anything overdue.`);
+    else if(settings && !Object.keys(STAGE_KEY).some(k=>settings[STAGE_KEY[k]]!=null)) out.push(`<b>⏰ Reminders:</b> none set. Choose how long each stage may wait in <b>Reminder Settings</b> (your name menu → Settings) and I will flag anything overdue.`);
     else if(settings) out.push(`<b>⏰ Your reminders:</b> nothing is overdue.`);
     // 2) new progress in the last 7 days
     const ev = [];

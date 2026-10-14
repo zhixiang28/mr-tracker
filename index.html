@@ -594,6 +594,7 @@
 
 <script src="dates.js"></script>
 <script src="notify.js"></script>
+<script src="notifysetup.js"></script>
 <script src="appbar.js"></script>
 <script src="supplier.js"></script>
 <script src="itemmatch.js"></script>
@@ -1446,7 +1447,8 @@ function showLinkResult(o){
       <div id="emailLinkStatus" style="font-size:11.5px;margin-top:4px;color:#6b7280"></div>`,
     primary:{label:o.copied?"Link copied ✓ — copy again":"Copy link", onClick:(el)=>{ copySignLink().then(()=>{ el.textContent="Copied ✓"; }); return false; }},
     secondary:{label:"Done"},
-    small:"Track it any time on the Dashboard. You can copy the link again from the requisition."
+    small:"Track it any time on the Dashboard. You can copy the link again from the requisition.",
+    onClose:()=>{ if(window.NotifySetup) NotifySetup.afterSubmit(supabaseClient); }
   });
 }
 async function emailTheLink(link, roleName, inputId, statusId){
