@@ -87,6 +87,45 @@
     .msignbar button{ width:100%; padding:13px; font-size:15px; font-weight:800; border-radius:10px; }
     .stage{ padding-bottom:84px; }
   }
+  /* phones: readable summary + big Decline / Sign buttons; signing happens in a bottom sheet */
+  #mView{ display:none; }
+  @media (max-width:720px){
+    .hide-m{ display:none !important; }
+    #mView{ display:block; }
+    .stage{ display:none; } body.show-paper .stage{ display:block; }
+    .m-wrap{ padding:10px 12px 110px; max-width:560px; margin:0 auto; }
+    .m-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin:4px 0 10px; }
+    .m-req{ font-size:12px; font-weight:800; color:var(--muted); letter-spacing:.3px; } .m-proj{ font-size:20px; font-weight:800; line-height:1.2; }
+    .m-total{ font-size:20px; font-weight:800; white-space:nowrap; }
+    .m-turn{ background:#eff6ff; border:1.5px solid #93c5fd; border-radius:12px; padding:11px 13px; margin-bottom:12px; }
+    .m-turn b{ display:block; color:#1e40af; font-size:15px; } .m-turn span{ font-size:12.5px; color:#1e3a8a; line-height:1.45; }
+    .m-turn.ok{ background:#f0fdf4; border-color:#86efac; } .m-turn.ok b{ color:#166534; } .m-turn.ok span{ color:#166534; }
+    .m-turn.bad{ background:#fef2f2; border-color:#fca5a5; } .m-turn.bad b{ color:var(--danger); } .m-turn.bad span{ color:#991b1b; }
+    .m-facts{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; background:#fff; border-radius:12px; padding:12px 13px; margin-bottom:6px; }
+    .m-facts span{ display:block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); } .m-facts b{ font-size:13.5px; overflow-wrap:anywhere; }
+    .m-wrap h4{ margin:16px 2px 6px; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .m-item{ background:#fff; border-radius:12px; padding:10px 12px; margin-bottom:7px; }
+    .m-in{ font-weight:800; font-size:14px; } .m-in span{ color:var(--muted); font-weight:700; } .m-in a{ font-size:12px; font-weight:700; color:var(--accent); margin-left:4px; }
+    .m-sub{ font-size:12px; color:var(--muted); margin-top:2px; overflow-wrap:anywhere; }
+    .m-calc{ display:flex; justify-content:space-between; gap:8px; margin-top:6px; padding-top:6px; border-top:1px dashed var(--line); font-size:12.5px; } .m-calc b{ font-size:14px; }
+    .m-sig{ display:flex; justify-content:space-between; align-items:center; gap:10px; background:#fff; border-radius:12px; padding:10px 12px; margin-bottom:7px; border:1.5px solid transparent; }
+    .m-sig.mine{ border-color:var(--accent); background:#f5f9ff; }
+    .m-role{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); } .m-nm{ font-size:14.5px; font-weight:800; }
+    .ms{ font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:999px; background:#e5e7eb; color:#4b5563; white-space:nowrap; }
+    .ms.ok{ background:#16a34a; color:#fff; } .ms.no{ background:var(--danger); color:#fff; } .ms.now{ background:var(--accent); color:#fff; }
+    .m-more{ display:flex; gap:6px; flex-wrap:wrap; margin-top:16px; } .m-more button{ flex:1 1 auto; font-size:12.5px; padding:10px 8px; }
+    .msignbar:not([hidden]){ display:flex !important; gap:10px; }
+    .msignbar button{ flex:1; } .msignbar button.dec{ flex:0 0 32%; color:var(--danger); border-color:#fca5a5; background:#fff; }
+    .msignbar button.primary{ flex:1; }
+    /* signing sheet */
+    .modal{ align-items:flex-end; padding:0; }
+    .mbox{ border-radius:18px 18px 0 0; max-height:96vh; padding-bottom:env(safe-area-inset-bottom); }
+    .mhead{ padding:14px 16px 12px; } .mbody{ padding:14px 16px 16px; }
+    #pad{ height:min(240px, 36vh); }
+    .mbox input[type=password], .mbox input[type=text]{ font-size:17px; }
+    .mact{ position:sticky; bottom:0; background:#fff; padding-top:10px; margin-top:10px; }
+    .mact button{ padding:14px; font-size:15px; }
+  }
 </style>
 <script src="session.js"></script>
 </head>
@@ -95,12 +134,13 @@
   <a id="dashBtn" href="dashboard.html" style="text-decoration:none"><button type="button" title="Go to your dashboard">← Dashboard</button></a>
   <div class="title" id="barTitle">Materials Requisition Form</div>
   <button onclick="loadDoc()" title="Reload to see the latest signatures">↻ Refresh</button>
-  <button id="csvBtn" onclick="exportCSV()" disabled>Export CSV</button>
-  <button id="rulesBtn" onclick="MRF.showRules(doc ? doc.requisition.grand_total || 0 : 0)">Approval rules</button>
-  <button class="primary" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
+  <button id="csvBtn" class="hide-m" onclick="exportCSV()" disabled>Export CSV</button>
+  <button id="rulesBtn" class="hide-m" onclick="MRF.showRules(doc ? doc.requisition.grand_total || 0 : 0)">Approval rules</button>
+  <button class="primary hide-m" id="pdfBtn" onclick="exportPDF()" disabled>Export PDF</button>
 </div>
 <div id="banner"></div>
-<div class="msignbar" id="mSignBar" hidden><button type="button" class="primary" onclick="openModal(activeOrder)">Sign or decline</button></div>
+<div id="mView"></div>
+<div class="msignbar" id="mSignBar" hidden><button type="button" class="dec" onclick="openModal(activeOrder,'decline')">Decline</button><button type="button" class="primary" onclick="openModal(activeOrder)">Sign or decline</button></div>
 <div class="stage" id="stage"><div class="paper" id="paper" style="display:none"></div></div>
 
 <div class="modal" id="signModal">
@@ -213,8 +253,8 @@ function render(){
   }
 
   activeOrder = currentSlot();
-  const mbar = document.getElementById("mSignBar");      // phones: a big button for the box that is waiting
-  if(mbar){ mbar.hidden = !activeOrder; if(activeOrder) mbar.querySelector("button").textContent = "Sign or decline: " + ((SLOTS[activeOrder-1]||{}).label||"").replace(/ :$/,""); }
+  const mbar = document.getElementById("mSignBar");      // phones: big Decline / Sign buttons for the box that is waiting
+  if(mbar){ mbar.hidden = !activeOrder; const pb = mbar.querySelector(".primary"); if(activeOrder && pb) pb.textContent = "Approve & sign"; }
   const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
   const slotHtml = o => {
     const s = stepBy(o);
@@ -264,16 +304,53 @@ function render(){
 
   document.getElementById("paper").style.display = "block";
   fitPaper();
+  renderMobile(r, items, total);
 
   if(r.status==="Declined" || r.status==="Withdrawn"){
     setBanner("err", `This requisition is <b>${esc(r.status)}</b> and can't be signed.`);
   } else if(!activeOrder){
     setBanner("ok", "All signatures are in. Use <b>Export PDF</b> to save your own copy.");
+  } else if(isPhone()){
+    setBanner("", "");   // the phone summary below already says whose turn it is
   } else {
     const lbl = (!MRF.isLegacy(doc.steps) && activeOrder===1) ? `verification by ${MRF.requiredText(total)}` : SLOTS[activeOrder-1].label.replace(/ :$/,"").replace("TO BE VERIFY BY ","").replace("TO BE VERIFIED BY","verification");
     setBanner("info", `Next to sign: <b>${esc(lbl)}</b>. Tap the highlighted box on the form to sign. You can export the PDF at any time.`);
   }
 }
+
+const isPhone = () => window.matchMedia("(max-width:720px)").matches;
+// phones: a readable summary (facts, items, who has signed) instead of the shrunk-down paper form
+function renderMobile(r, items, total){
+  const el = document.getElementById("mView"); if(!el) return;
+  const money = n => "$ " + num(n).toLocaleString("en-SG",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const legacy = MRF.isLegacy(doc.steps);
+  const steps = doc.steps.slice().sort((a,b)=>a.step_order-b.step_order);
+  const act = steps.find(x=>x.step_order===activeOrder);
+  const roleName = st => legacy ? ({1:"Manager",2:"Procurement approval",3:"Purchase",4:"Received"}[st.step_order]||st.stage_name) : ({1:"Verification",2:"Procurement",3:"Received"}[st.step_order]||st.stage_name);
+  const turn = activeOrder && act
+    ? `<div class="m-turn"><b>Your turn: ${esc(roleName(act))}</b><span>${(!legacy && activeOrder===1) ? "Needs verification by "+esc(MRF.requiredText(total))+". " : ""}Check the details, then approve & sign or decline below.</span></div>`
+    : (r.status==="Declined"||r.status==="Withdrawn") ? `<div class="m-turn bad"><b>${esc(r.status)}</b><span>This requisition can't be signed.</span></div>`
+    : `<div class="m-turn ok"><b>All signatures are in</b><span>Nothing more to sign. You can save a copy as PDF.</span></div>`;
+  const sigRows = steps.map(st=>{
+    const mine = st.step_order===activeOrder;
+    const state = st.status==="Signed" ? `<span class="ms ok">✓ Signed</span>` : st.status==="Declined" ? `<span class="ms no">✕ Declined</span>` : mine ? `<span class="ms now">Waiting for you</span>` : `<span class="ms">Pending</span>`;
+    const sub = st.status==="Signed" ? esc(fmtStamp(st.signed_at)) : st.status==="Declined" ? "“"+esc(st.decline_reason||"")+"”" : "";
+    return `<div class="m-sig ${mine?"mine":""}"><div><div class="m-role">${esc(roleName(st))}</div><div class="m-nm">${esc(st.assigned_person_name||"—")}</div>${sub?`<div class="m-sub">${sub}</div>`:""}</div>${state}</div>`;
+  }).join("");
+  const itemCards = items.map((it,i)=>`<div class="m-item"><div class="m-in"><span>${i+1}.</span> ${esc(it.name)}${it.link?` <a href="${esc(/^https?:\/\//i.test(it.link)?it.link:"https://"+it.link)}" target="_blank" rel="noopener">link ↗</a>`:""}</div>
+      ${it.description?`<div class="m-sub">${esc(it.description)}</div>`:""}
+      <div class="m-calc"><span>${num(it.qty)} × ${money(it.unit_price)}${num(it.delivery_tax)?` + ${money(it.delivery_tax)} delivery`:""}</span><b>${money(lineTotal(it))}</b></div></div>`).join("");
+  const fact = (k,v)=>`<div><span>${k}</span><b>${esc(v||"—")}</b></div>`;
+  el.innerHTML = `<div class="m-wrap">
+    <div class="m-head"><div><div class="m-req">${esc(r.tracking_no||"")}</div><div class="m-proj">${esc(r.project_name||"")}</div></div><div class="m-total">${money(total)}</div></div>
+    ${turn}
+    <div class="m-facts">${fact("Requested by",r.request_by)}${fact("Date",fmtDate(r.form_date))}${fact("Supply date",fmtDate(r.supply_date))}${fact("Location",r.project_location)}${fact("PC no.",r.pc_no)}${fact("PM in-charge",r.pm_incharge)}</div>
+    <h4>Items (${items.length})</h4>${itemCards || '<div class="m-sub">No line items.</div>'}
+    <h4>Signatures</h4>${sigRows}
+    <div class="m-more"><button type="button" onclick="exportPDF()">Export PDF</button><button type="button" onclick="MRF.showRules(${num(total)})">Approval rules</button><button type="button" onclick="document.body.classList.toggle('show-paper'); fitPaper();">View original form</button></div>
+  </div>`;
+}
+window.matchMedia("(max-width:720px)").addEventListener("change", ()=>{ if(doc) render(); });
 
 function fitPaper(){
   const paper = document.getElementById("paper");
@@ -332,7 +409,7 @@ function setMode(m){
   document.getElementById("mErr").textContent = "";
   if(m==="decline") setTimeout(()=>document.getElementById("mReason").focus(), 30);
 }
-function openModal(order){
+function openModal(order, mode){
   signingOrder = order;
   const r = doc.requisition, st = doc.steps.find(x=>x.step_order===order) || {};
   document.getElementById("mRole").textContent = `Step ${order} of ${SLOTS.length} · ${st.stage_name || SLOTS[order-1].label.replace(/ :$/,"")}`;
@@ -356,7 +433,7 @@ function openModal(order){
     document.getElementById("mWho").innerHTML = `<input type="text" id="mName" placeholder="Your full name" maxlength="80" autocomplete="name" value="${esc(nm)}">
       <div class="mnote">Have an account? <a href="login.html?redirect=${back}">Sign in</a> to link this to your dashboard. No account needed to sign.</div>`;
   }
-  clearPad(); setMode("approve");
+  clearPad(); setMode(mode === "decline" ? "decline" : "approve");
   hasSaved = false; useSaved = false;
   document.getElementById("mSaved").hidden = true; document.getElementById("mDrawArea").hidden = false; document.getElementById("mBack").hidden = true;
   document.getElementById("mSaveWrap").hidden = !sid; document.getElementById("mSaveBox").checked = false;
