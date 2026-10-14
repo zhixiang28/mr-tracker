@@ -107,3 +107,9 @@ How it works: a database trigger on `approval_steps` (and an hourly `pg_cron` jo
 One-time Telegram setup: create a bot with @BotFather, add its token as the Edge Function secret `TELEGRAM_BOT_TOKEN`, open `https://<project>.supabase.co/functions/v1/telegram-webhook?setup=1` once, then store the bot's username: `insert into notify_config(key,value) values ('telegram_bot','<username without @>') on conflict (key) do update set value=excluded.value;`. The `site_url` row in `notify_config` must be the site's address (used for the "Open" links).
 
 The older automatic emails (declined / purchased / received) are switched off: `get_esign_notification` and `get_notification_target` now return nothing (the originals are kept as `*_legacy`, with no access). Emails are only sent to people who switch on **Email** in Settings, using the same events as the other channels. The purchaser is told (as *progress*) when their purchase is marked received.
+
+## New Materials Requisition Form (3 signing steps + Authorisation Limit page)
+
+New requisitions have **3 signing steps**: *Verified by* the manager the amount requires → *Procurement* (approves **and** buys, so "Procurement Dept" and "Processed by" are one sign-off) → *Received* (signed when the items arrive). Requisitions created earlier keep their 4 steps; every page and database function handles both (`MRF.isLegacy(steps)` in `mrf.js`, `mrf-flow.sql`).
+
+`mrf.js` holds the **Authorisation Limit** table from page 2 of the form (Section Manager up to $300 · Team Manager up to $500 · Division Head up to $1,000 · Top Management above; quotes $50k+ need a PO, $150k+ an LOA). It drives: the live "who must verify" box on the form, the "who signs" list on the submit confirmation, the signing page (page 2 below the form), and page 2 of the PDFs.

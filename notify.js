@@ -6,7 +6,7 @@
      tone: "success" | "info" | "warn" | "danger",     header colour
      icon: "check" | "x" | "undo" | "trash" | "link" | "key" | "send" | "edit",
      title, sub,
-     track: {done: 0-4},                                optional Manager → Procurement → Purchase → Received tracker
+     track: {done: 0-n, labels?: [...]},                optional progress tracker (default Manager → Procurement → Purchase → Received)
      html: "<p>…</p>",                                  optional custom block under the header
      tiles: [{icon, label}],                            optional icon tiles
      primary: {label, href | onClick}, secondary: {label, href | onClick},
@@ -45,7 +45,7 @@
   .iv-track .d{ width:14px; height:14px; border-radius:50%; background:rgba(255,255,255,.3); flex:none; }
   .iv-track .d.ok{ background:#4ade80; } .iv-track .d.now{ background:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.3); }
   .iv-track .l{ flex:1; height:3px; background:rgba(255,255,255,.3); } .iv-track .l.ok{ background:#4ade80; }
-  .iv-lbl{ display:flex; justify-content:space-between; max-width:318px; margin:6px auto 0; font-size:10px; opacity:.85; }
+  .iv-lbl{ display:flex; justify-content:space-between; max-width:330px; margin:6px auto 0; font-size:10px; opacity:.85; }
   .iv-body{ padding:18px 22px 20px; text-align:center; }
   .iv-html{ text-align:left; font-size:13px; line-height:1.55; color:#4b5563; margin-bottom:14px; }
   .iv-html p{ margin:0 0 8px; } .iv-html b{ color:#111827; }
@@ -73,9 +73,10 @@
     const ico = o.icon || (tone==="danger" ? "x" : tone==="warn" ? "undo" : "check");
     let track = "";
     if(o.track){
-      const done = Math.max(0, Math.min(4, o.track.done|0));
-      const dots = [0,1,2,3].map(k=>`<span class="d ${k<done?"ok":k===done?"now":""}"></span>${k<3?`<span class="l ${k<done-1?"ok":""}"></span>`:""}`).join("");
-      track = `<div class="iv-track">${dots}</div><div class="iv-lbl"><span>Manager</span><span>Procurement</span><span>Purchase</span><span>Received</span></div>`;
+      const labels = (o.track.labels && o.track.labels.length) ? o.track.labels : ["Manager","Procurement","Purchase","Received"], n = labels.length;
+      const done = Math.max(0, Math.min(n, o.track.done|0));
+      const dots = labels.map((_,k)=>`<span class="d ${k<done?"ok":k===done?"now":""}"></span>${k<n-1?`<span class="l ${k<done-1?"ok":""}"></span>`:""}`).join("");
+      track = `<div class="iv-track">${dots}</div><div class="iv-lbl">${labels.map(l=>`<span>${esc(l)}</span>`).join("")}</div>`;
     }
     const tiles = (o.tiles||[]).length ? `<div class="iv-tiles">${o.tiles.map(t=>`<div class="iv-tile">${icon(t.icon,26,"#2f6fed")}${esc(t.label)}</div>`).join("")}</div>` : "";
     const btn = (b, cls) => !b ? "" : b.href ? `<a class="iv-btn ${cls}${o.tone==="danger"&&cls==="p"?" danger":""}" href="${esc(b.href)}" data-a="${cls}">${esc(b.label)}</a>`

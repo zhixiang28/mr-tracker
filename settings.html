@@ -259,7 +259,7 @@ async function tgToggle(){
 function tgCancel(quiet){ clearInterval(tgTimer); $("tgSteps").hidden = true; $("tgBtn").hidden = false; }
 
 /* ---------------- reminders ---------------- */
-const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement approval","remind_procurement_hours","how long procurement may take"],["Purchase","remind_purchase_hours","from approval until it is bought"],["Received","remind_received_hours","from bought until it arrives"]];
+const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement (approve & buy)","remind_procurement_hours","how long procurement may take to sign and buy"],["Purchase (older requests)","remind_purchase_hours","only for requests made before the new form"],["Received","remind_received_hours","from bought until it arrives"]];
 let mySettings = null;
 function split(h){ return h == null ? {on:false, n:2, u:"days"} : (h >= 24 && h % 24 === 0) ? {on:true, n:h/24, u:"days"} : {on:true, n:h, u:"hours"}; }
 async function loadReminders(){

@@ -108,6 +108,11 @@
   .flow li{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#374151;position:relative;text-transform:none;letter-spacing:0}
   .flow li span{width:30px;height:30px;border-radius:50%;background:#e8eefc;color:#2050bd;display:flex;align-items:center;justify-content:center;font-weight:800;position:relative;z-index:1}
   .flow li+li::before{content:"";position:absolute;top:15px;right:50%;width:100%;height:2px;background:#d6e0f5}
+  .whosigns{ margin:10px 0 2px; display:grid; gap:7px; }
+  .whosigns div{ display:flex; gap:10px; align-items:center; background:#f3f6fc; border-radius:10px; padding:8px 10px; font-size:12.5px; }
+  .whosigns i{ flex:none; width:22px; height:22px; border-radius:50%; background:#2f6fed; color:#fff; font-style:normal; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; }
+  .authbox{ margin:2px 0 12px; padding:10px 12px; border:1.5px solid #bcd0fa; background:#eef4ff; border-radius:10px; font-size:12.5px; line-height:1.55; color:#1f2933; }
+  .authbox .doc{ display:block; margin-top:3px; font-weight:700; color:#b45309; }
   .flow-note{font-size:12.5px;line-height:1.6;color:#4b5563;margin:0 0 12px}
   .icon-btn{width:36px;padding:0;text-align:center;font-size:14px}
   .sheet{
@@ -516,9 +521,10 @@
       <div class="section-title" id="chainTitle">Approval</div>
       <div id="chainNote">
         <ol class="flow">
-          <li><span>1</span>Team Manager</li><li><span>2</span>Procurement</li><li><span>3</span>Purchase</li><li><span>4</span>Received</li>
+          <li><span>1</span>Verified by <b id="flowWho">Team Manager</b></li><li><span>2</span>Procurement<br><small style="font-weight:500;color:#6b7280">approves &amp; buys</small></li><li><span>3</span>Received<br><small style="font-weight:500;color:#6b7280">you sign on arrival</small></li>
         </ol>
-        <p class="flow-note">When you submit, you get <b>one signing link</b>. Send it to the Team Manager. Each person opens the form, then approves by drawing their signature (plus their PIN if they are signed in) — or declines with a reason. After each signature the same link opens on the next person's turn.</p>
+        <div class="authbox" id="authBox"></div>
+        <p class="flow-note">When you submit, you get <b>one signing link</b>. Send it to the person who must verify it (shown above). Each person opens the form, then approves by drawing their signature (plus their PIN if they are signed in) — or declines with a reason. After each signature the same link opens on the next person's turn.</p>
       </div>
       <div class="hint">Tip: enter a supplier/product URL in LINK — it becomes a real clickable link inside the exported PDF. "Share" hands the PDF straight to your device's native share sheet (pick whichever app you like — Outlook, Teams, Drive, etc.) along with a ready-made message; if your browser doesn't support that, it downloads the PDF instead so you can attach it manually. Files export as "yymmdd_ProjectName" so they sort and trace back easily.</div>
       <div style="text-align:center;margin-top:22px">
@@ -594,6 +600,7 @@
 
 <script src="dates.js"></script>
 <script src="notify.js"></script>
+<script src="mrf.js"></script>
 <script src="notifysetup.js"></script>
 <script src="appbar.js"></script>
 <script src="supplier.js"></script>
@@ -781,6 +788,15 @@ function recalc(){
   document.getElementById("itemsTotal").textContent=total.toFixed(2);
   document.getElementById("deliveryTaxTotal").textContent=deliveryTaxTotal.toFixed(2);
   document.getElementById("grandTotal").textContent=(total+deliveryTaxTotal).toFixed(2);
+  updateAuthBox(total+deliveryTaxTotal);
+}
+// "who must sign" for this amount (the Authorisation Limit on page 2 of the form)
+function updateAuthBox(grand){
+  const box = document.getElementById("authBox"), who = document.getElementById("flowWho"); if(!box || !window.MRF) return;
+  const t = MRF.requiredText(grand), r = MRF.required(grand);
+  if(who) who.textContent = t;
+  box.innerHTML = `Total <b>${MRF.money(grand)}</b> → needs verification by <b>${t}</b> (limit for this amount: ${r.upTo===Infinity?"above $1,000":"up to "+MRF.money(r.upTo).replace(".00","")}).` +
+    (r.idNote ? `<span style="display:block;font-size:11.5px;color:#6b7280">${r.idNote}</span>` : "") + (r.doc ? `<span class="doc">${r.doc}</span>` : "");
 }
 
 function collect(){
@@ -838,7 +854,7 @@ function apply(data){
 }
 
 let currentDraftId = null;
-let editRequisitionId = null;
+let editRequisitionId = null, editSteps = [];
 let adminEditId = null; // set when an admin opened an existing requisition from the dashboard to change it
 
 async function saveForm(){
@@ -1024,7 +1040,7 @@ async function loadForEdit(requisitionId){
     return;
   }
 
-  editRequisitionId = requisitionId;
+  editRequisitionId = requisitionId; editSteps = req.approval_steps || [];
   document.getElementById("phTitle").textContent = "Revise " + (req.tracking_no||"requisition");
   document.getElementById("phSub").textContent = "Fix what was declined, then resubmit";
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
@@ -1374,7 +1390,7 @@ async function submitToDashboard(){
       if(!data.success) throw new Error(data.error || "Unknown error");
 
       setStatus("Revised and resubmitted — approval restarts from the Team Manager.");
-      Notify.show({tone:"success", title:"Resubmitted!", sub:"Approval starts again from the Team Manager.", track:{done:0},
+      Notify.show({tone:"success", title:"Resubmitted!", sub:"Approval starts again from the Team Manager.", track:{done:0, labels:MRF.trackLabels(editSteps)},
         html:"<p>The reviewers will see your changes. You can follow it on the Dashboard.</p>",
         primary:{label:"Go to dashboard", href:"dashboard.html"}, onClose:()=>{ window.location.href = "dashboard.html"; }});
       return;
@@ -1387,7 +1403,7 @@ async function submitToDashboard(){
     if(!data.success) throw new Error(data.error || "Unknown error");
 
     currentRequisitionId = data.requisition_id;
-    showSubmitResult(data.tracking_no, data.first_token);
+    showSubmitResult(data.tracking_no, data.first_token, grand);
     if(currentDraftId){
       // This draft has now been submitted — remove it from the drafts list
       supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
@@ -1428,18 +1444,21 @@ function resetFormForNext(){
   updateLoginBar();
 }
 
-function showSubmitResult(trackingNo, firstToken){
+function showSubmitResult(trackingNo, firstToken, grand){
   const link = new URL("esign.html", window.location.href);
   link.searchParams.set("token", firstToken);
+  const who = MRF.requiredText(grand), r = MRF.required(grand);
   copyText(link.toString()).then(copied=>{
-    showLinkResult({title:"Request submitted!", sub:`${trackingNo} is now waiting for the Team Manager.`, link:link.toString(), copied, role:"Team Manager",
-      intro:"<b>Send this one link</b> to the Team Manager. They open the form and sign it (or decline with a reason). The same link then moves to the next person automatically."});
+    showLinkResult({title:"Request submitted!", sub:`${trackingNo} (${MRF.money(grand)}) is now waiting for ${who}.`, link:link.toString(), copied, role:who,
+      intro:`<b>Send this one link</b> to the person who signs first. The same link then moves to the next person automatically.
+        <div class="whosigns"><div><i>1</i><span><b>Verified by ${who}</b> — required for ${MRF.money(grand)}</span></div><div><i>2</i><span><b>Procurement</b> approves and buys</span></div><div><i>3</i><span><b>You</b> sign when the items are received</span></div></div>` +
+        (r.doc ? `<p style="color:#b45309;font-weight:700;margin:6px 0 0">${r.doc}.</p>` : "")});
   });
 }
 // Result card with the one signing link (copy / email it)
 function showLinkResult(o){
   Notify.show({
-    tone:"success", title:o.title, sub:o.sub, track:{done:0},
+    tone:"success", title:o.title, sub:o.sub, track:{done:0, labels:["Manager","Procurement","Received"]},
     html:`<p>${o.intro}</p>
       <div class="link-copy-box"><input type="text" readonly value="${o.link}" id="firstSignLinkInput"><button type="button" onclick="copySignLink()">Copy</button></div>
       <div style="display:flex;gap:6px"><input type="email" id="emailLinkInput" placeholder="Or type an email to send it instead" style="flex:1">
@@ -1756,11 +1775,10 @@ function buildPDF(){
 
   const sigBoxH = 66;
   const sigGap = 18;
-  const sigColW = (contentW - sigGap*3)/4;
+  const sigColW = (contentW - sigGap*2)/3;
   const sigDefs = [
-    {label:"TEAM MANAGER", value: meta.manager},
-    {label:"APPROVED BY", value: meta.approveBy},
-    {label:"PURCHASED BY", value: meta.purchaseBy},
+    {label:"VERIFIED BY: " + MRF.requiredText(grand).toUpperCase(), value: meta.manager},
+    {label:"PROCUREMENT DEPT / PROCESSED BY", value: meta.approveBy || meta.purchaseBy},
     {label:"RECEIVED BY", value: meta.receivedBy}
   ];
   doc.setFont("helvetica","normal");
@@ -1777,12 +1795,14 @@ function buildPDF(){
     doc.setFont("helvetica","bold");
     doc.setFontSize(8.5);
     doc.setTextColor(...muted);
+    doc.setFontSize(s.label.length > 28 ? 7 : 8.5);
     doc.text(s.label, sx+sigColW/2, finalY+56, {align:"center"});
     doc.setFont("helvetica","normal");
   });
   doc.setFontSize(8);
   doc.setTextColor(...muted);
   doc.text("Signatures are captured digitally through the approval chain — see the tracking dashboard for signer names and dates.", margin, finalY+sigBoxH+16);
+  MRF.drawLimitsPage(doc, grand, {margin});       // page 2: Authorisation Limit
 
   return doc;
 }
