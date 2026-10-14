@@ -41,7 +41,8 @@
     {t:"You're all set", h:"Press <b>+ New requisition</b> whenever you need to buy something. Have a good one!"}
   ];
 
-  function start(){
+  function start(opts){
+    opts = opts || {};
     css();
     if(document.getElementById("trLayer")) return;
     let i = 0, target = null;
@@ -94,7 +95,7 @@
       })();
     }
     function go(d){ const n = i + d; if(n < 0) return; if(n >= STEPS.length){ close(); return; } i = n; draw(); }
-    function close(){ removeEventListener("resize", place); removeEventListener("scroll", place, true); document.removeEventListener("keydown", onKey); layer.remove(); }
+    function close(){ removeEventListener("resize", place); removeEventListener("scroll", place, true); document.removeEventListener("keydown", onKey); layer.remove(); if(opts.onClose) opts.onClose(); }
     const onKey = e=>{ if(e.key==="Escape") close(); else if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1); };
     layer.addEventListener("click", e=>{
       const a = e.target.getAttribute && e.target.getAttribute("data-a");

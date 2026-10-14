@@ -199,7 +199,6 @@ async function handleVerifyCode(){
   sessionStorage.setItem("sl_person_id", data.id);
   sessionStorage.setItem("sl_person_name", data.name);
   sessionStorage.setItem("sl_pin", pendingSignup.pin);
-  try{ localStorage.setItem("sl_tour_pending", data.id); }catch(_){}
   await claimPending(data.id, pendingSignup.pin);
   Session.remember(data.id, data.name, pendingSignup.pin, false);
   document.getElementById("verifyPanel").style.display="none";

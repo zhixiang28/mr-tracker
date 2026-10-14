@@ -102,7 +102,7 @@
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
     render();
-    if(state.opts.notice !== false){ if(!maybeTour()) showNotice(); if(isAdminCached()) setTimeout(checkVerifications, 900); }
+    if(state.opts.notice !== false){ firstRun(); if(isAdminCached()) setTimeout(checkVerifications, 900); }
     if(state.opts.client && state.opts.assistant !== false){
       const boot = ()=>{ try{ window.Assistant && window.Assistant.mount(state.opts.client); }catch(_){} };
       if(window.Assistant) boot();
@@ -168,20 +168,31 @@
   function runTour(){
     // the tour points at Dashboard controls, so run it there
     if(state.opts.active !== "dashboard"){ location.href = "dashboard.html?tour=1"; return; }
-    const go = ()=>{ setTimeout(()=>{ try{ window.Tour && window.Tour.start(); }catch(_){} }, 700); };
+    const go = ()=>{ setTimeout(()=>{ try{ window.Tour && window.Tour.start({onClose: markTourSeen}); }catch(_){} }, 700); };
     if(window.Tour) go(); else { const sc = document.createElement("script"); sc.src = "tour.js"; sc.onload = go; document.head.appendChild(sc); }
   }
-  function maybeTour(){
+  // the tour is remembered on the account, so everyone gets it once the first time they reach the Dashboard (on any device)
+  function markTourSeen(){
     try{
-      const pid = sessionStorage.getItem("sl_person_id");
+      const id = sessionStorage.getItem("sl_person_id"), pin = sessionStorage.getItem("sl_pin");
+      if(id && pin && state.opts.client) state.opts.client.rpc("mark_tour_seen", {p_person_id:id, p_pin:pin}).then(()=>{});
+    }catch(_){}
+  }
+  async function firstRun(){
+    try{
       if(state.opts.active === "dashboard" && new URLSearchParams(location.search).get("tour") === "1"){
-        history.replaceState(null, "", location.pathname); runTour(); return true;
+        history.replaceState(null, "", location.pathname); runTour(); return;
       }
-      if(!pid || state.opts.active !== "dashboard" || localStorage.getItem("sl_tour_pending") !== pid) return false;
-      localStorage.removeItem("sl_tour_pending");
-      localStorage.setItem("sl_notice_seen", NOTICE_ID);   // a new account doesn't need the "what's new" list
-      runTour(); return true;
-    }catch(_){ return false; }
+      const pid = sessionStorage.getItem("sl_person_id");
+      if(pid && state.opts.active === "dashboard" && state.opts.client){
+        const {data} = await state.opts.client.rpc("has_seen_tour", {p_person_id: pid});
+        if(data === false){
+          try{ localStorage.setItem("sl_notice_seen", NOTICE_ID); }catch(_){}   // a first-time visitor doesn't need the "what's new" list
+          runTour(); return;
+        }
+      }
+    }catch(_){}
+    showNotice();
   }
 
   function setAdmin(v){
