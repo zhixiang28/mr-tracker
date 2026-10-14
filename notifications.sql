@@ -238,3 +238,17 @@ begin
 end $$;
 revoke all on function public.send_test_notification(uuid, text) from public;
 grant execute on function public.send_test_notification(uuid, text) to anon, authenticated;
+
+-- ---------- email channel (opt-in; sent through the send-email function) ----------
+alter table public.notify_prefs add column if not exists email_on boolean not null default false;
+-- get_my_notify_prefs now also returns email_on and the person's email; notify_person also sends when email_on is true.
+create or replace function public.set_email_notifications(p_person_id uuid, p_pin text, p_on boolean) returns json
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if not verify_pin(p_person_id, p_pin) then return json_build_object('success', false, 'error', 'Incorrect PIN.'); end if;
+  insert into notify_prefs(person_id, email_on) values (p_person_id, coalesce(p_on, false))
+  on conflict (person_id) do update set email_on = coalesce(p_on, false), updated_at = now();
+  return json_build_object('success', true);
+end $$;
+revoke all on function public.set_email_notifications(uuid, text, boolean) from public;
+grant execute on function public.set_email_notifications(uuid, text, boolean) to anon, authenticated;

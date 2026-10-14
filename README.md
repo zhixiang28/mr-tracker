@@ -100,7 +100,7 @@ The version number (`VERSION` in `appbar.js`) shows under **Log out** in the nam
 
 ## Notifications (Telegram + phone/browser alerts) and Settings
 
-`settings.html` (name menu → *Settings & notifications*) has three tabs: Notifications, Reminders (overdue limits) and Account. People connect Telegram and/or turn on alerts for the device they are on, and choose what to be told about (needs my action, progress on my requests, declined, overdue reminders). After sending a form, anyone who never chose is offered it once (`notifysetup.js`).
+`settings.html` (name menu → *Settings & notifications*) has three tabs: Notifications, Reminders (overdue limits) and Account. People connect Telegram, switch on email (sent via the existing `send-email` function, off by default) and/or turn on alerts for the device they are on, and choose what to be told about (needs my action, progress on my requests, declined, overdue reminders). After sending a form, anyone who never chose is offered it once (`notifysetup.js`).
 
 How it works: a database trigger on `approval_steps` (and an hourly `pg_cron` job for overdue reminders) calls the Edge Function `notify-dispatch`, which sends via Telegram and web push. `telegram-webhook` links a Telegram chat to an account when the person presses Start. `sw.js` + `manifest.webmanifest` make the site installable and show the alerts. Server-side keys live in Supabase Vault (`notify_secret`, `vapid_private`, `telegram_webhook_secret`); the only secret set by hand is `TELEGRAM_BOT_TOKEN`. SQL is in `notifications.sql`.
 

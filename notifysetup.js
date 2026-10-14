@@ -54,11 +54,11 @@
       if(!ss.get("sl_person_id") || !w.Notify) return;
       if(localStorage.getItem("sl_notifyprompt_hide") === "1" || ss.get("sl_notifyprompt_snooze")) return;
       const {data} = await client.rpc("get_my_notify_prefs", idPin());
-      if(!data || !data.success || data.prompted || data.telegram || (data.devices || []).length) return;
+      if(!data || !data.success || data.prompted || data.telegram || data.email_on || (data.devices || []).length) return;
       w.Notify.show({
         tone:"info", icon:"send", title:"Get a ping when it moves?",
         sub:"Your request is on its way. Want to hear about it on your phone?",
-        tiles:[{icon:"send",label:"Telegram"},{icon:"track",label:"Phone or browser alert"},{icon:"check",label:"You choose what"}],
+        tiles:[{icon:"send",label:"Telegram or email"},{icon:"track",label:"Phone or browser alert"},{icon:"check",label:"You choose what"}],
         primary:{label:"Set up notifications", href:"settings.html?tab=notifications&from=prompt"},
         secondary:{label:"Not now", onClick:()=>{ sessionStorage.setItem("sl_notifyprompt_snooze","1"); }},
         small:"Takes under a minute. Change or turn off any time in Settings.",

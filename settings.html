@@ -76,6 +76,11 @@
       </div>
 
       <div class="row">
+        <div class="ico">✉️</div>
+        <div class="txt"><b>Email <span class="badge" id="emBadge">Off</span></b><span id="emDesc">An email to your company address.</span></div>
+        <label class="sw" title="Email notifications"><input type="checkbox" id="emSw" onchange="emailToggle(this)"><i></i></label>
+      </div>
+      <div class="row">
         <div class="ico">📱</div>
         <div class="txt"><b>This device <span class="badge" id="pushBadge">Off</span></b><span id="pushDesc">A pop-up alert on this phone or computer, even when the site is closed.</span></div>
         <label class="sw" title="Alerts on this device"><input type="checkbox" id="pushSw" onchange="pushToggle(this)"><i></i></label>
@@ -152,6 +157,8 @@ function renderNotifications(){
   else $("tgDesc").textContent = tg ? "You will get messages in Telegram, with a button that opens the requisition." : "Messages in the Telegram app, with a button that opens the requisition.";
   if(tg) tgCancel(true);
 
+  $("emSw").checked = !!p.email_on; $("emBadge").textContent = p.email_on ? "On" : "Off"; $("emBadge").className = "badge" + (p.email_on ? " on" : "");
+  $("emDesc").textContent = p.email ? "Sent to " + p.email + "." : "An email to your company address.";
   const st = NotifySetup.pushState(), mine = !!here && (p.devices||[]).some(d=>d.endpoint === here);
   $("pushSw").checked = mine; $("pushBadge").textContent = mine ? "On" : "Off"; $("pushBadge").className = "badge" + (mine ? " on" : "");
   const note = $("pushNote"); note.hidden = true; note.className = "note"; $("pushSw").disabled = false;
@@ -163,8 +170,8 @@ function renderNotifications(){
   dv.hidden = !others.length;
   dv.innerHTML = others.map(d=>`<div class="dev">📱 <b>${esc(d.label||"Another device")}</b> <button type="button" class="quiet" data-ep="${esc(d.endpoint)}" onclick="removeDevice(this)">Remove</button></div>`).join("");
   document.querySelectorAll("[data-ev]").forEach(c=>{ c.checked = p.events[c.dataset.ev] !== false; });
-  const any = tg || (p.devices||[]).length > 0;
-  $("testBtn").disabled = !any; $("evHint").textContent = any ? "Changes save automatically." : "Turn on Telegram or this device first — then choose what you want here.";
+  const any = tg || p.email_on || (p.devices||[]).length > 0;
+  $("testBtn").disabled = !any; $("evHint").textContent = any ? "Changes save automatically." : "Turn on Telegram, email or this device first — then choose what you want here.";
 }
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
@@ -172,6 +179,13 @@ async function evChanged(){
   const ev = {}; document.querySelectorAll("[data-ev]").forEach(c=>{ ev[c.dataset.ev] = c.checked; });
   const {data} = await supabaseClient.rpc("save_my_notify_prefs", Object.assign(auth(), {p_events: ev}));
   if(data && data.success){ prefs.events = ev; toast("Saved ✓"); } else toast("Could not save — try again.", true);
+}
+async function emailToggle(box){
+  box.disabled = true;
+  const {data} = await supabaseClient.rpc("set_email_notifications", Object.assign(auth(), {p_on: box.checked}));
+  if(!(data && data.success)){ box.checked = !box.checked; toast("Could not change email notifications.", true); }
+  else toast(box.checked ? "Email notifications on ✓" : "Email notifications off");
+  box.disabled = false; await loadPrefs();
 }
 async function sendTest(){
   const b = $("testBtn"); b.disabled = true;
