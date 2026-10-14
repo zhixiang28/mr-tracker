@@ -188,7 +188,7 @@ function renderPeopleList(){
       <div class="person-top">
         <div>
           <span class="person-name">${escHtml(p.name)}</span>
-          ${p.is_admin ? '<span class="badge">Admin</span>' : ''}
+          ${p.is_admin ? '<span class="badge">Admin</span>' : ''}${p.is_procurement ? ' <span class="badge" style="background:#ede9fe;color:#6d28d9">Procurement contact</span>' : ''}
           <div class="person-meta">${metaParts.map(escHtml).join(" · ")}</div>
           <label class="apptsel">Appointment
             <select onchange="setAppointment('${p.id}', this.value)">
@@ -197,6 +197,7 @@ function renderPeopleList(){
         </div>
         <div class="person-actions">
           <button class="secondary" onclick="editEmail('${p.id}','${escHtml(p.email||"").replace(/'/g,"\\'")}')">Edit email</button>
+          <button class="secondary" onclick="setProcurement('${p.id}', ${!p.is_procurement})" title="Procurement contacts are notified when the manager has signed">${p.is_procurement ? "Remove procurement" : "Make procurement"}</button>
           <button class="secondary" onclick="toggleRole('${p.id}', ${!p.is_admin})">${p.is_admin ? "Remove admin" : "Make admin"}</button>
           <button class="btn-danger" onclick="deletePerson('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}')">Delete</button>
         </div>
@@ -250,6 +251,11 @@ async function deletePerson(targetId, name){
   await loadPeople();
 }
 
+async function setProcurement(targetId, on){
+  const {data, error} = await supabaseClient.rpc("admin_set_procurement", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_person_id: targetId, p_on: on});
+  if(error || !data || !data.success){ alert((data&&data.error) || (error&&error.message) || "Could not save."); }
+  await loadFullPeopleList();
+}
 async function setAppointment(targetId, level){
   const {data, error} = await supabaseClient.rpc("admin_set_appointment", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin, p_person_id: targetId, p_level: level || null});
   if(error || !data || !data.success){ alert((data&&data.error) || (error&&error.message) || "Could not save the appointment."); }
