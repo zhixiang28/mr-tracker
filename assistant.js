@@ -118,7 +118,7 @@
     last:["latest","recent","last","newest"],
     projects:["project","projects"]
   };
-  const GENERIC = ["status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
+  const GENERIC = ["history","before","previous","quote","quoted","sells","sell","sold","brand","model","ever","earlier","status","order","orders","ordered","requisition","requisitions","list","show","give","tell","find","check","use","used","using","did","does","done","still","yet","any","anything","month","week","today","everything","all"];
   const ALLW = [].concat(...Object.values(W), GENERIC);
   const keywordsOf = text => toks(text).filter(t=>!ALLW.some(w=>near(t,w))).map(t=>t.replace(/(es|s)$/,m=> t.length>4?"":m)).filter(t=>t.length>=3 || /[一-鿿]/.test(t));
   const supplierName = link => (w.supplierOf ? w.supplierOf(link).name : "(no link)");
@@ -168,6 +168,9 @@
     "Reminder Settings":"dashboard.html?open=reminders","My Profile":"dashboard.html?open=profile","Change PIN":"dashboard.html?open=pin",
     "Save Draft":"index.html","My Drafts":"index.html","Duplicate":"index.html","Currency converter":"index.html","Save this project for everyone":"index.html","Export PDF":"index.html","Export CSV":"index.html","Share":"index.html","Submit for approval":"index.html"};
   const linkify = html => html.replace(/<b>([^<]+)<\/b>/g,(all,t)=>{ const h = GO[t.replace(/&amp;/g,"&")]; return h ? `<a href="${h}"><b>${t}</b></a>` : all; });
+  const phLink = kw => `<br><a href="items.html${kw&&kw.length?"?q="+encodeURIComponent(kw.join(" ")):""}"><b>Open Purchase History${kw&&kw.length?" for “"+esc(kw.join(" "))+"”":""} →</b></a>`;
+  const ANALYTICS_WORDS = ["analytic","analytics","analysis","analyse","analyze","trend","trends","chart","charts","graph","graphs","insight","insights","kpi","statistics","stats","spending"];
+  const ANALYTICS_RE = /((by|per) (month|week|year|supplier|project|requester|department)|monthly|weekly|yearly|top \d*\s*(suppliers?|items?|projects?|spenders?|requesters?)|biggest|highest|lowest|ranking|approval (time|speed)|turnaround|how long (does|do|did|is|are).*(approv|take)|average (approval|time|spend|spending|order|cost)|compare|comparison|over time|so far this (year|month))/;
   async function rules(q, client){
     const text = q.trim(), low = text.toLowerCase();
     const isHow = /^(how|what happens|can i|can we|where do|where can|why can|is it possible|who can|what is|what are)\b/.test(low);
@@ -202,6 +205,11 @@
         (pool.length>6?`<br>…and ${pool.length-6} more on the Dashboard.`:"") + "<br>Ask about one for details, for example “where is REQ-00031?”.";
     }
 
+    // analytics-style questions (trends, rankings, averages): the Analytics page answers these with charts
+    if(!m && (hasWord(low, ANALYTICS_WORDS) || ANALYTICS_RE.test(low)) && !/how (do|can) i/.test(low)){
+      return `That is best answered with charts and totals on the <b>Analytics</b> page: spending over time, by supplier or project, approval speed and price insights.${data && data.is_admin ? " As an admin you see everyone's data." : " You see your own requisitions."}<br><a href="analytics.html"><b>Open Analytics →</b></a>`;
+    }
+
     if(isHow){ const f = faqAnswer(text, 3); if(f) return f; }
 
     // pages
@@ -219,20 +227,20 @@
         if(kw.length){
           const hits = itemHits(reqs, kw), rs = [...new Map(hits.map(h=>[h.r.id,h.r])).values()];
           if(rs.length) return rs.slice(0,4).map(arrivalLine).join("<br>") + (rs.length>4?`<br>…and ${rs.length-4} more.`:"");
-          return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see. Try <a href="items.html">Purchase History</a>, or give me the REQ number.`;
+          return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see, or give me the REQ number.` + phLink(kw);
         }
         const ordered = reqs.filter(r=>r.status==="Purchased"), got = reqs.filter(r=>r.status==="Received").slice(0,3);
         return (ordered.length ? `Purchased and waiting to be marked received:<br>${listOf(ordered)}` : "Nothing is waiting to be received.") + (got.length ? `<br><br>Recently received:<br>${listOf(got,3)}` : "");
       }
 
       // supplier / price history of an item
-      if(hasWord(low,W.supplier.concat(W.price)) || /where (did|do|can) (we|i)/.test(low)){
-        if(!kw.length) return "Which item? For example “which supplier for screws?” or “how much did we pay for cable?”. <a href=\"items.html\">Purchase History</a> also searches everything we bought.";
+      if(hasWord(low,W.supplier.concat(W.price,["history","before","previous","quote","quoted","sells","sell","brand","model"])) || /where (did|do|can) (we|i)/.test(low) || (kw.length && /how much|how many|what('s| is) the (price|cost)|cost of/.test(low))){
+        if(!kw.length) return "Which item? For example “which supplier for screws?” or “how much did we pay for cable?”. <a href=\"items.html\"><b>Open Purchase History →</b></a> searches everything we bought.";
         const hits = itemHits(reqs, kw).filter(h=>!["Declined","Withdrawn"].includes(h.r.status)).sort((a,b)=>String(b.r.form_date).localeCompare(String(a.r.form_date)));
-        if(!hits.length) return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see. Try <a href="items.html">Purchase History</a>.`;
+        if(!hits.length) return `I can't find an item like “${esc(kw.join(" "))}” on the requisitions you can see.` + phLink(kw);
         const lines = hits.slice(0,5).map(h=>`• ${esc(h.it.name)} — <b>${supplierLink(h.it.link)}</b>, ${money(h.it.unit_price)} each, ${dmy(h.r.form_date)} (${link(h.r)}, ${esc(h.r.status)})`).join("<br>");
         const priced = hits.filter(h=>Number(h.it.unit_price)>0).sort((a,b)=>a.it.unit_price-b.it.unit_price)[0];
-        return `Found ${hits.length} purchase${hits.length>1?"s":""}:<br>${lines}` + (priced && hits.length>1 ? `<br>Cheapest so far: ${money(priced.it.unit_price)} at ${supplierLink(priced.it.link)}.` : "") + (hits.some(h=>!h.it.link) ? "<br>“(no link)” means no product link was entered, so the supplier is unknown." : "");
+        return `Found ${hits.length} purchase${hits.length>1?"s":""}:<br>${lines}` + (priced && hits.length>1 ? `<br>Cheapest so far: ${money(priced.it.unit_price)} at ${supplierLink(priced.it.link)}.` : "") + (hits.some(h=>!h.it.link) ? "<br>“(no link)” means no product link was entered, so the supplier is unknown." : "") + phLink(kw);
       }
 
       // who signed / who is next (by keyword)
