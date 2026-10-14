@@ -82,7 +82,7 @@
           <div class="ab-menu" id="abMenu">
             <button data-act="profile">My Profile</button>
             <button data-act="pin">Change PIN</button>
-            <button data-act="reminders">Reminder Settings</button>
+            <button data-act="reminders">Settings &amp; notifications</button>
             <hr>
             <button data-act="tour">Quick tour</button>
             <a href="manual.html" target="_blank" rel="noopener">Manual</a>
@@ -96,8 +96,15 @@
     </div>`;
   }
 
+  // lets the site be installed as an app (needed for phone alerts on iPhone) and names it
+  function pwaTags(){
+    if(document.querySelector('link[rel="manifest"]')) return;
+    [["manifest","manifest.webmanifest"],["apple-touch-icon","icon-192.png"]].forEach(([rel,href])=>{ const l=document.createElement("link"); l.rel=rel; l.href=href; document.head.appendChild(l); });
+    const m=document.createElement("meta"); m.name="theme-color"; m.content="#2f6fed"; document.head.appendChild(m);
+  }
   function mount(id, opts){
     state.opts = opts || {};
+    pwaTags();
     state.root = typeof id==="string" ? document.getElementById(id) : id;
     if(!document.getElementById("appbar-css")){ const st = document.createElement("style"); st.id="appbar-css"; st.textContent = CSS; document.head.appendChild(st); }
     state.isAdmin = isAdminCached();
@@ -119,7 +126,7 @@
       else if(act==="refresh" && o.onRefresh) o.onRefresh();
       else if(act==="profile") (o.onProfile || (()=>go("dashboard.html?open=profile", o.newTab)))();
       else if(act==="pin") (o.onPin || (()=>go("dashboard.html?open=pin", o.newTab)))();
-      else if(act==="reminders") (o.onReminders || (()=>go("dashboard.html?open=reminders", o.newTab)))();
+      else if(act==="reminders") (o.onReminders || (()=>go("settings.html", o.newTab)))();
     });
     document.addEventListener("click", ()=>{ const m=document.getElementById("abMenu"); if(m) m.classList.remove("open"); });
     // not known yet on this browser tab: ask once, then remember

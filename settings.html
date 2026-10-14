@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPACElogic — Settings</title>
+<style>
+  :root{ --ink:#1f2933; --muted:#6b7280; --line:#d7dbe0; --accent:#2f6fed; --accent-dark:#2050bd; --bg:#eef1f6; --paper:#fff; --danger:#dc2626; --ok:#15803d; --soft:#f4f6fa; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .wrap{ max-width:760px; margin:28px auto 90px; padding:0 16px; }
+  button, input, select{ font:inherit; font-size:13.5px; color:var(--ink); }
+  button{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:9px 15px; font-weight:700; cursor:pointer; }
+  button:hover{ background:var(--soft); }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; } button.primary:hover{ background:var(--accent-dark); }
+  button.quiet{ border-color:transparent; background:none; color:var(--muted); padding:8px 10px; } button.quiet:hover{ color:var(--danger); background:none; }
+  button:disabled{ opacity:.5; cursor:default; }
+  h1{ margin:22px 0 2px; font-size:24px; letter-spacing:-.4px; } .sub{ color:var(--muted); font-size:13.5px; margin-bottom:18px; }
+  .tabs{ display:flex; gap:4px; background:#e3e8f0; padding:4px; border-radius:12px; margin-bottom:16px; }
+  .tabs button{ flex:1; border:0; background:none; padding:10px 8px; border-radius:9px; color:var(--muted); }
+  .tabs button[aria-selected=true]{ background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:6px 20px; margin-bottom:14px; }
+  .card > h2{ font-size:11.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); margin:16px 0 4px; }
+  .row{ display:flex; align-items:center; gap:14px; padding:15px 0; border-top:1px solid #eef0f4; } .row:first-of-type{ border-top:0; }
+  .ico{ width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:none; font-size:20px; background:#eaf1ff; }
+  .txt{ flex:1; min-width:0; } .txt b{ display:block; font-size:14.5px; } .txt > span{ display:block; color:var(--muted); font-size:12.5px; line-height:1.45; margin-top:2px; }
+  .badge{ display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; background:#eef0f4; color:var(--muted); margin-left:6px; vertical-align:2px; }
+  .badge.on{ background:#dcfce7; color:var(--ok); }
+  .sw{ position:relative; width:46px; height:26px; flex:none; } .sw input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1; }
+  .sw i{ position:absolute; inset:0; background:#cbd2dc; border-radius:99px; transition:background .15s; } .sw i::after{ content:""; position:absolute; left:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .15s; }
+  .sw input:checked + i{ background:var(--accent); } .sw input:checked + i::after{ transform:translateX(20px); }
+  .sw input:focus-visible + i{ outline:3px solid #93c5fd; outline-offset:2px; } .sw input:disabled{ cursor:default; } .sw input:disabled + i{ opacity:.5; }
+  .steps{ background:#f3f6fc; border-radius:12px; padding:14px 16px; margin:0 0 14px; font-size:13px; line-height:1.6; } .steps ol{ margin:6px 0 0; padding-left:20px; }
+  .steps .wait{ color:var(--muted); font-size:12.5px; margin-top:8px; }
+  .note{ font-size:12.5px; color:var(--muted); padding:0 0 14px; line-height:1.5; } .note.warn{ color:#b45309; }
+  .devs{ padding:0 0 10px 56px; } .dev{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); padding:3px 0; } .dev b{ color:var(--ink); font-weight:600; }
+  .save{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); background:#111827; color:#fff; padding:10px 18px; border-radius:99px; font-size:13px; font-weight:700; opacity:0; transition:all .2s; pointer-events:none; z-index:50; }
+  .save.show{ opacity:1; transform:translateX(-50%); } .save.err{ background:var(--danger); }
+  .rem{ display:flex; align-items:center; gap:12px; padding:14px 0; border-top:1px solid #eef0f4; } .rem:first-of-type{ border-top:0; }
+  .rem .txt{ min-width:120px; } .rem .in{ display:flex; gap:6px; align-items:center; }
+  .rem input[type=number]{ width:70px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; } .rem select{ border:1px solid var(--line); border-radius:8px; padding:8px 8px; background:#fff; }
+  .rem input:disabled, .rem select:disabled{ background:#f3f4f6; color:#9ca3af; }
+  .foot{ display:flex; justify-content:flex-end; align-items:center; gap:10px; padding:14px 0 12px; border-top:1px solid #eef0f4; }
+  .links a{ display:flex; align-items:center; gap:14px; padding:15px 0; border-top:1px solid #eef0f4; color:inherit; text-decoration:none; } .links a:first-child{ border-top:0; } .links a:hover .txt b{ color:var(--accent); } .links .go{ color:var(--muted); font-size:20px; }
+  [hidden]{ display:none!important; }
+  @media (max-width:520px){ .rem{ flex-wrap:wrap; } .devs{ padding-left:0; } .card{ padding:4px 14px; } }
+</style>
+<script src="session.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div id="appbar"></div>
+  <h1>Settings</h1>
+  <div class="sub">Choose how and when MR Tracker keeps you in the loop.</div>
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabNotifications" aria-selected="true" onclick="showTab('notifications')">🔔 Notifications</button>
+    <button type="button" role="tab" id="tabReminders" aria-selected="false" onclick="showTab('reminders')">⏰ Reminders</button>
+    <button type="button" role="tab" id="tabAccount" aria-selected="false" onclick="showTab('account')">👤 Account</button>
+  </div>
+
+  <!-- ===== Notifications ===== -->
+  <section id="paneNotifications">
+    <div class="card">
+      <h2>Where to send them</h2>
+      <div class="row">
+        <div class="ico">✈️</div>
+        <div class="txt"><b>Telegram <span class="badge" id="tgBadge">Off</span></b><span id="tgDesc">Messages in the Telegram app, with a button that opens the requisition.</span></div>
+        <button type="button" class="primary" id="tgBtn" onclick="tgToggle()">Connect</button>
+      </div>
+      <div class="steps" id="tgSteps" hidden>
+        <b>Connect in 2 taps</b>
+        <ol><li>Press <b>Open Telegram</b> below.</li><li>In Telegram, press <b>Start</b>.</li></ol>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="primary" id="tgOpen">Open Telegram</button><button type="button" onclick="tgCancel()">Cancel</button></div>
+        <div class="wait" id="tgWait">Waiting for you to press Start…</div>
+      </div>
+
+      <div class="row">
+        <div class="ico">✉️</div>
+        <div class="txt"><b>Email <span class="badge" id="emBadge">Off</span></b><span id="emDesc">An email to your company address.</span></div>
+        <label class="sw" title="Email notifications"><input type="checkbox" id="emSw" onchange="emailToggle(this)"><i></i></label>
+      </div>
+      <div class="row">
+        <div class="ico">📱</div>
+        <div class="txt"><b>This device <span class="badge" id="pushBadge">Off</span></b><span id="pushDesc">A pop-up alert on this phone or computer, even when the site is closed.</span></div>
+        <label class="sw" title="Alerts on this device"><input type="checkbox" id="pushSw" onchange="pushToggle(this)"><i></i></label>
+      </div>
+      <div class="note" id="pushNote" hidden></div>
+      <div class="devs" id="devs" hidden></div>
+    </div>
+
+    <div class="card">
+      <h2>What to tell me</h2>
+      <div class="row"><div class="ico">✍️</div><div class="txt"><b>Needs my action</b><span>A requisition is waiting for your signature.</span></div><label class="sw"><input type="checkbox" data-ev="action" onchange="evChanged()"><i></i></label></div>
+      <div class="row"><div class="ico">📦</div><div class="txt"><b>Progress on my requests</b><span>Someone approved, bought or received something you submitted.</span></div><label class="sw"><input type="checkbox" data-ev="progress" onchange="evChanged()"><i></i></label></div>
+      <div class="row"><div class="ico">⚠️</div><div class="txt"><b>Declined</b><span>One of your requests was declined, with the reason.</span></div><label class="sw"><input type="checkbox" data-ev="declined" onchange="evChanged()"><i></i></label></div>
+      <div class="row"><div class="ico">⏰</div><div class="txt"><b>Overdue reminders</b><span>A request waited longer than the limit you set in <a href="#" onclick="showTab('reminders');return false" style="color:var(--accent)">Reminders</a>.</span></div><label class="sw"><input type="checkbox" data-ev="reminder" onchange="evChanged()"><i></i></label></div>
+      <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="evHint">Changes save automatically.</span><button type="button" id="testBtn" onclick="sendTest()">Send me a test</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Reminders ===== -->
+  <section id="paneReminders" hidden>
+    <div class="card">
+      <h2>Flag my requests when they wait too long</h2>
+      <div class="note" style="padding-top:8px">Pick how long each stage may take. Past that, it shows as <b>overdue</b> on your dashboard and in the assistant, and you get a notification if <i>Overdue reminders</i> is on. Switch a stage off to stop checking it.</div>
+      <div id="remRows"></div>
+      <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="remMsg"></span><button type="button" class="primary" id="remSave" onclick="saveReminders()">Save reminders</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Account ===== -->
+  <section id="paneAccount" hidden>
+    <div class="card links">
+      <a href="dashboard.html?open=profile"><div class="ico">🪪</div><div class="txt"><b>My profile</b><span>Your name, position and department.</span></div><span class="go">›</span></a>
+      <a href="dashboard.html?open=pin"><div class="ico">🔑</div><div class="txt"><b>Change PIN</b><span>The 4-digit PIN you sign in and sign off with.</span></div><span class="go">›</span></a>
+      <a href="manual.html" target="_blank" rel="noopener"><div class="ico">📘</div><div class="txt"><b>Manual &amp; FAQ</b><span>How everything works.</span></div><span class="go">›</span></a>
+    </div>
+  </section>
+</div>
+<div class="save" id="toast" role="status" aria-live="polite"></div>
+
+<script src="notify.js"></script>
+<script src="notifysetup.js"></script>
+<script src="appbar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+AppBar.mount("appbar", {active:"", client:supabaseClient});
+
+const myId = sessionStorage.getItem("sl_person_id"), myPin = sessionStorage.getItem("sl_pin");
+if(!myId || !myPin){ location.href = "login.html?redirect=" + encodeURIComponent("settings.html" + location.search); }
+const $ = id => document.getElementById(id);
+const auth = () => ({p_person_id: myId, p_pin: myPin});
+let prefs = null, here = null, tgTimer = null, toastT = null;
+
+function toast(msg, bad){ const t = $("toast"); t.textContent = msg; t.className = "save show" + (bad ? " err" : ""); clearTimeout(toastT); toastT = setTimeout(()=>{ t.className = "save"; }, 2200); }
+function showTab(n){
+  ["notifications","reminders","account"].forEach(k=>{ $("pane"+k[0].toUpperCase()+k.slice(1)).hidden = k !== n; $("tab"+k[0].toUpperCase()+k.slice(1)).setAttribute("aria-selected", k === n); });
+  history.replaceState(null, "", "settings.html?tab=" + n);
+}
+
+/* ---------------- notifications ---------------- */
+async function loadPrefs(){
+  const {data, error} = await supabaseClient.rpc("get_my_notify_prefs", auth());
+  if(error || !data || !data.success){ toast((data && data.error) || "Could not load your settings.", true); return; }
+  prefs = data; here = await NotifySetup.thisEndpoint();
+  renderNotifications();
+}
+function renderNotifications(){
+  const p = prefs, tg = p.telegram;
+  $("tgBadge").textContent = tg ? "Connected" : "Off"; $("tgBadge").className = "badge" + (tg ? " on" : "");
+  $("tgBtn").textContent = tg ? "Disconnect" : "Connect"; $("tgBtn").className = tg ? "" : "primary";
+  if(!p.bot && !tg){ $("tgBtn").disabled = true; $("tgDesc").textContent = "Not available yet — an admin still has to set up the Telegram bot."; }
+  else $("tgDesc").textContent = tg ? "You will get messages in Telegram, with a button that opens the requisition." : "Messages in the Telegram app, with a button that opens the requisition.";
+  if(tg) tgCancel(true);
+
+  $("emSw").checked = !!p.email_on; $("emBadge").textContent = p.email_on ? "On" : "Off"; $("emBadge").className = "badge" + (p.email_on ? " on" : "");
+  $("emDesc").textContent = p.email ? "Sent to " + p.email + "." : "An email to your company address.";
+  const st = NotifySetup.pushState(), mine = !!here && (p.devices||[]).some(d=>d.endpoint === here);
+  $("pushSw").checked = mine; $("pushBadge").textContent = mine ? "On" : "Off"; $("pushBadge").className = "badge" + (mine ? " on" : "");
+  const note = $("pushNote"); note.hidden = true; note.className = "note"; $("pushSw").disabled = false;
+  if(st === "ios-install"){ $("pushSw").disabled = true; note.hidden = false; note.textContent = "On iPhone/iPad: tap the Share button, choose “Add to Home Screen”, then open MR Tracker from your Home Screen and come back here."; }
+  else if(st === "unsupported"){ $("pushSw").disabled = true; note.hidden = false; note.textContent = "This browser can’t show alerts. Try Chrome, Edge or Safari (or use Telegram)."; }
+  else if(st === "blocked"){ $("pushSw").disabled = true; note.hidden = false; note.className = "note warn"; note.textContent = "Alerts are blocked for this site. Allow notifications in your browser’s site settings, then reload."; }
+  else if(!p.vapid){ $("pushSw").disabled = true; note.hidden = false; note.textContent = "Not available yet — an admin still has to finish setting this up."; }
+  const others = (p.devices||[]).filter(d=>d.endpoint !== here), dv = $("devs");
+  dv.hidden = !others.length;
+  dv.innerHTML = others.map(d=>`<div class="dev">📱 <b>${esc(d.label||"Another device")}</b> <button type="button" class="quiet" data-ep="${esc(d.endpoint)}" onclick="removeDevice(this)">Remove</button></div>`).join("");
+  document.querySelectorAll("[data-ev]").forEach(c=>{ c.checked = p.events[c.dataset.ev] !== false; });
+  const any = tg || p.email_on || (p.devices||[]).length > 0;
+  $("testBtn").disabled = !any; $("evHint").textContent = any ? "Changes save automatically." : "Turn on Telegram, email or this device first — then choose what you want here.";
+}
+const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+async function evChanged(){
+  const ev = {}; document.querySelectorAll("[data-ev]").forEach(c=>{ ev[c.dataset.ev] = c.checked; });
+  const {data} = await supabaseClient.rpc("save_my_notify_prefs", Object.assign(auth(), {p_events: ev}));
+  if(data && data.success){ prefs.events = ev; toast("Saved ✓"); } else toast("Could not save — try again.", true);
+}
+async function emailToggle(box){
+  box.disabled = true;
+  const {data} = await supabaseClient.rpc("set_email_notifications", Object.assign(auth(), {p_on: box.checked}));
+  if(!(data && data.success)){ box.checked = !box.checked; toast("Could not change email notifications.", true); }
+  else toast(box.checked ? "Email notifications on ✓" : "Email notifications off");
+  box.disabled = false; await loadPrefs();
+}
+async function sendTest(){
+  const b = $("testBtn"); b.disabled = true;
+  const {data} = await supabaseClient.rpc("send_test_notification", auth());
+  toast(data && data.success ? "Test sent — it should arrive in a few seconds." : ((data && data.error) || "Could not send."), !(data && data.success));
+  setTimeout(()=>{ b.disabled = false; }, 4000);
+}
+
+async function pushToggle(box){
+  box.disabled = true;
+  try{
+    if(box.checked){ here = await NotifySetup.enablePush(supabaseClient, prefs.vapid); toast("Alerts are on for this device ✓"); }
+    else { await NotifySetup.disablePush(supabaseClient); here = null; toast("Alerts turned off for this device"); }
+  }catch(e){
+    box.checked = !box.checked;
+    toast(e.message === "blocked" ? "Alerts were not allowed. Allow them in your browser settings." : "Could not turn alerts on here.", true);
+  }
+  await loadPrefs();
+}
+async function removeDevice(btn){
+  await NotifySetup.disablePush(supabaseClient, btn.dataset.ep); toast("Device removed"); loadPrefs();
+}
+
+async function tgToggle(){
+  if(prefs.telegram){
+    if(!confirm("Stop Telegram notifications?")) return;
+    await supabaseClient.rpc("disconnect_telegram", auth()); toast("Telegram disconnected"); return loadPrefs();
+  }
+  const {data} = await supabaseClient.rpc("new_telegram_link_code", auth());
+  if(!data || !data.success || !data.bot){ toast((data && data.error) || "Telegram isn’t set up yet.", true); return; }
+  const url = "https://t.me/" + encodeURIComponent(data.bot) + "?start=" + encodeURIComponent(data.code);
+  $("tgOpen").onclick = ()=>{ window.open(url, "_blank", "noopener"); };
+  $("tgSteps").hidden = false; $("tgBtn").hidden = true;
+  const until = Date.now() + 15*60*1000;
+  clearInterval(tgTimer);
+  tgTimer = setInterval(async ()=>{
+    if(Date.now() > until){ tgCancel(); return; }
+    const r = await supabaseClient.rpc("get_my_notify_prefs", auth());
+    if(r.data && r.data.success && r.data.telegram){ clearInterval(tgTimer); prefs = r.data; toast("Telegram connected ✓"); renderNotifications(); }
+  }, 3000);
+}
+function tgCancel(quiet){ clearInterval(tgTimer); $("tgSteps").hidden = true; $("tgBtn").hidden = false; }
+
+/* ---------------- reminders ---------------- */
+const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement approval","remind_procurement_hours","how long procurement may take"],["Purchase","remind_purchase_hours","from approval until it is bought"],["Received","remind_received_hours","from bought until it arrives"]];
+let mySettings = null;
+function split(h){ return h == null ? {on:false, n:2, u:"days"} : (h >= 24 && h % 24 === 0) ? {on:true, n:h/24, u:"days"} : {on:true, n:h, u:"hours"}; }
+async function loadReminders(){
+  const {data} = await supabaseClient.rpc("get_my_settings", auth()); mySettings = data && data.success ? data : {};
+  $("remRows").innerHTML = STAGES.map(([name, key, hint], i)=>{ const s = split(mySettings[key]); return `<div class="rem">
+    <label class="sw"><input type="checkbox" id="rOn${i}" ${s.on?"checked":""} onchange="remToggle(${i})"><i></i></label>
+    <div class="txt"><b>${name}</b><span>${hint}</span></div>
+    <div class="in"><input type="number" min="1" max="9999" id="rN${i}" value="${s.n}" ${s.on?"":"disabled"} aria-label="${name} limit"><select id="rU${i}" ${s.on?"":"disabled"}><option value="hours" ${s.u==="hours"?"selected":""}>hours</option><option value="days" ${s.u==="days"?"selected":""}>days</option></select></div></div>`; }).join("");
+}
+function remToggle(i){ const on = $("rOn"+i).checked; $("rN"+i).disabled = $("rU"+i).disabled = !on; }
+async function saveReminders(){
+  const out = STAGES.map((_, i)=>{ if(!$("rOn"+i).checked) return null; const n = parseInt($("rN"+i).value, 10); return (n > 0) ? ($("rU"+i).value === "days" ? n*24 : n) : "bad"; });
+  if(out.includes("bad")){ $("remMsg").textContent = "Enter a number above 0, or switch the stage off."; $("remMsg").style.color = "var(--danger)"; return; }
+  $("remSave").disabled = true;
+  const {data, error} = await supabaseClient.rpc("update_my_settings", Object.assign(auth(), {p_manager_hours: out[0], p_procurement_hours: out[1], p_purchase_hours: out[2], p_received_hours: out[3]}));
+  $("remSave").disabled = false;
+  if(error || !data || !data.success){ $("remMsg").textContent = (data && data.error) || "Could not save."; $("remMsg").style.color = "var(--danger)"; return; }
+  $("remMsg").textContent = ""; toast("Reminders saved ✓"); loadReminders();
+}
+
+(function init(){
+  if(!myId || !myPin) return;
+  const q = new URLSearchParams(location.search), tab = q.get("tab");
+  showTab(["reminders","account"].includes(tab) ? tab : "notifications");
+  loadPrefs(); loadReminders();
+  if(q.get("from") === "prompt") supabaseClient.rpc("mark_notify_prompted", auth()).then(()=>{});   // they came from the post-submit offer: don't ask again
+})();
+</script>
+</body>
+</html>

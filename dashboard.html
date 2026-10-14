@@ -450,13 +450,13 @@ function logout(){
 
 async function showApp(){
   document.getElementById("app").style.display="block";
-  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security"), onReminders:openReminderModal});
+  AppBar.mount("appbar", {active:"dashboard", client:supabaseClient, onRefresh:loadData, onProfile:()=>openProfileModal(), onPin:()=>openProfileModal("security")});
   try{ const vm = localStorage.getItem("sl_view_mode"); if(vm==="cards"||vm==="list") viewMode = vm; }catch(_){}
   try{ const gm = localStorage.getItem("sl_group_mode"); if(gm){ groupMode = gm; document.getElementById("groupMode").value = gm; } }catch(_){}
   await loadMySettings();
   await loadData();
   const open = new URLSearchParams(location.search).get("open");     // e.g. from the name menu on another page
-  if(open==="profile") openProfileModal(); else if(open==="pin") openProfileModal("security"); else if(open==="reminders") openReminderModal();
+  if(open==="profile") openProfileModal(); else if(open==="pin") openProfileModal("security"); else if(open==="reminders") location.replace("settings.html?tab=reminders");
 }
 
 async function loadMySettings(){
