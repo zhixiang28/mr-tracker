@@ -260,7 +260,7 @@ async function tgToggle(){
 function tgCancel(quiet){ clearInterval(tgTimer); $("tgSteps").hidden = true; $("tgBtn").hidden = false; }
 
 /* ---------------- reminders ---------------- */
-const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement (approve & buy)","remind_procurement_hours","how long procurement may take to sign and buy"],["Purchase (older requests)","remind_purchase_hours","only for requests made before the new form"],["Received","remind_received_hours","from bought until it arrives"]];
+const STAGES = [["Manager approval","remind_manager_hours","how long the manager may take to sign"],["Procurement (approve & buy)","remind_procurement_hours","how long procurement may take to sign and buy"],["Received","remind_received_hours","from bought until it arrives"]];
 let mySettings = null;
 function split(h){ return h == null ? {on:false, n:2, u:"days"} : (h >= 24 && h % 24 === 0) ? {on:true, n:h/24, u:"days"} : {on:true, n:h, u:"hours"}; }
 async function loadReminders(){
@@ -275,7 +275,7 @@ async function saveReminders(){
   const out = STAGES.map((_, i)=>{ if(!$("rOn"+i).checked) return null; const n = parseInt($("rN"+i).value, 10); return (n > 0) ? ($("rU"+i).value === "days" ? n*24 : n) : "bad"; });
   if(out.includes("bad")){ $("remMsg").textContent = "Enter a number above 0, or switch the stage off."; $("remMsg").style.color = "var(--danger)"; return; }
   $("remSave").disabled = true;
-  const {data, error} = await supabaseClient.rpc("update_my_settings", Object.assign(auth(), {p_manager_hours: out[0], p_procurement_hours: out[1], p_purchase_hours: out[2], p_received_hours: out[3]}));
+  const {data, error} = await supabaseClient.rpc("update_my_settings", Object.assign(auth(), {p_manager_hours: out[0], p_procurement_hours: out[1], p_purchase_hours: (mySettings && mySettings.remind_purchase_hours != null) ? mySettings.remind_purchase_hours : null, p_received_hours: out[2]}));
   $("remSave").disabled = false;
   if(error || !data || !data.success){ $("remMsg").textContent = (data && data.error) || "Could not save."; $("remMsg").style.color = "var(--danger)"; return; }
   $("remMsg").textContent = ""; toast("Reminders saved ✓"); loadReminders();
