@@ -111,7 +111,7 @@
 
   <div class="card" id="notifCard" style="display:none">
     <h2>Notifications — who gets what</h2>
-    <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement contacts</b> are set per person in the list above (<i>Make procurement</i>).</div>
+    <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement</b> means everyone given the Procurement role in the list above (<i>Make procurement</i>) — untick it here to pause, and give the role to someone else when you are ready.</div>
     <div id="notifRules"></div>
     <div class="msg" id="notifMsg"></div>
   </div>
@@ -208,7 +208,7 @@ function renderPeopleList(){
       <div class="person-top">
         <div>
           <span class="person-name">${escHtml(p.name)}</span>
-          ${p.is_admin ? '<span class="badge">Admin</span>' : ''}${p.is_procurement ? ' <span class="badge" style="background:#ede9fe;color:#6d28d9">Procurement contact</span>' : ''}
+          ${p.is_admin ? '<span class="badge">Admin</span>' : ''}${p.is_procurement ? ' <span class="badge" style="background:#ede9fe;color:#6d28d9">Procurement</span>' : ''}
           <div class="person-meta">${metaParts.map(escHtml).join(" · ")}</div>
           <label class="apptsel">Appointment
             <select onchange="setAppointment('${p.id}', this.value)">
@@ -217,7 +217,7 @@ function renderPeopleList(){
         </div>
         <div class="person-actions">
           <button class="secondary" onclick="editEmail('${p.id}','${escHtml(p.email||"").replace(/'/g,"\\'")}')">Edit email</button>
-          <button class="secondary" onclick="setProcurement('${p.id}', ${!p.is_procurement})" title="Procurement contacts are notified when the manager has signed">${p.is_procurement ? "Remove procurement" : "Make procurement"}</button>
+          <button class="secondary" onclick="setProcurement('${p.id}', ${!p.is_procurement})" title="People with the Procurement role are notified when the manager has signed">${p.is_procurement ? "Remove Procurement role" : "Give Procurement role"}</button>
           <button class="secondary" onclick="toggleRole('${p.id}', ${!p.is_admin})">${p.is_admin ? "Remove admin" : "Make admin"}</button>
           <button class="btn-danger" onclick="deletePerson('${p.id}','${escHtml(p.name).replace(/'/g,"\\'")}')">Delete</button>
         </div>
@@ -274,10 +274,10 @@ async function deletePerson(targetId, name){
 /* ---------------- notification routing ---------------- */
 const R_REQ = ["requester","Requester"], R_ADM = ["admins","All admins"];
 const NOTIF_EVENTS = [
-  {key:"submitted",   title:"A request is sent for verification", desc:"The first signer is told it is waiting (only when a verifier was picked on the form).", roles:[["assigned","The person picked as verifier"], R_ADM]},
-  {key:"verified",    title:"The manager has signed (verified)",  desc:"Tell Procurement it is their turn, and let the requester know.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement contacts"], R_ADM]},
-  {key:"purchased",   title:"Procurement has signed (items bought)", desc:"The requester is asked to sign “Received” when the items arrive.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement contacts"], R_ADM]},
-  {key:"received",    title:"Items received", desc:"The record is complete.", roles:[R_REQ, ["buyer","Whoever signed for Procurement"], ["procurement","Procurement contacts"], R_ADM]},
+  {key:"submitted",   title:"A request is sent for verification", desc:"The requester is told it went out; the first signer is told it is waiting for them (only when a verifier was picked on the form).", roles:[R_REQ, ["assigned","The person picked as verifier"], R_ADM]},
+  {key:"verified",    title:"The manager has signed (verified)",  desc:"Tell Procurement it is their turn, and let the requester know.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement"], R_ADM]},
+  {key:"purchased",   title:"Procurement has signed (items bought)", desc:"The requester is asked to sign “Received” when the items arrive.", roles:[R_REQ, ["assigned_next","Next signer, if one is named"], ["procurement","Procurement"], R_ADM]},
+  {key:"received",    title:"Items received", desc:"The record is complete.", roles:[R_REQ, ["buyer","Whoever signed for Procurement"], ["procurement","Procurement"], R_ADM]},
   {key:"declined",    title:"A request is declined", desc:"With the reason.", roles:[R_REQ, R_ADM]},
   {key:"overdue",     title:"A stage is taking too long", desc:"Uses each requester's own limits (Settings → Reminders).", roles:[R_REQ, R_ADM]},
   {key:"supply_date", title:"Supply date is here and nothing is received", desc:"Sent once, when the supply date is tomorrow or already past.", roles:[R_REQ, R_ADM]}
@@ -290,11 +290,10 @@ async function loadNotifRules(){
   renderNotifRules();
 }
 function renderNotifRules(){
-  const contacts = (fullPeopleList||[]).filter(p=>p.is_procurement).map(p=>p.name);
   document.getElementById("notifRules").innerHTML = NOTIF_EVENTS.map(ev=>{
     const r = NOTIF_RULES[ev.key] || {enabled:true, roles:[], people:[]};
     const chosen = new Set(r.people || []);
-    const roleBoxes = ev.roles.map(([k,label])=>`<label class="chip"><input type="checkbox" data-role="${k}" ${r.roles.includes(k)?"checked":""} onchange="saveNotifRule('${ev.key}')"> ${escHtml(label)}${k==="procurement" ? ` <small>(${contacts.length ? escHtml(contacts.join(", ")) : "none set"})</small>` : ""}</label>`).join("");
+    const roleBoxes = ev.roles.map(([k,label])=>`<label class="chip"><input type="checkbox" data-role="${k}" ${r.roles.includes(k)?"checked":""} onchange="saveNotifRule('${ev.key}')"> ${escHtml(label)}</label>`).join("");
     const chips = (r.people||[]).map(id=>{ const pp = NOTIF_PEOPLE.find(x=>x.id===id); return `<span class="pchip">${escHtml(pp ? pp.name : "?")} <button type="button" title="Remove" onclick="removeNotifPerson('${ev.key}','${id}')">×</button></span>`; }).join("");
     const opts = NOTIF_PEOPLE.filter(pp=>!chosen.has(pp.id)).map(pp=>`<option value="${pp.id}">${escHtml(pp.name)}</option>`).join("");
     return `<div class="nrule ${r.enabled?"":"off"}" data-key="${ev.key}">
