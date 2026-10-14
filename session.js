@@ -47,3 +47,21 @@
     set: function(mode){ try{ if(mode === "full") localStorage.setItem(KEY, "full"); else localStorage.removeItem(KEY); }catch(_){} apply(); }
   };
 })(window, document);
+
+/* Appearance: "auto" follows the device, or the person picks light / dark (kept per device).
+   Pages that opt in with <html data-theme-ok> get a dark look; the paper-style forms stay light.
+   Theme.mode() -> "auto" | "light" | "dark";  Theme.set(mode);  html.dark is set while dark is showing. */
+(function(w, d){
+  var KEY = "sl_theme", mq = w.matchMedia ? w.matchMedia("(prefers-color-scheme: dark)") : null;
+  function mode(){ try{ var m = localStorage.getItem(KEY); return m === "light" || m === "dark" ? m : "auto"; }catch(_){ return "auto"; } }
+  function isDark(){ var m = mode(); return m === "dark" || (m === "auto" && !!(mq && mq.matches)); }
+  function apply(){ d.documentElement.classList.toggle("dark", isDark()); }
+  var st = d.createElement("style");
+  // dark = invert the page and turn the hues back, then put pictures right again (works for every colour on the page)
+  st.textContent = "html.dark[data-theme-ok]{filter:invert(1) hue-rotate(180deg) brightness(.94) contrast(.92);background:#eef1f6}" +
+    "html.dark[data-theme-ok] img, html.dark[data-theme-ok] video, html.dark[data-theme-ok] canvas, html.dark[data-theme-ok] .keep-colors{filter:invert(1) hue-rotate(180deg)}";
+  (d.head || d.documentElement).appendChild(st);
+  apply();
+  try{ mq && mq.addEventListener("change", apply); }catch(_){}
+  w.Theme = { mode: mode, isDark: isDark, set: function(m){ try{ if(m === "light" || m === "dark") localStorage.setItem(KEY, m); else localStorage.removeItem(KEY); }catch(_){} apply(); } };
+})(window, document);
