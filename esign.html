@@ -196,8 +196,8 @@ const SLOTS_OLD = [
 ];
 let SLOTS = SLOTS_NEW;
 // New requisitions: only the manager's verification is signed. Procurement and Received are one-tap buttons (Ordered / Received).
-const BTN = {2:{label:"Mark as ordered", done:"Ordered"}, 3:{label:"Mark as received", done:"Received"}};
-const isBtnStep = o => !!doc && !MRF.isLegacy(doc.steps) && o >= 2;
+const BTN = {2:{label:"Mark as ordered", done:"Ordered"}, 3:{label:"Mark as received", done:"Received"}, 4:{label:"Mark as received", done:"Received"}};   // 4 = the Received step of older 4-step requisitions
+const isBtnStep = o => !!doc && (MRF.isLegacy(doc.steps) ? o === 4 : o >= 2);
 let doc = null;       // {requisition, steps}
 let activeOrder = 0;  // slot currently open for signing (0 = none)
 
@@ -357,7 +357,7 @@ function renderMobile(r, items, total){
     : `<div class="m-turn ok"><b>All signatures are in</b><span>Nothing more to sign. You can save a copy as PDF.</span></div>`;
   const sigRows = steps.map(st=>{
     const mine = st.step_order===activeOrder;
-    const state = st.status==="Signed" ? `<span class="ms ok">✓ ${(!legacy && st.step_order>=2 && !st.signature_data) ? BTN[st.step_order].done : "Signed"}</span>` : st.status==="Declined" ? `<span class="ms no">✕ Declined</span>` : mine ? `<span class="ms now">Waiting for you</span>` : `<span class="ms">Pending</span>`;
+    const state = st.status==="Signed" ? `<span class="ms ok">✓ ${(isBtnStep(st.step_order) && !st.signature_data) ? BTN[st.step_order].done : "Signed"}</span>` : st.status==="Declined" ? `<span class="ms no">✕ Declined</span>` : mine ? `<span class="ms now">Waiting for you</span>` : `<span class="ms">Pending</span>`;
     const sub = st.status==="Signed" ? esc(fmtStamp(st.signed_at)) : st.status==="Declined" ? "“"+esc(st.decline_reason||"")+"”" : "";
     return `<div class="m-sig ${mine?"mine":""}"><div><div class="m-role">${esc(roleName(st))}</div><div class="m-nm">${esc(st.assigned_person_name||"—")}</div>${sub?`<div class="m-sub">${sub}</div>`:""}</div>${state}</div>`;
   }).join("");

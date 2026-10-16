@@ -433,7 +433,7 @@ function computeStats(){
     if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
       if(activeStep.assigned_person_id===myId){
         awaitingMySignature++;
-        const btnStep = steps.length===3 && activeStep.step_order>=2;      // new flow: Procurement / Received are one-tap, no signature
+        const btnStep = (steps.length===3 && activeStep.step_order>=2) || (steps.length===4 && activeStep.step_order===4);      // new flow: Procurement / Received are one-tap, no signature
         flag(r, {cls:"warn", text: btnStep ? (activeStep.step_order===2 ? "Waiting for you to order" : "Waiting for you to confirm receipt") : "Awaiting your signature"}, activeStep.stage_name,
           !activeStep.token ? null : btnStep ? {quick:{token:activeStep.token, order:activeStep.step_order}, label: activeStep.step_order===2 ? "Mark as ordered" : "Mark as received"} : {href:`esign.html?token=${encodeURIComponent(activeStep.token)}`, label:"Review & sign"});
       }
