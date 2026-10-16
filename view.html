@@ -312,8 +312,9 @@ async function regenLink(stepId){
 let viewLegacy = false;
 // new flow: the person whose turn it is for Procurement / Received can press the button right here (no signature)
 const markWord = o => o===2 ? "Mark as ordered" : "Mark as received";
+const isBtn = s => viewLegacy ? s.step_order===4 : s.step_order>=2;       // older 4-step requisitions: only the last (Received) step is a button
 function canMark(step, steps){
-  if(!step || viewLegacy || step.status!=="Pending" || step.step_order<2 || !step.token) return false;
+  if(!step || !isBtn(step) || step.status!=="Pending" || !step.token) return false;
   if(currentReq && ["Declined","Withdrawn"].includes(currentReq.status)) return false;
   if(step.assigned_person_id && step.assigned_person_id !== myId) return false;
   const first = steps.find(x=>x.status!=="Signed");
@@ -333,7 +334,7 @@ function turnBar(req, steps){
   return `<div class="turn-bar"><div><b>Your turn: ${escHtml(st.step_order===2 ? "Procurement" : "Received")}</b><span>${st.step_order===2 ? "Press the button once the items are ordered." : "Press the button when the items have arrived."} No signature needed.</span></div><button type="button" class="mark-btn" onclick="markStep('${escHtml(st.token)}', ${st.step_order})">${markWord(st.step_order)}</button></div>`;
 }
 // new flow: Procurement and Received are one-tap buttons, so they read "Ordered" / "Received" instead of "Signed"
-const doneWord = step => (!viewLegacy && step.step_order>=2 && !step.signature_data) ? (step.step_order===2 ? "Ordered" : "Received") : "Signed";
+const doneWord = step => (isBtn(step) && !step.signature_data) ? (step.step_order===2 ? "Ordered" : "Received") : "Signed";
 function signCard(step){
   if(!step) return '<div class="sign-card"><div class="sign-status pending">Not assigned</div></div>';
   let statusHtml, metaHtml="", declineHtml="", overrideHtml="";
