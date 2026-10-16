@@ -103,6 +103,11 @@
     .items-t tfoot tr:last-child{ border-top:2px solid var(--ink); margin-top:4px; padding-top:8px; font-size:15px; }
     .meta-grid{ grid-template-columns:1fr; }
   }
+  .turn-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px; padding:12px 14px; background:#eff6ff; border:1.5px solid #93c5fd; border-radius:12px; }
+  .turn-bar b{ display:block; color:#1e40af; font-size:14.5px; } .turn-bar span{ font-size:12.5px; color:#1e3a8a; }
+  .mark-btn{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:800; padding:10px 18px; font-size:14px; border-radius:10px; }
+  .mark-btn.small{ display:block; margin-top:8px; padding:7px 12px; font-size:12.5px; width:100%; }
+  @media(max-width:720px){ .turn-bar{ display:block; } .turn-bar .mark-btn{ width:100%; margin-top:10px; padding:13px; font-size:15px; } }
   .ab-toggle{ display:none; }
   /* phones: tighter page — one-line heading, actions tucked behind a button, details in two columns, the 3 signatures side by side */
   @media(max-width:720px){
@@ -305,6 +310,28 @@ async function regenLink(stepId){
 }
 
 let viewLegacy = false;
+// new flow: the person whose turn it is for Procurement / Received can press the button right here (no signature)
+const markWord = o => o===2 ? "Mark as ordered" : "Mark as received";
+function canMark(step, steps){
+  if(!step || viewLegacy || step.status!=="Pending" || step.step_order<2 || !step.token) return false;
+  if(currentReq && ["Declined","Withdrawn"].includes(currentReq.status)) return false;
+  if(step.assigned_person_id && step.assigned_person_id !== myId) return false;
+  const first = steps.find(x=>x.status!=="Signed");
+  return !!first && first.id === step.id;                  // only the step whose turn it is
+}
+async function markStep(token, order){
+  const name = sessionStorage.getItem("sl_person_name") || "you";
+  if(!confirm(`${markWord(order)}? This records ${name} and the time on the requisition.`)) return;
+  document.querySelectorAll(".mark-btn").forEach(b=>b.disabled = true);
+  const {data, error} = await supabaseClient.rpc("esign_confirm_step_as", {p_token: token, p_step_order: order, p_person_id: myId, p_pin: myPin});
+  if(error || !data || !data.success){ document.querySelectorAll(".mark-btn").forEach(b=>b.disabled = false); actionsMsg((data&&data.error)||(error&&error.message)||"Could not save that."); alert((data&&data.error)||(error&&error.message)||"Could not save that."); return; }
+  await loadRequisition(currentReq.id);
+  Notify.show({tone:"success", title: order===2 ? "Marked as ordered" : "Marked as received", sub:"Saved with your name and the time.", primary:{label:"Back to dashboard", href:"dashboard.html"}, secondary:{label:"Stay here"}});
+}
+function turnBar(req, steps){
+  const st = steps.find(x=>canMark(x, steps)); if(!st) return "";
+  return `<div class="turn-bar"><div><b>Your turn: ${escHtml(st.step_order===2 ? "Procurement" : "Received")}</b><span>${st.step_order===2 ? "Press the button once the items are ordered." : "Press the button when the items have arrived."} No signature needed.</span></div><button type="button" class="mark-btn" onclick="markStep('${escHtml(st.token)}', ${st.step_order})">${markWord(st.step_order)}</button></div>`;
+}
 // new flow: Procurement and Received are one-tap buttons, so they read "Ordered" / "Received" instead of "Signed"
 const doneWord = step => (!viewLegacy && step.step_order>=2 && !step.signature_data) ? (step.step_order===2 ? "Ordered" : "Received") : "Signed";
 function signCard(step){
@@ -328,20 +355,21 @@ function signCard(step){
       <div class="sign-role">${escHtml(step.stage_name)}</div>
       <div class="sign-name">${escHtml(step.assigned_person_name||"—")}</div>
       ${statusHtml}
+      ${canMark(step, currentSteps) ? `<button type="button" class="mark-btn small" onclick="markStep('${escHtml(step.token)}', ${step.step_order})">${markWord(step.step_order)}</button>` : ""}
       ${metaHtml}
       ${declineHtml}
       ${overrideHtml}
     </div>`;
 }
 
-let currentReq = null;
+let currentReq = null, currentSteps = [];
 
 function render(req){
   currentReq = req;
   document.getElementById("phTitle").textContent = req.tracking_no || "Requisition";
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
-  viewLegacy = MRF.isLegacy(steps);
+  viewLegacy = MRF.isLegacy(steps); currentSteps = steps;
   const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);
 
   const itemRows = items.map(it=>`
@@ -366,6 +394,7 @@ function render(req){
 
     ${req.status==="Declined" ? `<div class="decline-box" style="margin-bottom:16px">Declined by ${escHtml(req.declined_by)} on ${req.declined_at?fmtDateTime(req.declined_at):""} — Reason: ${escHtml(req.decline_reason||"—")}</div>` : ""}
 
+    ${turnBar(req, steps)}
     ${renderActions(req, steps)}
 
     <div class="meta-grid">
@@ -387,7 +416,7 @@ function render(req){
       </tfoot>
     </table>
 
-    ${MRF.isLegacy(steps) ? "" : `<div class="authnote">This requisition is <b>${money(req.grand_total)}</b> → verification by <b>${escHtml(MRF.requiredText(req.grand_total))}</b>${MRF.required(req.grand_total).doc ? ` · <b>${escHtml(MRF.required(req.grand_total).doc)}</b>` : ""}. Procurement then approves and buys, and the items are signed for when received. <a href="#" onclick="MRF.showRules(currentReq.grand_total);return false" style="color:#2050bd;font-weight:700">View approval rules</a></div>`}
+    ${MRF.isLegacy(steps) ? "" : `<div class="authnote">This requisition is <b>${money(req.grand_total)}</b> → verification by <b>${escHtml(MRF.requiredText(req.grand_total))}</b>${MRF.required(req.grand_total).doc ? ` · <b>${escHtml(MRF.required(req.grand_total).doc)}</b>` : ""}. Procurement then presses “Mark as ordered”, and the receiver presses “Mark as received” — only the manager signs. <a href="#" onclick="MRF.showRules(currentReq.grand_total);return false" style="color:#2050bd;font-weight:700">View approval rules</a></div>`}
     <div class="sign-grid">
       ${steps.map(st=>signCard(st)).join("")}
     </div>
