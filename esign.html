@@ -67,7 +67,7 @@
   .msaved button, .linkbtn{ background:none; border:0; color:var(--accent); font-weight:700; padding:4px 0; font-size:13px; }
   .msave{ display:flex; align-items:center; justify-content:flex-start; gap:10px; font-size:13.5px; margin-top:12px; color:#374151; cursor:pointer; }
   .mbox .msave input[type=checkbox]{ width:18px; height:18px; flex:none; margin:0; padding:0; }
-  .padwrap{ position:relative; } .padwrap .clr{ position:absolute; right:8px; top:8px; padding:4px 10px; font-size:12px; }
+  .padwrap{ position:relative; } .padwrap .clr, .padwrap .upl{ position:absolute; top:8px; padding:4px 10px; font-size:12px; } .padwrap .clr{ right:8px; } .padwrap .upl{ left:8px; }
   .padhint{ position:absolute; left:0; right:0; bottom:10px; text-align:center; font-size:11.5px; color:#9ca3af; pointer-events:none; }
   textarea.mreason{ width:100%; min-height:110px; font:inherit; font-size:14px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; resize:vertical; }
   button.danger{ background:var(--danger); border-color:var(--danger); color:#fff; }
@@ -152,7 +152,7 @@
         <div class="mseg" role="tablist"><button type="button" id="segA" class="on" onclick="setMode('approve')">Approve &amp; sign</button><button type="button" id="segD" class="dec" onclick="setMode('decline')">Decline</button></div>
         <div id="mApprove">
           <div id="mSaved" hidden><div class="msaved">✓ Your saved signature will be used.<button type="button" onclick="useSavedSig(false)">Draw a new one</button></div></div>
-          <div id="mDrawArea"><div class="padwrap"><canvas id="pad" width="900" height="360"></canvas><button type="button" class="clr" onclick="clearPad()">Clear</button><div class="padhint" id="padHint">Sign here with your finger or mouse</div></div>
+          <div id="mDrawArea"><div class="padwrap"><canvas id="pad" width="900" height="360"></canvas><button type="button" class="clr" onclick="clearPad()">Clear</button><button type="button" class="upl" onclick="document.getElementById('sigFile').click()">📷 Use an image</button><input type="file" id="sigFile" accept="image/*" hidden><div class="padhint" id="padHint">Sign here with your finger or mouse</div></div>
           <label id="mSaveWrap" class="msave" hidden><input type="checkbox" id="mSaveBox"> Save this as my signature for next time</label>
           <div id="mBack" hidden style="margin-top:6px"><button type="button" class="linkbtn" onclick="useSavedSig(true)">Use my saved signature instead</button></div></div>
         </div>
@@ -388,6 +388,35 @@ pad.addEventListener("pointermove", e=>{
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>pad.addEventListener(ev, ()=>{ drawing=false; }));
 
+// "Use an image": a photo or scan of a signature on white paper becomes the signature (the paper colour is made transparent)
+document.getElementById("sigFile").addEventListener("change", e=>{
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if(!f) return;
+  if(!/^image\//.test(f.type)){ document.getElementById("mErr").textContent = "Please pick an image file."; return; }
+  const img = new Image(), url = URL.createObjectURL(f);
+  img.onload = ()=>{
+    URL.revokeObjectURL(url);
+    const tmp = document.createElement("canvas"), W = pad.width, H = pad.height, pad8 = 20;
+    const sc = Math.min((W-2*pad8)/img.width, (H-2*pad8)/img.height, 1.5);
+    tmp.width = Math.max(1, Math.round(img.width*sc)); tmp.height = Math.max(1, Math.round(img.height*sc));
+    const tc = tmp.getContext("2d"); tc.drawImage(img, 0, 0, tmp.width, tmp.height);
+    let px; try{ px = tc.getImageData(0,0,tmp.width,tmp.height); }catch(_){ document.getElementById("mErr").textContent = "Could not read that image."; return; }
+    const d = px.data; let any = false;
+    for(let i=0;i<d.length;i+=4){
+      // paper (light) -> transparent, ink (dark) -> solid dark blue; anything in between is partly see-through
+      const lum = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+      const a = Math.max(0, Math.min(1, (225 - lum) / 110)) * (d[i+3]/255);
+      d[i]=11; d[i+1]=31; d[i+2]=77; d[i+3]=Math.round(a*255); if(a>0.05) any = true;
+    }
+    if(!any){ document.getElementById("mErr").textContent = "No signature found in that image — use dark ink on a plain light background."; return; }
+    tc.putImageData(px,0,0);
+    clearPad(); pctx.drawImage(tmp, Math.round((W-tmp.width)/2), Math.round((H-tmp.height)/2));
+    drewAnything = true; const hint = document.getElementById("padHint"); if(hint) hint.style.display = "none";
+    document.getElementById("mErr").textContent = "";
+  };
+  img.onerror = ()=>{ URL.revokeObjectURL(url); document.getElementById("mErr").textContent = "Could not open that image."; };
+  img.src = url;
+});
 function clearPad(){ pctx.clearRect(0,0,pad.width,pad.height); drewAnything=false; const hint = document.getElementById("padHint"); if(hint) hint.style.display = ""; }
 let signMode = "approve", hasSaved = false, useSaved = false;
 function useSavedSig(on){

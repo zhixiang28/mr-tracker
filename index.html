@@ -240,11 +240,21 @@
   .name{width:150px}
   .desc{width:300px}
   .qty{width:55px}
-  .price{width:78px}
+  .price{width:132px}
   .delivery{width:105px}
   .link{width:135px}
   .total{width:92px}
   .num{text-align:right}
+  /* currency: each row picks the currency it was priced in; amounts convert to the "Convert to" currency */
+  .fx-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:0 0 8px; padding:8px 10px; background:#f4f8ff; border:1px solid #cfe0fb; border-radius:10px; font-size:12px; color:#1e3a8a; }
+  .fx-bar label{ display:flex; align-items:center; gap:6px; font-weight:700; }
+  .fx-bar select, .fx-bar input{ font:inherit; font-size:12px; padding:3px 6px; border:1px solid #b6cdf6; border-radius:6px; background:#fff; width:auto; }
+  .fx-bar input{ width:78px; text-align:right; }
+  .fx-bar .fx-r{ display:inline-flex; align-items:center; gap:4px; } .fx-bar .fx-r small{ color:#64748b; }
+  .fx-bar .fx-r button{ border:0; background:none; cursor:pointer; color:#2f6fed; font-size:13px; padding:0 2px; }
+  .fx-bar .fx-warn{ color:#b91c1c; font-weight:700; }
+  .fxc{ display:flex; gap:4px; align-items:center; } .fxc select{ flex:none; width:54px; padding:4px 2px; font-size:11px; border:1px solid var(--line); border-radius:6px; background:#fff; } .fxc input{ min-width:0; }
+  .fx-hint{ font-size:10.5px; color:#2f6fed; text-align:right; margin-top:1px; } .fx-hint:empty{ display:none; }
   .center{text-align:center}
   .row-actions{display:flex;gap:6px;justify-content:center}
   .row-remove, .row-duplicate{
@@ -421,7 +431,7 @@
   @media print{
     body{background:#fff}
     .app{max-width:none;margin:0;padding:0}
-    .toolbar,.hint,.status,.row-remove,.add-row,.no-print{display:none!important}
+    .toolbar,.hint,.status,.row-remove,.add-row,.no-print,.fx-bar,.fxc select,.fx-hint{display:none!important}
     .sheet{box-shadow:none;padding:0;border-radius:0}
     input,textarea{color:#000}
     .header{background:#fff!important;color:#000!important;border:2px solid #111;border-radius:0}
@@ -535,6 +545,7 @@
     </div>
 
     <div class="section-title" style="position:relative">Materials<button type="button" class="tool-btn" data-full onclick="openCurrencyModal()" title="Convert a price from another currency">Currency converter</button></div>
+    <div class="fx-bar" id="fxBar"><label>Convert to <select id="fxTarget" onchange="fxTargetChanged()"></select></label><span id="fxRates"></span></div>
     <div class="items-wrap">
       <table id="itemsTable">
         <thead>
@@ -727,7 +738,9 @@ function filenameBase(){
   return `${yymmdd()}_${slug(val("projectName"))}`;
 }
 
-function addRow(data=["","","","","",""], insertAfterEl=null){
+function addRow(data, insertAfterEl=null){
+  const fresh = !data; data = data || ["","","","","",""];
+  const cur = data[6] || (fresh ? fxDefaultCur : fxTarget());   // a new blank row starts in your usual currency; loaded rows are already in the target currency
   const tr=document.createElement("tr");
   tr.innerHTML=`
     <td class="drag-handle" title="Drag to reorder">⠿</td>
@@ -735,8 +748,8 @@ function addRow(data=["","","","","",""], insertAfterEl=null){
     <td><input class="r-name" value="${esc(data[0]||"")}"></td>
     <td><input class="r-desc" value="${esc(data[1]||"")}"></td>
     <td><input class="r-qty num" type="number" min="0" step="1" value="${data[2] ?? ""}"></td>
-    <td><input class="r-price num" type="number" min="0" step="0.01" value="${data[3] ?? ""}"></td>
-    <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? ""}"></td>
+    <td><div class="fxc"><select class="r-cur" aria-label="Currency" title="Currency this row is priced in">${fxOptions(cur)}</select><input class="r-price num" type="number" min="0" step="0.01" value="${data[3] ?? ""}"></div><div class="fx-hint hint-p"></div></td>
+    <td><input class="r-deliverytax num" type="number" min="0" step="0.01" value="${data[4] ?? ""}"><div class="fx-hint hint-d"></div></td>
     <td><input class="r-link" type="url" placeholder="https://..." value="${esc(data[5]||"")}"></td>
     <td class="num">$ <span class="r-total">0.00</span></td>
     <td>
@@ -748,6 +761,8 @@ function addRow(data=["","","","","",""], insertAfterEl=null){
   `;
   if(insertAfterEl){ insertAfterEl.after(tr); } else { document.getElementById("itemsBody").appendChild(tr); }
   tr.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
+  tr.querySelector(".r-cur").addEventListener("change", e=>{ fxDefaultCur = e.target.value; try{ localStorage.setItem("sl_fx_cur", fxDefaultCur); }catch(_){} fxEnsure(e.target.value); recalc(); });
+  fxEnsure(cur);
   enableRowDrag(tr);
   recalc();
 }
@@ -772,7 +787,8 @@ function duplicateRow(btn){
     tr.querySelector(".r-qty").value,
     tr.querySelector(".r-price").value,
     tr.querySelector(".r-deliverytax").value,
-    tr.querySelector(".r-link").value
+    tr.querySelector(".r-link").value,
+    tr.querySelector(".r-cur").value
   ];
   addRow(data, tr);
 }
@@ -837,8 +853,9 @@ function recalc(){
   [...document.querySelectorAll("#itemsBody tr")].forEach((tr,i)=>{
     tr.querySelector(".sn").textContent=i+1;
     const qty=parseFloat(tr.querySelector(".r-qty").value)||0;
-    const price=parseFloat(tr.querySelector(".r-price").value)||0;
-    const dtax=parseFloat(tr.querySelector(".r-deliverytax").value)||0;
+    const v = rowVals(tr), price = v.price, dtax = v.dtax;
+    tr.querySelector(".hint-p").textContent = v.conv ? (v.rate ? `≈ ${price.toFixed(2)} ${fxTarget()}` : "need a rate") : "";
+    tr.querySelector(".hint-d").textContent = v.conv && v.rate && v.rawD ? `≈ ${dtax.toFixed(2)} ${fxTarget()}` : "";
     const line=qty*price;
     tr.querySelector(".r-total").textContent=line.toFixed(2);
     total+=line;
@@ -848,6 +865,7 @@ function recalc(){
   document.getElementById("deliveryTaxTotal").textContent=deliveryTaxTotal.toFixed(2);
   document.getElementById("grandTotal").textContent=(total+deliveryTaxTotal).toFixed(2);
   updateAuthBox(total+deliveryTaxTotal);
+  renderFxBar();
 }
 // "who must sign" for this amount (the Authorisation Limit on page 2 of the form)
 function updateAuthBox(grand){
@@ -883,18 +901,26 @@ function loadVerifiers(grand){
   }, 350);
 }
 
-function collect(){
+function collect(raw){
   return {
     meta:{
+      fxTarget:val("fxTarget"),
       projectName:val("projectName"), projectLocation:val("projectLocation"),
       requestBy:val("requestBy"), supplyDate:getDateField("supplyDate")||"", formDate:getDateField("formDate")||"",
       pcNo:val("pcNo"), pmIncharge:val("pmIncharge")
     },
-    rows:[...document.querySelectorAll("#itemsBody tr")].map(tr=>[
-      valEl(tr,".r-name"),valEl(tr,".r-desc"),valEl(tr,".r-qty"),valEl(tr,".r-price"),
-      valEl(tr,".r-deliverytax"),valEl(tr,".r-link")
-    ])
+    // raw=true -> what was typed plus its currency (drafts); otherwise everything already converted to the target currency (submit, PDF, CSV)
+    rows:[...document.querySelectorAll("#itemsBody tr")].map(tr=>{
+      const v = rowVals(tr), conv = v.conv && v.rate && !raw;
+      const row = [valEl(tr,".r-name"),valEl(tr,".r-desc"),valEl(tr,".r-qty"), conv ? v.price.toFixed(2) : valEl(tr,".r-price"), conv && v.rawD ? v.dtax.toFixed(2) : valEl(tr,".r-deliverytax"), valEl(tr,".r-link")];
+      if(raw) row.push(v.cur);
+      return row;
+    })
   };
+}
+// per-row currency details, in the same order as the rows: what was typed, the currency and the rate used
+function collectFx(){
+  return [...document.querySelectorAll("#itemsBody tr")].map(tr=>{ const v = rowVals(tr); return {conv:v.conv, cur:v.cur, rate:v.rate, rawP:v.rawP, rawD:v.rawD}; });
 }
 
 function val(id){return document.getElementById(id).value}
@@ -932,6 +958,7 @@ function apply(data){
     if(k==="formDate" || k==="supplyDate") setDateField(k, m[k]);
     else el.value=m[k];
   });
+  fxTargetChanged(true);
   document.getElementById("itemsBody").innerHTML="";
   (data.rows||[]).forEach(r=>addRow(r));
   recalc();
@@ -942,7 +969,7 @@ let editRequisitionId = null, editSteps = [];
 let adminEditId = null; // set when an admin opened an existing requisition from the dashboard to change it
 
 async function saveForm(){
-  const data=collect();
+  const data=collect(true);
   const label = data.meta.projectName || `Draft ${fmtDMY(new Date())}`;
   const {data: res, error} = await supabaseClient.rpc("save_draft", {
     p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
@@ -966,7 +993,7 @@ async function autosave(){
   clearTimeout(_asTimer);
   if(_asBusy) { await _asBusy; }
   if(!autosaveEligible()) return;
-  const data = collect(), json = JSON.stringify([data.meta, data.rows]);
+  const data = collect(true), json = JSON.stringify([data.meta, data.rows]);
   if(json === _asLast) return;
   const label = data.meta.projectName || `Draft ${fmtDMY(new Date())}`;
   _asBusy = (async () => {
@@ -1054,6 +1081,64 @@ async function updateLiveRate(force){
   } finally { if(mySeq === rateSeq) btn.disabled = false; runConversion(); }
 }
 
+// ---------- per-row currency (inside the Materials table) ----------
+// Each row says what currency its price is in; the form converts to the "Convert to" currency (SGD unless changed) using a live rate.
+let fxDefaultCur = (()=>{ try{ const c = localStorage.getItem("sl_fx_cur"); return CURRENCIES.includes(c) ? c : "CNY"; }catch(_){ return "CNY"; } })();
+const FX = {rates:{}, manual:{}, busy:{}};
+const fxTarget = () => (document.getElementById("fxTarget") || {}).value || "SGD";
+const fxOptions = sel => CURRENCIES.map(c=>`<option value="${c}"${c===sel?" selected":""}>${c}</option>`).join("");
+document.getElementById("fxTarget").innerHTML = fxOptions("SGD");
+function fxRate(cur){
+  const t = fxTarget(); if(cur === t) return 1;
+  const k = cur+"_"+t;
+  if(FX.manual[k] > 0) return FX.manual[k];
+  if(FX.rates[k]) return FX.rates[k].rate;
+  try{ const c = JSON.parse(localStorage.getItem("sl_fxr_"+k) || "null"); if(c && c.rate > 0) return c.rate; }catch(_){}
+  return DEFAULT_RATES[k] || null;      // a rough starting point until the live rate arrives
+}
+async function fxEnsure(cur, force){
+  const t = fxTarget(); if(!cur || cur === t) return;
+  const k = cur+"_"+t; if(FX.busy[k]) return; if(FX.rates[k] && !force) return;
+  FX.busy[k] = true; renderFxBar();
+  try{
+    const r = await fetchLiveRate(cur, t);
+    FX.rates[k] = {rate:r.rate, source:r.source, date:r.date};
+    try{ localStorage.setItem("sl_fxr_"+k, JSON.stringify({rate:r.rate, at:Date.now()})); }catch(_){}
+    delete FX.manual[k];
+  }catch(_){ FX.rates[k] = FX.rates[k] || null; }
+  FX.busy[k] = false; recalc();
+}
+function fxTargetChanged(quiet){
+  [...document.querySelectorAll("#itemsBody .r-cur")].forEach(s=>fxEnsure(s.value));
+  if(!quiet) recalc();
+}
+// one row's amounts in the target currency (unit price and delivery rounded to cents, as they are stored)
+function rowVals(tr){
+  const cur = tr.querySelector(".r-cur").value, t = fxTarget();
+  const rawP = parseFloat(tr.querySelector(".r-price").value)||0, rawD = parseFloat(tr.querySelector(".r-deliverytax").value)||0;
+  if(cur === t) return {cur, conv:false, rate:1, price:rawP, dtax:rawD, rawP, rawD};
+  const rate = fxRate(cur), r2 = n => Math.round(n*100)/100;
+  return {cur, conv:true, rate, price: rate ? r2(rawP*rate) : rawP, dtax: rate ? r2(rawD*rate) : rawD, rawP, rawD};
+}
+function renderFxBar(){
+  const el = document.getElementById("fxRates"), bar = document.getElementById("fxBar"); if(!el) return;
+  const t = fxTarget();
+  const used = [...new Set([...document.querySelectorAll("#itemsBody .r-cur")].map(s=>s.value).filter(c=>c && c!==t))];
+  if(el.contains(document.activeElement)) return;      // do not rebuild while someone is typing a rate
+  el.innerHTML = used.length ? used.map(c=>{
+      const k = c+"_"+t, rate = fxRate(c), live = FX.rates[k], manual = FX.manual[k] > 0;
+      const note = FX.busy[k] ? "getting live rate…" : manual ? "your rate" : live ? ("live" + (live.date ? " · "+(/^\d{4}-\d{2}-\d{2}$/.test(live.date) ? fmtDMY(live.date) : live.date) : "")) : "estimate";
+      return `<span class="fx-r">1 ${c} = <input type="number" step="any" min="0" value="${rate ? Number(rate.toPrecision(5)) : ""}" data-c="${c}" aria-label="Rate ${c} to ${t}" onchange="fxManual(this)"> ${t} <small>${note}</small><button type="button" title="Get the latest rate" onclick="fxEnsure('${c}', true)">↻</button>${rate?"":'<span class="fx-warn">type a rate</span>'}</span>`;
+    }).join("") : `<span style="color:#64748b">Pick a currency next to a price (default ${fxDefaultCur} → ${t}) and it converts automatically.</span>`;
+  const bad = t !== "SGD";
+  if(bad) el.insertAdjacentHTML("beforeend", `<span class="fx-warn">Totals will be recorded in ${t}, not SGD — the approval limits are in SGD.</span>`);
+}
+function fxManual(inp){
+  const c = inp.dataset.c, v = parseFloat(inp.value);
+  if(v > 0) FX.manual[c+"_"+fxTarget()] = v; else delete FX.manual[c+"_"+fxTarget()];
+  recalc();
+}
+
 function openCurrencyModal(){
   const fromSel = document.getElementById("curFrom");
   const toSel = document.getElementById("curTo");
@@ -1106,7 +1191,7 @@ async function continueDraft(draftId){
   if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not load draft."); return; }
   apply({meta: res.header, rows: res.items});
   currentDraftId = draftId;
-  { const d = collect(); _asLast = JSON.stringify([d.meta, d.rows]); }
+  { const d = collect(true); _asLast = JSON.stringify([d.meta, d.rows]); }
   setStatus("Draft loaded — continue editing and submit when ready.");
 }
 async function deleteDraftFromList(draftId){
@@ -1325,6 +1410,7 @@ function newForm(){
     const tr = active.closest("tr"), L = g.last;
     const put = (selector, val, onlyIfEmpty)=>{ const el = tr.querySelector(selector); if(!el) return; if(onlyIfEmpty && el.value) return; el.value = val; };
     active.value = g.name;
+    { const cs = tr.querySelector(".r-cur"); if(cs) cs.value = fxTarget(); }   // history prices are already in the target currency
     put(".r-desc", L.desc||"", true);
     put(".r-qty", L.qty||1, true);
     put(".r-price", L.unit>0 ? L.unit : "");
@@ -1436,8 +1522,11 @@ async function submitToDashboard(){
   const {meta, rows} = collect();
   if(!meta.projectName){ setStatus("Please enter a Project Name before submitting."); return; }
 
-  const realRows = rows.filter(r=>r[0] || r[1]);
+  const fxAll = collectFx(), keep = rows.map((r,i)=>(r[0]||r[1]) ? i : -1).filter(i=>i>=0);
+  const realRows = keep.map(i=>rows[i]), realFx = keep.map(i=>fxAll[i]);
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
+  if(realFx.some(f=>f.conv && !f.rate)){ setStatus("A row is priced in another currency but has no exchange rate — type a rate in the blue bar above the table."); return; }
+  if(fxTarget() !== "SGD" && !confirm(`The totals are in ${fxTarget()}, not SGD, and the approval limits are checked in SGD. Submit anyway?`)) return;
 
   // vendor details for big orders, and the 3-working-day supply date
   const gNow = currentGrand();
@@ -1473,7 +1562,7 @@ async function submitToDashboard(){
       loa_no: grand >= 150000 ? val("loaNo").trim() || null : null, loa_exempt: grand >= 150000 && document.getElementById("loaExempt").checked
     };
     const items = realRows.map((r,i)=>({
-      sn:i+1, name:r[0]||"", description:r[1]||"",
+      sn:i+1, name:r[0]||"", description:(r[1]||"") + (realFx[i].conv ? `${r[1]?" ":""}[Priced ${realFx[i].rawP} ${realFx[i].cur}${realFx[i].rawD?` + ${realFx[i].rawD} ${realFx[i].cur} delivery`:""} @ ${Number(realFx[i].rate.toPrecision(5))} ${fxTarget()}]` : ""),
       qty:Number(r[2]||0), unit_price:Number(r[3]||0), delivery_tax:Number(r[4]||0), link:r[5]||""
     }));
 
