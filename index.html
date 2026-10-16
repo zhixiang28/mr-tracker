@@ -245,7 +245,7 @@
   .link{width:135px}
   .total{width:92px}
   .num{text-align:right}
-  /* currency: each row picks the currency it was priced in; amounts convert to the "Convert to" currency */
+  /* currency: each row picks the currency it was priced in; amounts convert to SGD */
   .fx-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:0 0 8px; padding:8px 10px; background:#f4f8ff; border:1px solid #cfe0fb; border-radius:10px; font-size:12px; color:#1e3a8a; }
   .fx-bar label{ display:flex; align-items:center; gap:6px; font-weight:700; }
   .fx-bar select, .fx-bar input{ font:inherit; font-size:12px; padding:3px 6px; border:1px solid #b6cdf6; border-radius:6px; background:#fff; width:auto; }
@@ -545,7 +545,7 @@
     </div>
 
     <div class="section-title" style="position:relative">Materials<button type="button" class="tool-btn" data-full onclick="openCurrencyModal()" title="Convert a price from another currency">Currency converter</button></div>
-    <div class="fx-bar" id="fxBar"><label>Convert to <select id="fxTarget" onchange="fxTargetChanged()"></select></label><span id="fxRates"></span></div>
+    <div class="fx-bar" id="fxBar" hidden><span id="fxRates"></span></div>
     <div class="items-wrap">
       <table id="itemsTable">
         <thead>
@@ -761,7 +761,7 @@ function addRow(data, insertAfterEl=null){
   `;
   if(insertAfterEl){ insertAfterEl.after(tr); } else { document.getElementById("itemsBody").appendChild(tr); }
   tr.querySelectorAll("input").forEach(i=>i.addEventListener("input",recalc));
-  tr.querySelector(".r-cur").addEventListener("change", e=>{ fxDefaultCur = e.target.value; try{ localStorage.setItem("sl_fx_cur", fxDefaultCur); }catch(_){} fxEnsure(e.target.value); recalc(); });
+  tr.querySelector(".r-cur").addEventListener("change", e=>{ fxEnsure(e.target.value); recalc(); });
   fxEnsure(cur);
   enableRowDrag(tr);
   recalc();
@@ -904,7 +904,6 @@ function loadVerifiers(grand){
 function collect(raw){
   return {
     meta:{
-      fxTarget:val("fxTarget"),
       projectName:val("projectName"), projectLocation:val("projectLocation"),
       requestBy:val("requestBy"), supplyDate:getDateField("supplyDate")||"", formDate:getDateField("formDate")||"",
       pcNo:val("pcNo"), pmIncharge:val("pmIncharge")
@@ -958,7 +957,6 @@ function apply(data){
     if(k==="formDate" || k==="supplyDate") setDateField(k, m[k]);
     else el.value=m[k];
   });
-  fxTargetChanged(true);
   document.getElementById("itemsBody").innerHTML="";
   (data.rows||[]).forEach(r=>addRow(r));
   recalc();
@@ -1082,12 +1080,11 @@ async function updateLiveRate(force){
 }
 
 // ---------- per-row currency (inside the Materials table) ----------
-// Each row says what currency its price is in; the form converts to the "Convert to" currency (SGD unless changed) using a live rate.
-let fxDefaultCur = (()=>{ try{ const c = localStorage.getItem("sl_fx_cur"); return CURRENCIES.includes(c) ? c : "CNY"; }catch(_){ return "CNY"; } })();
+// Each row says what currency its price is in; the form converts to SGD (SGD unless changed) using a live rate.
+const fxDefaultCur = "SGD";          // every row starts in SGD; change the box on a row to price it in another currency
 const FX = {rates:{}, manual:{}, busy:{}};
-const fxTarget = () => (document.getElementById("fxTarget") || {}).value || "SGD";
+const fxTarget = () => "SGD";          // everything is converted to SGD
 const fxOptions = sel => CURRENCIES.map(c=>`<option value="${c}"${c===sel?" selected":""}>${c}</option>`).join("");
-document.getElementById("fxTarget").innerHTML = fxOptions("SGD");
 function fxRate(cur){
   const t = fxTarget(); if(cur === t) return 1;
   const k = cur+"_"+t;
@@ -1108,10 +1105,6 @@ async function fxEnsure(cur, force){
   }catch(_){ FX.rates[k] = FX.rates[k] || null; }
   FX.busy[k] = false; recalc();
 }
-function fxTargetChanged(quiet){
-  [...document.querySelectorAll("#itemsBody .r-cur")].forEach(s=>fxEnsure(s.value));
-  if(!quiet) recalc();
-}
 // one row's amounts in the target currency (unit price and delivery rounded to cents, as they are stored)
 function rowVals(tr){
   const cur = tr.querySelector(".r-cur").value, t = fxTarget();
@@ -1125,13 +1118,12 @@ function renderFxBar(){
   const t = fxTarget();
   const used = [...new Set([...document.querySelectorAll("#itemsBody .r-cur")].map(s=>s.value).filter(c=>c && c!==t))];
   if(el.contains(document.activeElement)) return;      // do not rebuild while someone is typing a rate
-  el.innerHTML = used.length ? used.map(c=>{
+  bar.hidden = !used.length;
+  el.innerHTML = used.map(c=>{
       const k = c+"_"+t, rate = fxRate(c), live = FX.rates[k], manual = FX.manual[k] > 0;
       const note = FX.busy[k] ? "getting live rate…" : manual ? "your rate" : live ? ("live" + (live.date ? " · "+(/^\d{4}-\d{2}-\d{2}$/.test(live.date) ? fmtDMY(live.date) : live.date) : "")) : "estimate";
       return `<span class="fx-r">1 ${c} = <input type="number" step="any" min="0" value="${rate ? Number(rate.toPrecision(5)) : ""}" data-c="${c}" aria-label="Rate ${c} to ${t}" onchange="fxManual(this)"> ${t} <small>${note}</small><button type="button" title="Get the latest rate" onclick="fxEnsure('${c}', true)">↻</button>${rate?"":'<span class="fx-warn">type a rate</span>'}</span>`;
-    }).join("") : `<span style="color:#64748b">Pick a currency next to a price (default ${fxDefaultCur} → ${t}) and it converts automatically.</span>`;
-  const bad = t !== "SGD";
-  if(bad) el.insertAdjacentHTML("beforeend", `<span class="fx-warn">Totals will be recorded in ${t}, not SGD — the approval limits are in SGD.</span>`);
+    }).join("");
 }
 function fxManual(inp){
   const c = inp.dataset.c, v = parseFloat(inp.value);
@@ -1526,7 +1518,6 @@ async function submitToDashboard(){
   const realRows = keep.map(i=>rows[i]), realFx = keep.map(i=>fxAll[i]);
   if(realRows.length===0){ setStatus("Add at least one material line before submitting."); return; }
   if(realFx.some(f=>f.conv && !f.rate)){ setStatus("A row is priced in another currency but has no exchange rate — type a rate in the blue bar above the table."); return; }
-  if(fxTarget() !== "SGD" && !confirm(`The totals are in ${fxTarget()}, not SGD, and the approval limits are checked in SGD. Submit anyway?`)) return;
 
   // vendor details for big orders, and the 3-working-day supply date
   const gNow = currentGrand();
