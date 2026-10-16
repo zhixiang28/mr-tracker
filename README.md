@@ -111,7 +111,7 @@ The older automatic emails (declined / purchased / received) are switched off: `
 
 ## New Materials Requisition Form (3 signing steps + Authorisation Limit page)
 
-New requisitions have **3 signing steps**: *Verified by* the manager the amount requires → *Procurement* (approves **and** buys, so "Procurement Dept" and "Processed by" are one sign-off) → *Received* (signed when the items arrive). Requisitions created earlier keep their 4 steps; every page and database function handles both (`MRF.isLegacy(steps)` in `mrf.js`, `mrf-flow.sql`).
+New requisitions have **3 signing steps**: *Verified by* the manager the amount requires → *Procurement* (a one-tap **Mark as ordered** button, no signature) → *Received* (a one-tap **Mark as received** button). Only step 1 is signed; the buttons call `esign_confirm_step_as` and record the person and time. Requisitions created earlier keep their 4 steps; every page and database function handles both (`MRF.isLegacy(steps)` in `mrf.js`, `mrf-flow.sql`).
 
 `mrf.js` holds the **Authorisation Limit** table from page 2 of the form (Section Manager up to $300 · Team Manager up to $500 · Division Head up to $1,000 · Top Management above; quotes $50k+ need a PO, $150k+ an LOA). It drives: the live "who must verify" box and the **Approval rules** pop-up (a reference, not printed on the form or its PDF), and the "who signs" list on the submit confirmation. The signed form has exactly 3 signature boxes: Verified by · Procurement · Received by.
 

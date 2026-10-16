@@ -221,11 +221,11 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.16";
-  const NOTICE_ID = "upgrade-2026-10h";
+  const VERSION = "2026.10.17";
+  const NOTICE_ID = "upgrade-2026-10i";
   const NOTICE = [
     ["Phone app", "Install MR Tracker on your phone — open your name menu → Get the phone app and scan the code. The phone view keeps the everyday features and has a Full version switch. There is also a light / dark setting in Settings."],
-    ["Three signatures", "The form now has three signature boxes: Verified by → Procurement (approves and buys) → Received by. The person who receives the items signs when they arrive."],
+    ["Just one signature", "Only the manager’s verification is signed. Procurement and the person who receives the items now just press a button — “Mark as ordered” and “Mark as received” — on the dashboard or the signing page. No drawing, no PIN to type."],
     ["Who has to sign, by amount", "The form shows who must verify your total and lets you pick them; the Approval rules button shows the full table. Orders of $50,000+ ask for the vendor quotation and PO number (LOA from $150,000), and you are warned if the supply date is under 3 working days away."],
     ["Notifications", "Get messages on Telegram, by email or as a phone alert — and choose what you hear about. Open your name menu → Settings → Notifications."],
     ["Everything in Settings", "Your profile, PIN, saved signature, notifications and reminder limits are all in one place: name menu → Settings."],
