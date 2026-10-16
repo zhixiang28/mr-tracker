@@ -588,7 +588,7 @@
       <div class="section-title" id="chainTitle">Approval</div>
       <div id="chainNote">
         <ol class="flow">
-          <li><span>1</span>Verified by <b id="flowWho">Team Manager</b></li><li><span>2</span>Procurement<br><small style="font-weight:500;color:#6b7280">approves &amp; buys</small></li><li><span>3</span>Received<br><small style="font-weight:500;color:#6b7280">you sign on arrival</small></li>
+          <li><span>1</span>Verified by <b id="flowWho">Team Manager</b></li><li><span>2</span>Procurement<br><small style="font-weight:500;color:#6b7280">press “Ordered”</small></li><li><span>3</span>Received<br><small style="font-weight:500;color:#6b7280">press “Received”</small></li>
         </ol>
         <div class="authbox" id="authBox"></div>
         <div class="vrow" id="verifierRow">
@@ -1649,7 +1649,7 @@ function showSubmitResult(trackingNo, firstToken, grand, verifierName){
   copyText(link.toString()).then(copied=>{
     showLinkResult({title:"Request submitted!", sub:`${trackingNo} (${MRF.money(grand)}) is now waiting for ${verifierName || who}.`, link:link.toString(), copied, role:who,
       intro:`${verifierName ? `It is assigned to <b>${escHtml(verifierName)}</b> — they are notified if they turned notifications on. You can also <b>send them the link</b> below.` : `<b>Send this one link</b> to the person who signs first.`} The same link then moves to the next person automatically.
-        <div class="whosigns"><div><i>1</i><span><b>Verified by ${verifierName ? escHtml(verifierName) : who}</b> — ${MRF.money(grand)} needs ${who}</span></div><div><i>2</i><span><b>Procurement</b> approves and buys</span></div><div><i>3</i><span><b>You</b> sign when the items are received</span></div></div>` +
+        <div class="whosigns"><div><i>1</i><span><b>Verified by ${verifierName ? escHtml(verifierName) : who}</b> — ${MRF.money(grand)} needs ${who}</span></div><div><i>2</i><span><b>Procurement</b> presses “Ordered” (no signature)</span></div><div><i>3</i><span><b>You</b> press “Received” when the items arrive</span></div></div>` +
         (r.doc ? `<p style="color:#b45309;font-weight:700;margin:6px 0 0">${r.doc}.</p>` : "")});
   });
 }

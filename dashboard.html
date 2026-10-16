@@ -220,6 +220,7 @@
 
   .qchips{ display:none; }
   .qa-btn{ display:none; }
+  .qa-btn.quick{ display:inline-block; margin-top:6px; padding:6px 12px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-weight:800; font-size:12px; cursor:pointer; }
   /* phones: stage counts in one swipeable row; each requisition as a compact card */
   @media (max-width:720px){
     .app{ margin:14px auto; padding:0 12px 60px; }
@@ -432,7 +433,9 @@ function computeStats(){
     if(activeStep && isCurrentlyActionableStep(r, activeStep, prevSignedUpTo, prevSignedUpTo)){
       if(activeStep.assigned_person_id===myId){
         awaitingMySignature++;
-        flag(r, {cls:"warn", text:"Awaiting your signature"}, activeStep.stage_name, activeStep.token ? {href:`esign.html?token=${encodeURIComponent(activeStep.token)}`, label:"Review & sign"} : null);
+        const btnStep = steps.length===3 && activeStep.step_order>=2;      // new flow: Procurement / Received are one-tap, no signature
+        flag(r, {cls:"warn", text: btnStep ? (activeStep.step_order===2 ? "Waiting for you to order" : "Waiting for you to confirm receipt") : "Awaiting your signature"}, activeStep.stage_name,
+          !activeStep.token ? null : btnStep ? {quick:{token:activeStep.token, order:activeStep.step_order}, label: activeStep.step_order===2 ? "Mark as ordered" : "Mark as received"} : {href:`esign.html?token=${encodeURIComponent(activeStep.token)}`, label:"Review & sign"});
       }
     }
 
@@ -651,7 +654,7 @@ function render(){
         <td>${escapeHtml(r.request_by||"-")}</td>
         <td class="muted">${fmtDMY(r.form_date)||"-"}</td>
         <td>${fmtMoney(r.grand_total)}</td>
-        <td>${renderProgressCell(r)}${act?`<a class="qa-btn" href="${escapeHtml(act.href)}" onclick="event.stopPropagation()">${escapeHtml(act.label)} →</a>`:""}</td>
+        <td>${renderProgressCell(r)}${!act ? "" : act.quick ? `<button type="button" class="qa-btn quick" onclick="event.stopPropagation(); quickConfirm('${escapeHtml(act.quick.token)}', ${act.quick.order}, '${escapeHtml(r.tracking_no||"")}')">${escapeHtml(act.label)} ✓</button>` : `<a class="qa-btn" href="${escapeHtml(act.href)}" onclick="event.stopPropagation()">${escapeHtml(act.label)} →</a>`}</td>
       </tr>`;
     return mainRow;
   };
@@ -804,6 +807,13 @@ function itemsPreview(r, n){
   if(!items.length) return "";
   const lines = items.slice(0,n).map(it=>`<div class="ip-l"><span>${escapeHtml(it.name||"-")}</span><span>×${it.qty}</span></div>`).join("");
   return `<div class="ip">${lines}${items.length>n?`<div class="ip-m">+ ${items.length-n} more</div>`:""}</div>`;
+}
+async function quickConfirm(token, order, tracking){
+  const label = order===2 ? "Mark as ordered" : "Mark as received";
+  if(!confirm(`${label} for ${tracking}? This records you and the time on the requisition.`)) return;
+  const {data, error} = await supabaseClient.rpc("esign_confirm_step_as", {p_token: token, p_step_order: order, p_person_id: myId, p_pin: myPin});
+  if(error || !data || !data.success){ alert((data && data.error) || (error && error.message) || "Could not save that."); return; }
+  await loadData();
 }
 function goFull(id){ location.href = "view.html?id="+id; }
 // ---- hover preview: more info before you click ----

@@ -304,11 +304,14 @@ async function regenLink(stepId){
     primary:{label:"Got it"}});
 }
 
+let viewLegacy = false;
+// new flow: Procurement and Received are one-tap buttons, so they read "Ordered" / "Received" instead of "Signed"
+const doneWord = step => (!viewLegacy && step.step_order>=2 && !step.signature_data) ? (step.step_order===2 ? "Ordered" : "Received") : "Signed";
 function signCard(step){
   if(!step) return '<div class="sign-card"><div class="sign-status pending">Not assigned</div></div>';
   let statusHtml, metaHtml="", declineHtml="", overrideHtml="";
   if(step.status==="Signed"){
-    statusHtml = `<span class="sign-status signed">✓ Signed</span>`;
+    statusHtml = `<span class="sign-status signed">✓ ${doneWord(step)}</span>`;
     metaHtml = `<div class="sign-meta">${fmtDateTime(step.signed_at)}</div>` +
       (step.signature_data && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(step.signature_data)
         ? `<img src="${step.signature_data}" alt="signature" style="display:block;max-height:46px;max-width:100%;margin-top:6px">` : "");
@@ -338,6 +341,7 @@ function render(req){
   document.getElementById("phTitle").textContent = req.tracking_no || "Requisition";
   const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
   const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
+  viewLegacy = MRF.isLegacy(steps);
   const byOrder = {}; steps.forEach(s=>byOrder[s.step_order]=s);
 
   const itemRows = items.map(it=>`
@@ -544,7 +548,7 @@ function exportPDF(){
   steps.forEach(s=>{
     if(y > 760){ doc.addPage(); y = margin; }
     let statusText = "Pending";
-    if(s.status==="Signed") statusText = `Signed by ${s.assigned_person_name} on ${fmtDMY(s.signed_at)}`;
+    if(s.status==="Signed") statusText = `${doneWord(s)} by ${s.assigned_person_name} on ${fmtDMY(s.signed_at)}`;
     else if(s.status==="Declined") statusText = `Declined by ${s.assigned_person_name} — ${s.decline_reason||""}`;
     doc.setFontSize(9); doc.setFont("helvetica","bold");
     doc.text(`${s.stage_name}:`, margin, y);
