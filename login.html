@@ -56,7 +56,7 @@
 
   <div class="signup-panel" id="signupPanel">
     <div class="signup-note" id="signupNote">Let's set up a new account. Enter your name, your @spacelogic.com.sg email, choose a 4-digit PIN, and enter it twice to confirm.</div>
-    <label>Full name</label>
+    <label>Full name <span style="color:#6b7280;font-weight:500">(not needed if your account was already set up for you)</span></label>
     <input type="text" id="signupNameInput" placeholder="Full name" autocomplete="off">
     <label>Company email <span style="color:#dc2626">(required)</span></label>
     <input type="email" id="signupEmailInput" placeholder="you@spacelogic.com.sg" autocomplete="off">
@@ -168,13 +168,25 @@ async function handleSignup(){
   const pin2 = document.getElementById("signupPin2").value.trim();
   const msg = document.getElementById("signupMsg");
 
-  if(!name){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your full name."; return; }
   if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your @spacelogic.com.sg company email."; return; }
   if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
   if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
 
   const {data, error} = await supabaseClient.rpc("start_registration", {p_name: name, p_email: email, p_pin: pin1});
   if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not start registration."; return; }
+
+  if(data.preapproved){
+    // an admin already added this person (name + job title): they only chose a PIN, no email code
+    sessionStorage.setItem("sl_person_id", data.id);
+    sessionStorage.setItem("sl_person_name", data.name);
+    sessionStorage.setItem("sl_pin", pin1);
+    await claimPending(data.id, pin1);
+    Session.remember(data.id, data.name, pin1, false);
+    document.getElementById("signupPanel").style.display="none";
+    showProfileStep(data.id, pin1);
+    Notify.show({tone:"success", title:"Account ready!", sub:`Welcome to MR Tracker, ${data.name}.`, html:"<p>Your name and job title were already filled in. Your PIN is saved — use your email and PIN to sign in next time.</p>", primary:{label:"Continue"}});
+    return;
+  }
 
   const sent = await sendEmail(data.email, data.subject, data.html);
   if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the verification email — check your connection and try again."; return; }
