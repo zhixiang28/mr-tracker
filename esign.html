@@ -187,7 +187,7 @@ const token = new URLSearchParams(location.search).get("token");
 // New requisitions have 3 signing steps; ones created before the new form keep their 4
 const SLOTS_NEW = [
   {order:1, label:"TO BE VERIFIED BY :"},
-  {order:2, label:"PROCUREMENT DEPT :"},
+  {order:2, label:"PROCUREMENT DEPT / PROCESSED BY :"},
   {order:3, label:"RECEIVED BY :"}
 ];
 const SLOTS_OLD = [
@@ -753,7 +753,7 @@ async function buildPDF(){
     pdf.setFont("helvetica","normal"); pdf.setFontSize(6.5); pdf.setTextColor(90,90,90);
     pdf.text("Required: " + MRF.requiredText(total), lx, fy+19, {maxWidth:94}); pdf.setTextColor(0,0,0);
     fy += 44;
-    await sigRow(2, "PROCUREMENT DEPT :", false, fy); fy += 44;
+    await sigRow(2, "PROCUREMENT DEPT / PROCESSED BY :", false, fy); fy += 44;
     if(ExportOpts.showReceived()) await sigRow(3, "RECEIVED BY :", false, fy);
   }
 
