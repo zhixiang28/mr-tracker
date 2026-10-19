@@ -132,3 +132,5 @@ Everyone is a **Member**; admins give people more **roles** with the *Roles* but
 
 ## Exports (`mrfexport.js`)
 Every page's **Export PDF / Export CSV** (form `index.html`, form view `view.html`, signing page `esign.html`) calls `MRFExport.pdf(req)` / `MRFExport.csv(req)` — one A4 layout like the paper MRF and one CSV layout, files named `MRF_<project>_<yymmdd>`. The *Include “Received by”* tick box (`ExportOpts` in `session.js`) is honoured by both.
+## Pre-registered staff (`preapproved_people`)
+Staff imported from the company directory (name, email, job title) live in `preapproved_people` (RLS on, no policies; only SECURITY DEFINER functions read it). They still verify their email with the 6-digit code; `start_registration` uses the stored name (so the name field can stay empty) and `verify_registration` copies the stored job title to their new `people` row and stamps `claimed_at`.

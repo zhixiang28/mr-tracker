@@ -56,7 +56,7 @@
 
   <div class="signup-panel" id="signupPanel">
     <div class="signup-note" id="signupNote">Let's set up a new account. Enter your name, your @spacelogic.com.sg email, choose a 4-digit PIN, and enter it twice to confirm.</div>
-    <label>Full name</label>
+    <label>Full name <span style="color:#6b7280;font-weight:500">(leave empty if an admin already added you)</span></label>
     <input type="text" id="signupNameInput" placeholder="Full name" autocomplete="off">
     <label>Company email <span style="color:#dc2626">(required)</span></label>
     <input type="email" id="signupEmailInput" placeholder="you@spacelogic.com.sg" autocomplete="off">
@@ -168,7 +168,6 @@ async function handleSignup(){
   const pin2 = document.getElementById("signupPin2").value.trim();
   const msg = document.getElementById("signupMsg");
 
-  if(!name){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your full name."; return; }
   if(!/^[^@\s]+@spacelogic\.com\.sg$/i.test(email)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Enter your @spacelogic.com.sg company email."; return; }
   if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
   if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
