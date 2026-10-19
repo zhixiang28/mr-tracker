@@ -673,6 +673,7 @@
 <script src="dates.js"></script>
 <script src="notify.js"></script>
 <script src="mrf.js"></script>
+<script src="mrfexport.js"></script>
 <script src="notifysetup.js"></script>
 <script src="appbar.js"></script>
 <script src="supplier.js"></script>
@@ -1699,18 +1700,7 @@ function closeSubmitResultModal(){
   document.getElementById("submitResultModal").style.display="none";
 }
 
-function exportCSV(){
-  const rows=collect().rows;
-  const head=["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"];
-  const csv=[head,...rows.map((r,i)=>[i+1,...r,(Number(r[2]||0)*Number(r[3]||0)).toFixed(2)])]
-    .map(row=>row.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`${filenameBase()}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+function exportCSV(){ MRFExport.downloadCSV(exportReq()); }
 
 function setStatus(t){
   const s=document.getElementById("status");
@@ -1768,248 +1758,20 @@ function drawText(doc, text, x, y, fontSize, fontStyle, opts={}){
   }
 }
 
-function buildPDF(){
-  if(!window.jspdf || !window.jspdf.jsPDF){
-    throw new Error("PDF library not loaded (check your internet connection)");
-  }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({orientation:"landscape", unit:"pt", format:"a4"});
-  const margin = 40;
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const contentW = pageW - margin*2;
-  const ink = [31,41,51], muted = [107,114,128], line=[215,219,224], accent=[47,111,237];
-  let y = margin;
-
-  // ---- Header banner ----
-  const headerH = 46;
-  doc.setFillColor(...ink);
-  doc.roundedRect(margin, y, contentW, headerH, 6, 6, "F");
-  doc.setTextColor(255,255,255);
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(15);
-  doc.text("MATERIALS REQUISITION FORM", margin+18, y+headerH/2+5);
-  // logo pill on the right
-  doc.setFontSize(10);
-  const logoText = "SPACElogic";
-  const logoW = doc.getTextWidth(logoText)+24;
-  doc.setFillColor(255,255,255);
-  doc.roundedRect(margin+contentW-logoW-14, y+headerH/2-11, logoW, 22, 11, 11, "F");
-  doc.setTextColor(...ink);
-  doc.text(logoText, margin+contentW-logoW-14+12, y+headerH/2+4);
-  doc.setTextColor(0,0,0);
-  y += headerH + 22;
-
-  // ---- Project details section ----
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(55,65,81);
-  doc.text("PROJECT DETAILS", margin, y);
-  doc.setDrawColor(...accent);
-  doc.setLineWidth(2);
-  doc.line(margin, y+4, margin+3, y+4);
-  doc.setDrawColor(...line);
-  doc.setLineWidth(0.75);
-  doc.line(margin, y+9, margin+contentW, y+9);
-  y += 24;
-
-  const meta = collect().meta;
-  const colGap = 26;
-  const colW = (contentW-colGap)/2;
-  const metaRowsLeft = [
-    ["PROJECT NAME", meta.projectName||"-"],
-    ["PROJECT LOCATION", meta.projectLocation||"-"],
-    ["REQUEST BY", meta.requestBy||"-"],
-    ["SUPPLY DATE", fmtDMY(meta.supplyDate)||"-"]
-  ];
-  const metaRowsRight = [
-    ["DATE", fmtDMY(meta.formDate)||"-"],
-    ["PC NO.", meta.pcNo||"-"],
-    ["PM IN-CHARGE", meta.pmIncharge||"-"],
-    ["", ""]
-  ];
-  const rowH = 20;
-  const labelW = 118;
-  function drawMetaRow(cx, cyy, label, value){
-    if(!label) return;
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(9);
-    doc.setTextColor(...muted);
-    doc.text(label, cx, cyy);
-    drawText(doc, value, cx+labelW, cyy, 10.5, "normal", {color:ink});
-    doc.setDrawColor(...line);
-    doc.setLineWidth(0.5);
-    doc.line(cx+labelW, cyy+4, cx+colW, cyy+4);
-  }
-  metaRowsLeft.forEach((r,i)=>drawMetaRow(margin, y+i*rowH, r[0], r[1]));
-  metaRowsRight.forEach((r,i)=>drawMetaRow(margin+colW+colGap, y+i*rowH, r[0], r[1]));
-  y += rowH*4 + 14;
-
-  // ---- Materials section ----
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(55,65,81);
-  doc.text("MATERIALS", margin, y);
-  doc.setDrawColor(...accent);
-  doc.setLineWidth(2);
-  doc.line(margin, y+4, margin+3, y+4);
-  doc.setDrawColor(...line);
-  doc.setLineWidth(0.75);
-  doc.line(margin, y+9, margin+contentW, y+9);
-  y += 16;
-
-  const rows = collect().rows;
-  const body = rows.map((r,i)=>{
-    const qty = Number(r[2]||0), price = Number(r[3]||0), dtax=Number(r[4]||0);
-    return [i+1, r[0]||"", r[1]||"", qty, price.toFixed(2), dtax.toFixed(2), r[5]?"Open link":"", (qty*price).toFixed(2)];
-  });
-
-  doc.autoTable({
-    startY: y,
-    margin:{left:margin, right:margin},
-    head:[["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"]],
-    body: body,
-    styles:{ fontSize:9, cellPadding:{top:5,right:6,bottom:5,left:6}, lineColor:line, lineWidth:0.5, textColor:ink },
-    headStyles:{ fillColor:ink, textColor:255, fontStyle:"bold", fontSize:9, halign:"center" },
-    alternateRowStyles:{ fillColor:[250,251,252] },
-    columnStyles:{
-      0:{cellWidth:30, halign:"center"},
-      3:{cellWidth:38, halign:"right"},
-      4:{cellWidth:62, halign:"right"},
-      5:{cellWidth:68, halign:"right"},
-      6:{cellWidth:60, halign:"center"},
-      7:{cellWidth:64, halign:"right", fontStyle:"bold"}
-    },
-    didParseCell: function(data){
-      if(data.section==="body" && data.column.index===6){
-        const url = rows[data.row.index][5];
-        if(url){ data.cell.styles.textColor=accent; }
-      }
-      // Suppress default vector text for any CJK cell — we'll draw it as an image instead
-      if(data.section==="body" && (data.column.index===1 || data.column.index===2)){
-        const cellText = Array.isArray(data.cell.text) ? data.cell.text.join(" ") : String(data.cell.raw||"");
-        if(isCJK(cellText)){
-          data.cell._cjkText = cellText;
-          data.cell.text = [];
-        }
-      }
-    },
-    didDrawCell: function(data){
-      if(data.section==="body" && data.column.index===6){
-        const url = rows[data.row.index][5];
-        if(url){
-          const target = /^https?:\/\//i.test(url) ? url : ("https://"+url);
-          doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: target });
-        }
-      }
-      if(data.section==="body" && data.cell._cjkText){
-        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
-        const maxW = data.cell.width - 12;
-        const drawW = Math.min(wPt, maxW);
-        const drawH = hPt * (drawW/wPt);
-        doc.addImage(dataUrl, "PNG", data.cell.x+6, data.cell.y + data.cell.height/2 - drawH/2, drawW, drawH);
-      }
-    }
-  });
-
-  let finalY = doc.lastAutoTable.finalY + 20;
-  const itemsTotal = parseFloat(document.getElementById("itemsTotal").textContent)||0;
-  const dtaxTotal = parseFloat(document.getElementById("deliveryTaxTotal").textContent)||0;
-  const grand = parseFloat(document.getElementById("grandTotal").textContent)||0;
-
-  // ---- Totals box (right aligned) ----
-  const totalsW = 230;
-  const totalsX = margin+contentW-totalsW;
-  const totalsPadTop = 10;
-  const totalsRowH = 18;
-  const totalsBoxH = totalsPadTop*2 + totalsRowH*3 + 4;
-  if(finalY + totalsBoxH > pageH - margin){
-    doc.addPage();
-    finalY = margin;
-  }
-  doc.setDrawColor(...line);
-  doc.setLineWidth(0.75);
-  doc.roundedRect(totalsX, finalY, totalsW, totalsBoxH, 5, 5);
-
-  let ty = finalY + totalsPadTop + 10;
-  doc.setFont("helvetica","normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(...muted);
-  doc.text("Materials Subtotal", totalsX+14, ty);
-  doc.setTextColor(...ink);
-  doc.text(`$ ${itemsTotal.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
-  ty += totalsRowH;
-  doc.setTextColor(...muted);
-  doc.text("Delivery / Tax Subtotal", totalsX+14, ty);
-  doc.setTextColor(...ink);
-  doc.text(`$ ${dtaxTotal.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
-  ty += 6;
-  doc.setDrawColor(...line);
-  doc.line(totalsX+14, ty, totalsX+totalsW-14, ty);
-  ty += totalsRowH;
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...ink);
-  doc.text("GRAND TOTAL", totalsX+14, ty);
-  doc.text(`$ ${grand.toFixed(2)}`, totalsX+totalsW-14, ty, {align:"right"});
-
-  finalY += totalsBoxH + 34;
-
-  // ---- Signatures ----
-  const sigSectionH = 34 + 66 + 30; // heading + boxes + footer note, roughly
-  if(finalY + sigSectionH > pageH - margin){
-    doc.addPage();
-    finalY = margin;
-  }
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(10.5);
-  doc.setTextColor(55,65,81);
-  doc.text("APPROVAL & SIGN-OFF", margin, finalY);
-  doc.setDrawColor(...accent);
-  doc.setLineWidth(2);
-  doc.line(margin, finalY+4, margin+3, finalY+4);
-  doc.setDrawColor(...line);
-  doc.setLineWidth(0.75);
-  doc.line(margin, finalY+9, margin+contentW, finalY+9);
-  finalY += 34;
-
-  const sigBoxH = 66;
-  const sigGap = 18;
-  const sigColW = (contentW - sigGap*(ExportOpts.showReceived() ? 2 : 1))/(ExportOpts.showReceived() ? 3 : 2);
-  const sigDefs = [
-    {label:"VERIFIED BY: " + MRF.requiredText(grand).toUpperCase(), value: meta.manager},
-    {label:"PROCUREMENT DEPT : PROCESSED BY", value: meta.approveBy || meta.purchaseBy},
-    {label:"RECEIVED BY", value: meta.receivedBy}
-  ].filter((d,i)=>ExportOpts.showReceived() || i < 2);
-  doc.setFont("helvetica","normal");
-  sigDefs.forEach((s,i)=>{
-    const sx = margin + i*(sigColW+sigGap);
-    doc.setDrawColor(...line);
-    doc.setLineWidth(0.75);
-    doc.roundedRect(sx, finalY, sigColW, sigBoxH, 5, 5);
-    if(s.value){
-      drawText(doc, s.value, sx+sigColW/2, finalY+30, 10, "normal", {align:"center", color:ink});
-    }
-    doc.setDrawColor(60,60,60);
-    doc.line(sx+10, finalY+42, sx+sigColW-10, finalY+42);
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(...muted);
-    doc.setFontSize(s.label.length > 28 ? 7 : 8.5);
-    doc.text(s.label, sx+sigColW/2, finalY+56, {align:"center"});
-    doc.setFont("helvetica","normal");
-  });
-  doc.setFontSize(8);
-  doc.setTextColor(...muted);
-  doc.text("Signatures are captured digitally through the approval chain — see the tracking dashboard for signer names and dates.", margin, finalY+sigBoxH+16);
-
-  return doc;
+// exports use the same PDF / CSV as the form view and the signing page (mrfexport.js); nothing is signed yet, so the sign-off lines are blank
+function exportReq(){
+  if(!window.jspdf || !window.jspdf.jsPDF) throw new Error("PDF library not loaded (check your internet connection)");
+  const {meta, rows} = collect();
+  return {tracking_no:"", project_name:meta.projectName, project_location:meta.projectLocation, request_by:meta.requestBy,
+    form_date:meta.formDate, supply_date:meta.supplyDate, pc_no:meta.pcNo, pm_incharge:meta.pmIncharge, status:"",
+    requisition_items: rows.filter(r=>r[0]||r[1]).map(r=>({name:r[0], description:r[1], qty:r[2], unit_price:r[3], delivery_tax:r[4], link:r[5]})), steps:[]};
 }
+const buildPDF = () => MRFExport.pdf(exportReq());
 
 async function exportPDF(){
   try{
-    const doc = buildPDF();
-    doc.save(`${filenameBase()}.pdf`);
+    const doc = await buildPDF();
+    doc.save(MRFExport.fileName(exportReq(), "pdf"));
     let msg = "PDF exported — links are clickable inside it.";
     if(navigator.clipboard && navigator.clipboard.writeText){
       try{
@@ -2032,8 +1794,8 @@ Thank you.`;
 
 async function shareFile(){
   try{
-    const doc = buildPDF();
-    const filename = `${filenameBase()}.pdf`;
+    const doc = await buildPDF();
+    const filename = MRFExport.fileName(exportReq(), "pdf");
     const blob = doc.output("blob");
 
     if(window.File && navigator.canShare){

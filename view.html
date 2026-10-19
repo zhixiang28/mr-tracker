@@ -164,6 +164,7 @@
 <script src="dates.js"></script>
 <script src="notify.js"></script>
 <script src="mrf.js"></script>
+<script src="mrfexport.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -426,173 +427,16 @@ function render(req){
   `;
 }
 
-function isCJK(str){
-  return /[\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(String(str||""));
-}
-function cjkTextToImage(text, fontSizePt, fontWeight){
-  const scale = 4;
-  const px = fontSizePt * scale;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const font = `${fontWeight||"normal"} ${px}px "PingFang SC","Microsoft YaHei","Noto Sans SC","Heiti SC",Arial,sans-serif`;
-  ctx.font = font;
-  const width = Math.ceil(ctx.measureText(text).width) + scale*4;
-  const height = Math.ceil(px*1.4);
-  canvas.width = width; canvas.height = height;
-  ctx.font = font;
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#000000";
-  ctx.fillText(text, scale*2, height/2);
-  return { dataUrl: canvas.toDataURL("image/png"), wPt: width/scale, hPt: height/scale };
-}
-function drawText(doc, text, x, y, fontSize, fontStyle, opts={}){
-  text = String(text ?? "");
-  const color = opts.color || [0,0,0];
-  if(isCJK(text)){
-    let { dataUrl, wPt, hPt } = cjkTextToImage(text, fontSize, fontStyle==="bold"?"bold":"normal");
-    if(opts.maxWidth && wPt > opts.maxWidth){
-      hPt = hPt * (opts.maxWidth/wPt);
-      wPt = opts.maxWidth;
-    }
-    let drawX = x;
-    if(opts.align==="right") drawX = x - wPt;
-    else if(opts.align==="center") drawX = x - wPt/2;
-    doc.addImage(dataUrl, "PNG", drawX, y - hPt*0.68, wPt, hPt);
-  } else {
-    doc.setFont("helvetica", fontStyle||"normal");
-    doc.setFontSize(fontSize);
-    doc.setTextColor(...color);
-    doc.text(text, x, y, opts.align ? {align:opts.align} : (opts.maxWidth ? {maxWidth:opts.maxWidth} : undefined));
-  }
-}
-
+// ---------------- exports (same PDF / CSV on every page: see mrfexport.js) ----------------
+const exportReq = () => Object.assign({}, currentReq, {steps: currentReq.approval_steps || []});
 function exportCSV(){
   if(!currentReq){ alert("Nothing loaded yet."); return; }
-  const r = currentReq;
-  const items = (r.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-  const steps = (r.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
-  const n = v => Number(v||0), f = v => n(v).toFixed(2);
-  const rows = [
-    ["Tracking No.", r.tracking_no||""], ["Project Name", r.project_name||""], ["Project Location", r.project_location||""],
-    ["Request By", r.request_by||""], ["Date", fmtDMY(r.form_date)||""], ["Supply Date", fmtDMY(r.supply_date)||""],
-    ["PC No.", r.pc_no||""], ["PM Incharge", r.pm_incharge||""], ["Status", r.status||""], [],
-    ["S/N","Name","Description","Qty","Unit Price","Delivery/Tax","Link","Total"],
-    ...items.map((it,i)=>[i+1, it.name||"", it.description||"", n(it.qty), f(it.unit_price), f(it.delivery_tax), it.link||"", f(n(it.qty)*n(it.unit_price)+n(it.delivery_tax))]),
-    ["","","","","","","Grand Total", f(items.reduce((a,it)=>a+n(it.qty)*n(it.unit_price)+n(it.delivery_tax),0))], [],
-    ["Sign-off","Status","Signed by","Date"],
-    ...steps.filter((s,i)=>ExportOpts.showReceived() || i < steps.length-1).map(s=>[s.stage_name||"", s.status||"", s.status==="Signed"||s.status==="Declined" ? (s.assigned_person_name||"") : "", s.status==="Signed" ? fmtDateTime(s.signed_at) : s.status==="Declined" ? fmtDateTime(s.declined_at) : ""])
-  ];
-  const csv = rows.map(row=>row.map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"});   // BOM so Excel shows Chinese correctly
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `MRF_${String(r.project_name||"form").trim().replace(/[\\/:*?"<>|]/g,"").replace(/\s+/g,"_").slice(0,40)}_${String(r.form_date||"").replace(/^(\d{4})-(\d{2})-(\d{2}).*$/,(m,y,mo,d)=>y.slice(2)+mo+d)}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+  MRFExport.downloadCSV(exportReq());
 }
-
-function exportPDF(){
+async function exportPDF(){
   if(!currentReq){ alert("Nothing loaded yet."); return; }
-  const req = currentReq;
-  const items = (req.requisition_items||[]).slice().sort((a,b)=>(a.sn||0)-(b.sn||0));
-  const steps = (req.approval_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order);
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-  const margin = 40;
-  let y = margin;
-
-  drawText(doc, req.project_name || "Untitled Project", margin, y, 16, "bold"); y += 18;
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(100);
-  doc.text(`Materials Requisition — ${req.tracking_no}  ·  Status: ${req.status}`, margin, y); y += 22;
-  doc.setTextColor(0);
-
-  const metaRows = [
-    ["Project Location", req.project_location||"-", "Requested By", req.request_by||"-"],
-    ["Form Date", fmtDMY(req.form_date)||"-", "Supply Date", fmtDMY(req.supply_date)||"-"],
-    ["PC No.", req.pc_no||"-", "PM In-Charge", req.pm_incharge||"-"]
-  ];
-  doc.autoTable({
-    startY: y, theme: "plain", styles:{fontSize:9, cellPadding:2},
-    body: metaRows.map(r=>[{content:r[0],styles:{fontStyle:"bold",textColor:100}},r[1],{content:r[2],styles:{fontStyle:"bold",textColor:100}},r[3]]),
-    margin: {left: margin, right: margin},
-    didParseCell: function(data){
-      if(data.column.index===1 || data.column.index===3){
-        const val = data.cell.raw;
-        if(isCJK(val)){ data.cell._cjkText = String(val); data.cell.text = []; }
-      }
-    },
-    didDrawCell: function(data){
-      if(data.cell._cjkText){
-        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
-        doc.addImage(dataUrl, "PNG", data.cell.x+2, data.cell.y + data.cell.height/2 - hPt/2, wPt, hPt);
-      }
-    }
-  });
-  y = doc.lastAutoTable.finalY + 14;
-
-  if(req.status === "Declined"){
-    doc.setFillColor(254,242,242); doc.setDrawColor(252,165,165);
-    doc.rect(margin, y, 515, 32, "FD");
-    const declineLine = `Declined by ${req.declined_by||""} — Reason: ${req.decline_reason||""}`;
-    if(isCJK(declineLine)){
-      const { dataUrl, wPt, hPt } = cjkTextToImage(declineLine, 9, "normal");
-      const maxW = 500, drawW = Math.min(wPt, maxW), drawH = hPt*(drawW/wPt);
-      doc.addImage(dataUrl, "PNG", margin+8, y+20-drawH*0.68, drawW, drawH);
-    } else {
-      doc.setFontSize(9); doc.setTextColor(153,27,27);
-      doc.text(declineLine, margin+8, y+20, {maxWidth:500});
-    }
-    doc.setTextColor(0);
-    y += 44;
-  }
-
-  doc.autoTable({
-    startY: y,
-    head: [["S/N","Name","Description","Qty","Unit Price","Delv/Tax","Total"]],
-    body: items.map(it=>[it.sn, it.name, it.description||"", it.qty, `$${Number(it.unit_price).toFixed(2)}`, `$${Number(it.delivery_tax).toFixed(2)}`, `$${Number(it.total).toFixed(2)}`]),
-    foot: [
-      ["","","","","","Materials Subtotal", `$${Number(req.materials_subtotal).toFixed(2)}`],
-      ["","","","","","Delivery/Tax Subtotal", `$${Number(req.delivery_tax_subtotal).toFixed(2)}`],
-      ["","","","","","GRAND TOTAL", `$${Number(req.grand_total).toFixed(2)}`]
-    ],
-    styles:{fontSize:9}, headStyles:{fillColor:[31,41,51]}, margin:{left:margin,right:margin},
-    didParseCell: function(data){
-      if(data.section==="body" && (data.column.index===1 || data.column.index===2)){
-        if(isCJK(data.cell.raw)){ data.cell._cjkText = String(data.cell.raw); data.cell.text = []; }
-      }
-    },
-    didDrawCell: function(data){
-      if(data.section==="body" && data.cell._cjkText){
-        const { dataUrl, wPt, hPt } = cjkTextToImage(data.cell._cjkText, 9, "normal");
-        const maxW = data.cell.width - 10;
-        const drawW = Math.min(wPt, maxW), drawH = hPt*(drawW/wPt);
-        doc.addImage(dataUrl, "PNG", data.cell.x+5, data.cell.y + data.cell.height/2 - drawH/2, drawW, drawH);
-      }
-    }
-  });
-  y = doc.lastAutoTable.finalY + 20;
-
-  doc.setFont("helvetica","bold"); doc.setFontSize(11);
-  doc.text("Approval Chain", margin, y); y += 14;
-  doc.setFont("helvetica","normal");
-
-  steps.filter((s,i)=>ExportOpts.showReceived() || i < steps.length-1).forEach(s=>{
-    if(y > 760){ doc.addPage(); y = margin; }
-    let statusText = "Pending";
-    if(s.status==="Signed") statusText = `${doneWord(s)} by ${s.assigned_person_name} on ${fmtDMY(s.signed_at)}`;
-    else if(s.status==="Declined") statusText = `Declined by ${s.assigned_person_name} — ${s.decline_reason||""}`;
-    doc.setFontSize(9); doc.setFont("helvetica","bold");
-    doc.text(`${s.stage_name}:`, margin, y);
-    doc.setFont("helvetica","normal");
-    drawText(doc, statusText, margin+110, y, 9, "normal", {maxWidth:400});
-    y += 16;
-  });
-
-  doc.setFontSize(7); doc.setTextColor(150);
-  doc.text(`Exported ${fmtDateTime(new Date())} from SPACElogic MR Tracker`, margin, 820);
-
-  doc.save(`${req.tracking_no}_${(req.project_name||"requisition").replace(/[^a-z0-9]/gi,"_")}.pdf`);
+  try{ const pdf = await MRFExport.pdf(exportReq()); pdf.save(MRFExport.fileName(currentReq, "pdf")); }
+  catch(e){ console.error(e); alert("Could not create the PDF: " + (e.message||e)); }
 }
 
 init();
