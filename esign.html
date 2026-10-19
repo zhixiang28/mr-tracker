@@ -174,6 +174,7 @@
 <script src="dates.js"></script>
 <script src="notify.js"></script>
 <script src="mrf.js"></script>
+<script src="mrfexport.js"></script>
 <script src="tour.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -604,203 +605,22 @@ async function copyThisLink(){
   try{ const t=document.createElement("textarea"); t.value=location.href; document.body.appendChild(t); t.select(); const ok=document.execCommand("copy"); t.remove(); return ok; }catch(_){ return false; }
 }
 
-// ---------------- PDF (follows the MRF reference layout) ----------------
-function isCJK(str){ return /[㐀-鿿豈-﫿＀-￯]/.test(String(str||"")); }
-// jsPDF's built-in fonts have no CJK glyphs, so CJK text is rendered via canvas and placed as an image.
-function cjkTextToImage(text, fontSizePt, fontWeight){
-  const scale = 4, px = fontSizePt*scale;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const font = `${fontWeight||"normal"} ${px}px "PingFang SC","Microsoft YaHei","Noto Sans SC","Heiti SC",Arial,sans-serif`;
-  ctx.font = font;
-  const width = Math.ceil(ctx.measureText(text).width) + scale*4;
-  const height = Math.ceil(px*1.4);
-  canvas.width = width; canvas.height = height;
-  ctx.font = font; ctx.textBaseline = "middle"; ctx.fillStyle = "#000";
-  ctx.fillText(text, scale*2, height/2);
-  return { dataUrl: canvas.toDataURL("image/png"), wPt: width/scale, hPt: height/scale };
-}
-function drawText(pdf, text, x, y, size, style, opts={}){
-  text = String(text==null?"":text);
-  if(!text) return;
-  if(isCJK(text)){
-    let {dataUrl, wPt, hPt} = cjkTextToImage(text, size, style==="bold"?"bold":"normal");
-    if(opts.maxWidth && wPt>opts.maxWidth){ hPt*=opts.maxWidth/wPt; wPt=opts.maxWidth; }
-    pdf.addImage(dataUrl, "PNG", x, y-hPt*0.68, wPt, hPt);
-  } else {
-    pdf.setFont("helvetica", style||"normal"); pdf.setFontSize(size); pdf.setTextColor(0,0,0);
-    pdf.text(text, x, y, opts.align?{align:opts.align}:undefined);
-  }
-}
-function imgSize(dataUrl){
-  return new Promise(res=>{ const i=new Image(); i.onload=()=>res({w:i.naturalWidth,h:i.naturalHeight}); i.onerror=()=>res(null); i.src=dataUrl; });
-}
-
-async function buildPDF(){
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({orientation:"portrait", unit:"pt", format:"a4"});
-  const r = doc.requisition;
-  const items = r.requisition_items||[];
-  const m = 28, W = 595, cw = W-m*2;
-
-  // logo + title
-  pdf.setFont("helvetica","bold"); pdf.setFontSize(24); pdf.setTextColor(0,0,0);
-  pdf.text("SPACElogic", W-m, 56, {align:"right"});
-  pdf.setLineWidth(1.4); pdf.rect(m, 68, cw, 20);
-  pdf.setFontSize(12.5); pdf.text("MATERIALS REQUISITION FORM", W/2, 82, {align:"center"});
-
-  // header fields
-  const lx = m, lvx = 140, lend = 296, rx = 405, rvx = 470, rend = W-m;
-  function field(label, value, x, vx, end, y){
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
-    pdf.text(label, x, y);
-    drawText(pdf, value, vx+2, y, 8.5, "normal", {maxWidth:end-vx-4});
-    pdf.setLineWidth(1.2); pdf.line(vx, y+4, end, y+4);
-  }
-  let y = 114;
-  field("PROJECT NAME :", r.project_name, lx, lvx, lend, y);
-  field("DATE :", fmtDate(r.form_date), rx, rvx, rend, y);
-  y += 17; field("PROJECT LOCATION :", r.project_location, lx, lvx, lend, y);
-  y += 17; field("REQUEST BY :", r.request_by, lx, lvx, lend, y);
-  field("PC NO.:", r.pc_no, rx, rvx, rend, y);
-  y += 25; field("SUPPLY DATE :", fmtDate(r.supply_date), lx, lvx, lend, y);
-  field("PM Incharge:", r.pm_incharge, rx, rvx, rend, y);
-
-  // items table
-  const rowCount = Math.max(10, items.length);
-  const body = [];
-  for(let i=0;i<rowCount;i++){
-    const it = items[i];
-    body.push([ i+1, it?it.name||"":"", it?it.description||"":"", it?String(num(it.qty)):"",
-      it?fmt(it.unit_price):"", it?fmt(it.delivery_tax):"", it&&it.link?"#":"", it?fmt(lineTotal(it)):"-" ]);
-  }
-  const money = new Set([4,5,7]);
-  pdf.autoTable({
-    startY: y+20, margin:{left:m,right:m}, theme:"grid",
-    head:[["S/N","NAME","DESCRIPTION","QTY","UNIT PRICE","DELIVERY","LINK","TOTAL"]], body,
-    styles:{ fontSize:8.5, cellPadding:{top:3,right:4,bottom:3,left:4}, lineColor:[0,0,0], lineWidth:0.6, textColor:0, minCellHeight:15, valign:"middle" },
-    headStyles:{ fillColor:255, textColor:0, fontStyle:"bold", halign:"center" },
-    columnStyles:{ 0:{cellWidth:29,halign:"center"}, 1:{cellWidth:78}, 2:{cellWidth:161}, 3:{cellWidth:52,halign:"center"},
-      4:{cellWidth:52,halign:"right"}, 5:{cellWidth:64,halign:"right"}, 6:{cellWidth:41,halign:"center",textColor:[0,0,238]}, 7:{cellWidth:60,halign:"right"} },
-    didParseCell(d){
-      if(d.section!=="body") return;
-      if(d.column.index===1 || d.column.index===2){
-        const t = Array.isArray(d.cell.text)?d.cell.text.join(" "):String(d.cell.raw||"");
-        if(isCJK(t)){ d.cell._cjk = t; d.cell.text = []; }
-      }
-    },
-    didDrawCell(d){
-      if(d.section!=="body") return;
-      if(d.cell._cjk){
-        const {dataUrl,wPt,hPt} = cjkTextToImage(d.cell._cjk, 8.5, "normal");
-        const dw = Math.min(wPt, d.cell.width-8), dh = hPt*(dw/wPt);
-        pdf.addImage(dataUrl,"PNG", d.cell.x+4, d.cell.y+d.cell.height/2-dh/2, dw, dh);
-      }
-      if(money.has(d.column.index) && d.cell.raw!==""){
-        pdf.setFont("helvetica","normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
-        pdf.text("$", d.cell.x+4, d.cell.y+d.cell.height/2+3);
-      }
-      if(d.column.index===6 && d.cell.raw==="#"){
-        const l = items[d.row.index].link;
-        pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, {url: /^https?:\/\//i.test(l)?l:"https://"+l});
-      }
-    }
-  });
-
-  let fy = pdf.lastAutoTable.finalY + 12;
-  const total = items.reduce((a,it)=>a+lineTotal(it),0);
-  pdf.setFont("helvetica","normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
-  pdf.text("$", rend-60, fy); pdf.text(fmt(total), rend-4, fy, {align:"right"});
-
-  // signature blocks
-  fy += 38;
-  if(fy + 4*44 + 40 > 842-m){ pdf.addPage(); fy = 60; }
-  const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
-  async function sigRow(order, label, underlined, yy){
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(label.length > 17 ? 7.5 : 8.5); pdf.setTextColor(0,0,0);
-    const lines = pdf.splitTextToSize(label, 100);
-    pdf.text(lines, lx, yy);
-    if(label.startsWith("PROCUREMENT DEPT :")){ const uw = pdf.getTextWidth("PROCUREMENT DEPT"); pdf.setLineWidth(0.6); pdf.line(lx, yy+1.5, lx+uw, yy+1.5); }   // "PROCUREMENT DEPT" is underlined
-    pdf.setLineWidth(1.2); pdf.line(lvx, yy+10, lend, yy+10);
-    const s = stepBy(order);
-    if(s.status==="Signed"){
-      if(s.signature_data){
-        const sz = await imgSize(s.signature_data);
-        if(sz){
-          let h = 30, w = h*sz.w/sz.h;
-          if(w>lend-lvx-8){ w = lend-lvx-8; h = w*sz.h/sz.w; }
-          pdf.addImage(s.signature_data, "PNG", lvx+4, yy+9-h, w, h);
-        }
-      }
-      else if(isBtnStep(order)){ drawText(pdf, BTN[order].done.toUpperCase(), lvx+4, yy+6, 10, "bold"); }
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(6.5); pdf.setTextColor(90,90,90);
-      drawText(pdf, `${s.assigned_person_name||""}  ·  ${fmtStamp(s.signed_at)}`, lvx, yy+19, 6.5, "normal", {maxWidth:lend-lvx});
-      pdf.setTextColor(0,0,0);
-    }
-  }
-  if(MRF.isLegacy(doc.steps)){
-    await sigRow(1, "TO BE VERIFY BY TEAM MANAGER :", false, fy);
-    fy += 44;
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
-    pdf.text("PROCUREMENT DEPT :", lx, fy);
-    pdf.setLineWidth(0.6); pdf.line(lx, fy+1.5, lx+pdf.getTextWidth("PROCUREMENT DEPT :"), fy+1.5);
-    fy += 28;
-    await sigRow(2, "APPROVE BY :", false, fy); fy += 40;
-    await sigRow(3, "PURCHASE BY :", false, fy); fy += 40;
-    if(ExportOpts.showReceived()) await sigRow(4, "RECEIVED BY :", false, fy);
-  } else {
-    await sigRow(1, "TO BE VERIFIED BY :", false, fy);
-    pdf.setFont("helvetica","normal"); pdf.setFontSize(6.5); pdf.setTextColor(90,90,90);
-    pdf.text("Required: " + MRF.requiredText(total), lx, fy+19, {maxWidth:94}); pdf.setTextColor(0,0,0);
-    fy += 44;
-    await sigRow(2, "PROCUREMENT DEPT : PROCESSED BY :", false, fy); fy += 44;
-    if(ExportOpts.showReceived()) await sigRow(3, "RECEIVED BY :", false, fy);
-  }
-
-  pdf.setFont("helvetica","normal"); pdf.setFontSize(7); pdf.setTextColor(120,120,120);
-  pdf.text(`Tracking no. ${r.tracking_no||""}`, m, 842-18);
-  return pdf;
-}
-
-function slug(s){ return String(s||"").trim().replace(/[\\/:*?"<>|]/g,"").replace(/\s+/g,"_").slice(0,40); }
-function yymmdd(d){ const m = String(d||"").match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[1].slice(2)+m[2]+m[3] : ""; }
-
+// ---------------- exports (same PDF / CSV on every page: see mrfexport.js) ----------------
+const exportReq = () => Object.assign({}, doc.requisition, {steps: doc.steps});
+const buildPDF = () => MRFExport.pdf(exportReq());
 async function exportPDF(){
   const btn = document.getElementById("pdfBtn");
   btn.disabled = true;
   try{
     const pdf = await buildPDF();
-    const r = doc.requisition;
-    pdf.save(`MRF_${slug(r.project_name)||"form"}_${yymmdd(r.form_date)}.pdf`);
+    pdf.save(MRFExport.fileName(doc.requisition, "pdf"));
   }catch(e){
     console.error(e);
     setBanner("err", "Could not create the PDF: " + esc(e.message||e));
   }
   btn.disabled = false;
 }
-
-function exportCSV(){
-  const r = doc.requisition;
-  const items = r.requisition_items||[];
-  const rows = [
-    ["Tracking No.", r.tracking_no||""], ["Project Name", r.project_name||""], ["Project Location", r.project_location||""],
-    ["Request By", r.request_by||""], ["Date", fmtDate(r.form_date)], ["Supply Date", fmtDate(r.supply_date)],
-    ["PC No.", r.pc_no||""], ["PM Incharge", r.pm_incharge||""], [],
-    ["S/N","Name","Description","Qty","Unit Price","Delivery","Link","Total"],
-    ...items.map((it,i)=>[i+1, it.name||"", it.description||"", num(it.qty), fmt(it.unit_price), fmt(it.delivery_tax), it.link||"", fmt(lineTotal(it))]),
-    ["","","","","","","Grand Total", fmt(items.reduce((a,it)=>a+lineTotal(it),0))], [],
-    ["Sign-off","Signed by","Signed at"],
-    ...SLOTS.filter(sl=>ExportOpts.showReceived() || sl.order !== SLOTS.length).map(sl=>{ const st = doc.steps.find(x=>x.step_order===sl.order)||{};
-      return [sl.label.replace(/ :$/,""), st.status==="Signed"?(st.assigned_person_name||""):"", st.status==="Signed"?fmtStamp(st.signed_at):""]; })
-  ];
-  const csv = rows.map(row=>row.map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(",")).join("\n");
-  const blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"}); // BOM so Excel shows Chinese correctly
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `MRF_${slug(r.project_name)||"form"}_${yymmdd(r.form_date)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+function exportCSV(){ MRFExport.downloadCSV(exportReq()); }
 
 (function(){
   // signed out: the button takes them to sign in, then back to this signing link
