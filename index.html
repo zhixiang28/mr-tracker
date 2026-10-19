@@ -1978,7 +1978,7 @@ function buildPDF(){
   const sigColW = (contentW - sigGap*(ExportOpts.showReceived() ? 2 : 1))/(ExportOpts.showReceived() ? 3 : 2);
   const sigDefs = [
     {label:"VERIFIED BY: " + MRF.requiredText(grand).toUpperCase(), value: meta.manager},
-    {label:"PROCUREMENT DEPT / PROCESSED BY", value: meta.approveBy || meta.purchaseBy},
+    {label:"PROCUREMENT DEPT : PROCESSED BY", value: meta.approveBy || meta.purchaseBy},
     {label:"RECEIVED BY", value: meta.receivedBy}
   ].filter((d,i)=>ExportOpts.showReceived() || i < 2);
   doc.setFont("helvetica","normal");
