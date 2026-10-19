@@ -66,3 +66,13 @@
   try{ mq && mq.addEventListener("change", apply); }catch(_){}
   w.Theme = { mode: mode, isDark: isDark, set: function(m){ try{ if(m === "light" || m === "dark") localStorage.setItem(KEY, m); else localStorage.removeItem(KEY); }catch(_){} apply(); } };
 })(window, document);
+
+/* Export option: include the "Received by" line in the PDF / CSV? (a checkbox next to the export buttons; kept per device) */
+(function(w, d){
+  var KEY = "sl_export_recv";
+  function show(){ try{ return localStorage.getItem(KEY) !== "0"; }catch(_){ return true; } }
+  function paint(){ var l = d.querySelectorAll(".inc-recv"); for(var i=0;i<l.length;i++) l[i].checked = show(); }
+  d.addEventListener("change", function(e){ var t = e.target; if(t && t.classList && t.classList.contains("inc-recv")){ try{ localStorage.setItem(KEY, t.checked ? "1" : "0"); }catch(_){} paint(); } });
+  d.addEventListener("DOMContentLoaded", paint);
+  w.ExportOpts = { showReceived: show, paint: paint };
+})(window, document);

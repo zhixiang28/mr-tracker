@@ -110,6 +110,7 @@
       <li><a href="#phone">Using it on a phone</a></li>
       <li><a href="#dark">Light and dark mode</a></li>
       <li><a href="#fx">Prices in another currency</a></li>
+      <li><a href="#exportopt">Leaving “Received by” out of exports</a></li>
       <li><a href="#drafts">Saving drafts</a></li>
       <li><a href="#declined">If it's declined</a></li>
       <li><a href="#withdraw">Withdrawing a request</a></li>
@@ -188,7 +189,7 @@
       </ol>
       <figure><img src="images/manual-form.png" alt="The requisition form, filled in"><figcaption>The requisition form — project details, line items, and running totals</figcaption></figure>
       <p>Once submitted, you'll see who has to sign (based on the total) and get a link for the first person. You can copy it, or use the built-in <b>send by email</b> box to email it directly — no login needed for them to open it.</p>
-      <div class="callout">The order is fixed: <b>Verified by manager → Procurement (ordered) → Received</b>. Only the manager <b>signs</b>; Procurement presses <b>Mark as ordered</b> and the person receiving presses <b>Mark as received</b> — no drawing needed (you can do it from the Dashboard card, the signing page or the <b>form view</b> page; your name and the time are recorded). Each step reveals the next automatically. The form tells you which manager the total needs, lets you pick the person to send it to, and has an <b>Approval rules</b> button with the full table (it is a reference, not part of the signed form). Requisitions made before this change keep their older four steps; on those, the last step (Received) is also a <b>Mark as received</b> button.</div>
+      <div class="callout">The order is fixed: <b>Verified by manager → Procurement (ordered) → Received</b>. Only the manager <b>signs</b>; Procurement presses <b>Mark as ordered</b> and the person receiving presses <b>Mark as received</b> — no drawing needed. On the form this is one line, <b>PROCUREMENT DEPT : PROCESSED BY</b>, showing who ordered and when — Procurement presses only one button (you can do it from the Dashboard card, the signing page or the <b>form view</b> page; your name and the time are recorded). Each step reveals the next automatically. The form tells you which manager the total needs, lets you pick the person to send it to, and has an <b>Approval rules</b> button with the full table (it is a reference, not part of the signed form). Requisitions made before this change keep their older four steps; on those, the last step (Received) is also a <b>Mark as received</b> button.</div>
     </div>
 
     <div class="sec" id="phone">
@@ -206,6 +207,10 @@
       <h2>Prices in another currency</h2>
       <p>Every material row has a small currency box next to <b>Unit price</b> (it starts as <b>SGD</b>). To price a row in another currency, such as <b>CNY</b>, change that box and type the price in that currency; it converts automatically to <b>SGD</b> using the live exchange rate. You see <i>≈ 20.00 SGD</i> under the price, and the totals, approval level and PDF use the converted amount. Delivery / tax converts the same way.</p>
       <p>A blue bar appears above the table whenever a row uses another currency and shows the rate — type your own rate there if you have a bank or supplier rate, or press ↻ for the latest. When you submit, the original amount and rate are added to the item description, e.g. “[Priced 100 CNY @ 0.2 SGD]”, so everyone can trace it. Rows already in SGD are not converted.</p>
+    </div>
+    <div class="sec" id="exportopt">
+      <h2>Leaving “Received by” out of a PDF or CSV</h2>
+      <p>Next to the <b>Export PDF</b> / <b>Export CSV</b> buttons (on the form, the form view and the signing page) there is a tick box <b>Include “Received by”</b>. Untick it and the PDF and CSV leave the Received line out — handy when you send the form before the items arrive. The choice is remembered on that device. On the form, <b>PROCUREMENT DEPT</b> is underlined and shares one line with <b>PROCESSED BY</b>.</p>
     </div>
     <div class="sec" id="drafts">
       <h2>Saving drafts</h2>
