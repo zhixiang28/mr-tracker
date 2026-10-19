@@ -131,4 +131,4 @@ Everyone is a **Member**; admins give people more **roles** with the *Roles* but
 
 
 ## Pre-registered staff (`preapproved_people`)
-Staff imported from the company directory (name, email, job title) live in `preapproved_people` (RLS on, no policies; only SECURITY DEFINER functions read it). When someone signs up with a listed `@spacelogic.com.sg` email, `start_registration` creates their `people` row straight away with the stored name and job title and the PIN they chose — **no emailed code** — and stamps `claimed_at`. Everyone else still goes through the 6-digit email code.
+Staff imported from the company directory (name, email, job title) live in `preapproved_people` (RLS on, no policies; only SECURITY DEFINER functions read it). They still verify their email with the 6-digit code; `start_registration` uses the stored name (so the name field can stay empty) and `verify_registration` copies the stored job title to their new `people` row and stamps `claimed_at`.
