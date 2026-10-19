@@ -259,6 +259,10 @@ function render(){
   const mbar = document.getElementById("mSignBar");      // phones: big Decline / Sign buttons for the box that is waiting
   if(mbar){ mbar.hidden = !activeOrder; const pb = mbar.querySelector(".primary"); if(activeOrder && pb) pb.textContent = isBtnStep(activeOrder) ? BTN[activeOrder].label : "Approve & sign"; }
   const stepBy = o => doc.steps.find(s=>s.step_order===o) || {};
+  // "Processed by" repeats the Procurement person automatically — Procurement presses one button, not two
+  const processedHtml = () => { const p = stepBy(2); return p.status==="Signed"
+    ? `<div class="slot"><span style="font-weight:700;font-size:13px;padding-bottom:6px">${esc(p.assigned_person_name||"")}</span></div><div class="who">${esc(fmtStamp(p.signed_at))}</div>`
+    : `<div class="slot"></div>`; };
   const slotHtml = o => {
     const s = stepBy(o);
     if(s.status==="Signed"){
@@ -306,6 +310,7 @@ function render(){
       <div class="srow"><div class="lbl">${SLOTS[3].label}</div>${slotHtml(4)}</div>` : `
       <div class="srow"><div class="lbl">${SLOTS[0].label}<span class="req">Required: ${esc(MRF.requiredText(total))}</span></div>${slotHtml(1)}</div>
       <div class="srow"><div class="lbl">${SLOTS[1].label}</div>${slotHtml(2)}</div>
+      <div class="srow"><div class="lbl">PROCESSED BY :</div>${processedHtml()}</div>
       <div class="srow"><div class="lbl">${SLOTS[2].label}</div>${slotHtml(3)}</div>`}
     </div>`;
 
@@ -749,6 +754,19 @@ async function buildPDF(){
     pdf.text("Required: " + MRF.requiredText(total), lx, fy+19, {maxWidth:94}); pdf.setTextColor(0,0,0);
     fy += 44;
     await sigRow(2, "PROCUREMENT DEPT :", false, fy); fy += 44;
+    {   // PROCESSED BY: the Procurement person's name (same single action as above)
+      const p = stepBy(2);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
+      pdf.text("PROCESSED BY :", lx, fy);
+      pdf.setLineWidth(1.2); pdf.line(lvx, fy+10, lend, fy+10);
+      if(p.status==="Signed"){
+        drawText(pdf, p.assigned_person_name||"", lvx+4, fy+6, 10, "bold", {maxWidth:lend-lvx-8});
+        pdf.setFont("helvetica","normal"); pdf.setFontSize(6.5); pdf.setTextColor(90,90,90);
+        drawText(pdf, fmtStamp(p.signed_at), lvx, fy+19, 6.5, "normal", {maxWidth:lend-lvx});
+        pdf.setTextColor(0,0,0);
+      }
+      fy += 44;
+    }
     await sigRow(3, "RECEIVED BY :", false, fy);
   }
 
