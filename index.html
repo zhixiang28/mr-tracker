@@ -508,6 +508,7 @@
       <button type="button" onclick="newForm()" title="Clear the form and start a new requisition">New</button>
       <button type="button" data-full onclick="duplicateForm()" title="Create a fresh, unsaved copy of this form">Duplicate</button>
       <button type="button" class="btn-soft" onclick="saveForm()" title="Save what you have so far and finish later">Save Draft</button>
+      <button type="button" onclick="shareDraft()" title="Let colleagues edit this draft with you">Share</button>
     </div>
   </div>
 
@@ -614,6 +615,7 @@
         <button class="primary sign-choice" id="submitBtn" onclick="submitToDashboard()" title="Save this requisition and get the signing link">Submit for approval</button>
         <button class="btn-outline sign-choice" id="eSignBtn" style="display:none">Cancel</button>
       </div>
+      <div id="draftInfo" style="color:#2050bd;font-size:12px;margin-top:6px;font-weight:600"></div>
       <div id="autoNote" style="color:#6b7280;font-size:12px;margin-top:6px"></div>
       <div class="status" id="status"></div>
     </div>
@@ -674,6 +676,7 @@
 <script src="notify.js"></script>
 <script src="mrf.js"></script>
 <script src="mrfexport.js"></script>
+<script src="draftshare.js"></script>
 <script src="notifysetup.js"></script>
 <script src="appbar.js"></script>
 <script src="supplier.js"></script>
@@ -773,7 +776,7 @@ function addRow(data, insertAfterEl=null){
 function duplicateForm(){
   if(!confirm("Duplicate this form? This creates a brand-new, unsaved copy with everything currently filled in — the original (if already submitted or saved) stays untouched.")) return;
   currentRequisitionId = null;
-  currentDraftId = null; _asLast = "";
+  currentDraftId = null; _asLast = ""; currentRev = null; draftIsOwner = true; draftShared = []; paintDraftInfo();
   editRequisitionId = null;
   document.getElementById("declineReviseBanner")?.remove();
   const btn = document.getElementById("submitBtn");
@@ -966,19 +969,71 @@ function apply(data){
 }
 
 let currentDraftId = null;
+let currentRev = null, draftIsOwner = true, draftOwnerName = "", draftShared = [];   // sharing: version of the draft this form was loaded from, who owns it, who else may edit
 let editRequisitionId = null, editSteps = [];
 let adminEditId = null; // set when an admin opened an existing requisition from the dashboard to change it
 
 async function saveForm(){
   const data=collect(true);
   const label = data.meta.projectName || `Draft ${fmtDMY(new Date())}`;
-  const {data: res, error} = await supabaseClient.rpc("save_draft", {
+  let {data: res, error} = await supabaseClient.rpc("save_draft_shared", {
     p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
-    p_label: label, p_header: data.meta, p_items: data.rows
+    p_label: label, p_header: data.meta, p_items: data.rows, p_base_rev: currentRev
   });
+  if(res && res.conflict){
+    if(await draftConflict(res) === "loaded") return;
+    ({data: res, error} = await supabaseClient.rpc("save_draft_shared", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId, p_label: label, p_header: data.meta, p_items: data.rows, p_base_rev: currentRev}));
+  }
   if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not save draft."); return; }
-  currentDraftId = res.id; _asLast = JSON.stringify([data.meta, data.rows]);
+  currentDraftId = res.id; currentRev = res.rev; _asLast = JSON.stringify([data.meta, data.rows]);
   setStatus(`Draft "${label}" saved to your account.`);
+  paintDraftInfo(); startDraftPoll();
+}
+// someone else saved this shared draft while you were editing: choose their version or keep yours
+let _conflictOpen = false;
+async function draftConflict(res){
+  if(_conflictOpen) return "overwrite";
+  _conflictOpen = true;
+  try{
+    const who = res.updated_by_name || "Someone";
+    if(confirm(`${who} changed this draft while you were editing it.\n\nOK = load their version (your latest edits here are replaced)\nCancel = keep yours and save over theirs`)){
+      apply({meta: res.header, rows: res.items}); currentRev = res.rev;
+      { const d = collect(true); _asLast = JSON.stringify([d.meta, d.rows]); }
+      setStatus(`Loaded ${who}'s version.`); return "loaded";
+    }
+    currentRev = res.rev; return "overwrite";
+  } finally { _conflictOpen = false; }
+}
+function paintDraftInfo(){
+  const el = document.getElementById("draftInfo"); if(!el) return;
+  el.textContent = !currentDraftId ? "" : !draftIsOwner ? `Shared with you by ${draftOwnerName} — you can edit it.` : draftShared.length ? `Shared with ${draftShared.map(p=>p.name).join(", ")}` : "";
+}
+async function shareDraft(){
+  if(editRequisitionId || adminEditId){ setStatus("Only a new requisition can be shared as a draft."); return; }
+  if(!draftIsOwner){ setStatus(`Only ${draftOwnerName} can share this draft.`); return; }
+  if(!currentDraftId){
+    if(!collect().rows.some(r => String(r[0]||"").trim())){ setStatus("Add at least one item first, then share."); return; }
+    await saveForm(); if(!currentDraftId) return;
+  }
+  DraftShare.open({client: supabaseClient, personId: requesterId, pin: requesterPin, draftId: currentDraftId, current: draftShared,
+    onSaved: list => { draftShared = list; paintDraftInfo(); startDraftPoll(); setStatus(list.length ? `Shared with ${list.map(p=>p.name).join(", ")}.` : "Not shared with anyone."); }});
+}
+// while a shared draft is open, pick up other people's edits (only when you have nothing unsaved)
+let _draftPoll = null;
+function startDraftPoll(){
+  if(_draftPoll || !(draftShared.length || !draftIsOwner)) return;
+  _draftPoll = setInterval(async () => {
+    if(!currentDraftId || document.visibilityState !== "visible" || _noAutosave) return;
+    const {data} = await supabaseClient.rpc("draft_rev", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
+    if(!data || !data.success) return;
+    if(data.done){ setStatus("This draft was submitted, so it is no longer open for editing."); return; }
+    if(currentRev != null && data.rev > currentRev){
+      const d = collect(true);
+      if(JSON.stringify([d.meta, d.rows]) !== _asLast) return;            // you have unsaved edits: the conflict question is asked when you save
+      const {data: res} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
+      if(res && res.success){ apply({meta: res.header, rows: res.items}); currentRev = res.rev; { const e = collect(true); _asLast = JSON.stringify([e.meta, e.rows]); } draftShared = res.shared_with || []; paintDraftInfo(); setStatus(`Updated with ${res.updated_by_name || "someone"}'s changes.`); }
+    }
+  }, 15000);
 }
 
 // ---- autosave: once the form has an item it is kept as a server draft, no need to press Save Draft ----
@@ -999,12 +1054,16 @@ async function autosave(){
   const label = data.meta.projectName || `Draft ${fmtDMY(new Date())}`;
   _asBusy = (async () => {
     try{
-      const {data: res, error} = await supabaseClient.rpc("save_draft", {
+      let {data: res, error} = await supabaseClient.rpc("save_draft_shared", {
         p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId,
-        p_label: label, p_header: data.meta, p_items: data.rows
+        p_label: label, p_header: data.meta, p_items: data.rows, p_base_rev: currentRev
       });
+      if(res && res.conflict){
+        if(await draftConflict(res) === "loaded") return;
+        ({data: res, error} = await supabaseClient.rpc("save_draft_shared", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId, p_label: label, p_header: data.meta, p_items: data.rows, p_base_rev: currentRev}));
+      }
       if(!error && res && res.success && !_noAutosave){
-        currentDraftId = res.id; _asLast = json;
+        currentDraftId = res.id; currentRev = res.rev; _asLast = json; paintDraftInfo();
         const n = document.getElementById("autoNote");
         if(n){ n.textContent = "Auto-saved to My Drafts · " + new Date().toLocaleTimeString("en-SG",{hour:"2-digit",minute:"2-digit"}); }
       }
@@ -1185,13 +1244,14 @@ async function continueDraft(draftId){
   const {data: res, error} = await supabaseClient.rpc("load_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
   if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not load draft."); return; }
   apply({meta: res.header, rows: res.items});
-  currentDraftId = draftId;
+  currentDraftId = draftId; currentRev = res.rev; draftIsOwner = res.is_owner !== false; draftOwnerName = res.owner_name || ""; draftShared = res.shared_with || [];
   { const d = collect(true); _asLast = JSON.stringify([d.meta, d.rows]); }
-  setStatus("Draft loaded — continue editing and submit when ready.");
+  paintDraftInfo(); startDraftPoll();
+  setStatus(draftIsOwner ? "Draft loaded — continue editing and submit when ready." : `Draft shared by ${draftOwnerName} — your edits are saved to it for both of you.`);
 }
 async function deleteDraftFromList(draftId){
   if(!confirm("Delete this draft? This can't be undone.")) return;
-  const {data: res, error} = await supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
+  const {data: res, error} = await supabaseClient.rpc("finish_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: draftId});
   if(error || !res.success){ setStatus((res&&res.error)||(error&&error.message)||"Could not delete draft."); return; }
   if(currentDraftId===draftId) currentDraftId=null;
 }
@@ -1351,7 +1411,7 @@ function newForm(){
   const lx=document.getElementById("loaExempt"); if(lx) lx.checked=false;
   const vs=document.getElementById("verifierSel"); if(vs) vs.value="";
   currentRequisitionId=null;
-  currentDraftId=null; _asLast="";
+  currentDraftId=null; _asLast=""; currentRev=null; draftIsOwner=true; draftShared=[]; paintDraftInfo();
   updateSubmitBtnLabel();
   setStatus("New blank requisition created.");
 }
@@ -1606,7 +1666,7 @@ async function submitToDashboard(){
     showSubmitResult(data.tracking_no, data.first_token, grand, data.verifier);
     if(currentDraftId){
       // This draft has now been submitted — remove it from the drafts list
-      supabaseClient.rpc("delete_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
+      supabaseClient.rpc("finish_draft", {p_person_id: requesterId, p_pin: requesterPin, p_draft_id: currentDraftId});
     }
     resetFormForNext();
     setStatus(`Submitted — tracking no. ${data.tracking_no}.`);
@@ -1639,7 +1699,7 @@ function resetFormForNext(){
   addRow();
   recalc();
   currentRequisitionId=null;
-  currentDraftId=null; _asLast=""; _noAutosave=false;
+  currentDraftId=null; _asLast=""; _noAutosave=false; currentRev=null; draftIsOwner=true; draftShared=[]; paintDraftInfo();
   updateSubmitBtnLabel();
   localStorage.removeItem(STORAGE_KEY);
   updateLoginBar();

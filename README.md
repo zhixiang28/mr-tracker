@@ -134,3 +134,7 @@ Everyone is a **Member**; admins give people more **roles** with the *Roles* but
 Every page's **Export PDF / Export CSV** (form `index.html`, form view `view.html`, signing page `esign.html`) calls `MRFExport.pdf(req)` / `MRFExport.csv(req)` — one A4 layout like the paper MRF and one CSV layout, files named `MRF_<project>_<yymmdd>`. The *Include “Received by”* tick box (`ExportOpts` in `session.js`) is honoured by both.
 ## Pre-registered staff (`preapproved_people`)
 Staff imported from the company directory (name, email, job title) live in `preapproved_people` (RLS on, no policies; only SECURITY DEFINER functions read it). They still verify their email with the 6-digit code; `start_registration` uses the stored name (so the name field can stay empty) and `verify_registration` copies the stored job title to their new `people` row and stamps `claimed_at`.
+
+
+## Shared drafts
+`draft_shares` (RLS on; only functions touch it) lets a draft's owner give colleagues edit access (`share_draft`, the owner's list replaces the previous one; sharees are notified). `save_draft_shared(..., p_base_rev)` is optimistic locking on `drafts.rev` — a stale save returns `conflict` with the latest content. `list_my_drafts` / `load_draft` include drafts shared with you; `finish_draft` (used on submit and for Delete) marks a draft `done` for everyone; `leave_draft` removes yourself; `draft_rev` is polled by an open shared draft. UI: `draftshare.js` (picker), `drafts.html`, `index.html`.
