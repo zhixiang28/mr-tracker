@@ -26,7 +26,8 @@
   .card .t{ font-weight:700; font-size:14.5px; }
   .card .m{ font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
   .card .m b{ color:var(--ink2); }
-  .card .acts{ display:flex; gap:8px; flex:none; }
+  .card .acts{ display:flex; gap:8px; flex:none; flex-wrap:wrap; justify-content:flex-end; }
+  .tag{ display:inline-block; font-size:11px; font-weight:700; background:#eef4ff; color:#2050bd; border-radius:999px; padding:2px 9px; margin-left:4px; vertical-align:middle; } .tag.mine{ background:#f0fdf4; color:#166534; }
   .empty{ text-align:center; color:var(--muted); padding:50px 16px; background:var(--surface); border:1px dashed var(--line); border-radius:12px; line-height:1.6; }
   .note{ font-size:12px; color:var(--muted); margin-top:14px; line-height:1.5; }
   .msg{ font-size:12.5px; color:var(--bad); min-height:18px; margin-top:8px; }
@@ -56,6 +57,7 @@
 </div>
 
 <script src="dates.js"></script>
+<script src="draftshare.js"></script>
 <script src="appbar.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -78,21 +80,29 @@ async function load(){
   if(error || !data || !data.success){ el.innerHTML = `<div class="empty">${esc((data&&data.error)||(error&&error.message)||"Could not load your drafts.")}</div>`; return; }
   const drafts = data.drafts || [];
   if(!drafts.length){ el.innerHTML = `<div class="empty"><b>No drafts yet.</b><br>Start a requisition and add an item — it is saved here automatically.<br><br><a class="btn primary" href="index.html">+ New requisition</a></div>`; return; }
+  window._drafts = drafts;
   el.innerHTML = drafts.map(d => {
-    const h = d.header || {}, n = Number(d.item_count || 0);
+    const h = d.header || {}, n = Number(d.item_count || 0), mine = d.is_owner !== false;
     const bits = [`<b>${n}</b> item${n===1?"":"s"}`, n ? money(d.total) : "", h.projectLocation ? esc(h.projectLocation) : ""].filter(Boolean).join(" · ");
+    const who = !mine ? `<span class="tag">Shared by ${esc(d.owner_name||"a colleague")}</span>` : (d.shared_with||[]).length ? `<span class="tag mine">Shared with ${esc(d.shared_with.map(p=>p.name).join(", "))}</span>` : "";
+    const edited = d.updated_by_name ? ` by ${esc(d.updated_by_name)}` : "";
     return `<div class="card" data-id="${esc(d.id)}">
-      <div><div class="t">${esc(d.label || h.projectName || "Untitled draft")}</div>
-        <div class="m">${bits}<br>Last saved ${esc(when(d.updated_at))}</div></div>
+      <div><div class="t">${esc(d.label || h.projectName || "Untitled draft")} ${who}</div>
+        <div class="m">${bits}<br>Last saved ${esc(when(d.updated_at))}${edited}</div></div>
       <div class="acts"><a class="btn primary" href="index.html?draftId=${encodeURIComponent(d.id)}">Continue</a>
-        <button type="button" class="danger" data-del="${esc(d.id)}">Delete</button></div>
+        ${mine ? `<button type="button" data-share="${esc(d.id)}">Share</button><button type="button" class="danger" data-del="${esc(d.id)}">Delete</button>`
+               : `<button type="button" data-leave="${esc(d.id)}" title="Take this draft off your list">Remove</button>`}</div>
     </div>`;
   }).join("");
 }
 document.getElementById("list").addEventListener("click", async e => {
-  const id = e.target && e.target.getAttribute && e.target.getAttribute("data-del"); if(!id) return;
-  if(!confirm("Delete this draft? This can't be undone.")) return;
-  const {data, error} = await supabaseClient.rpc("delete_draft", {p_person_id: myId, p_pin: myPin, p_draft_id: id});
+  const g = n => e.target && e.target.getAttribute && e.target.getAttribute(n);
+  if(g("data-share")){ const dr = (window._drafts||[]).find(x=>x.id===g("data-share")); DraftShare.open({client: supabaseClient, personId: myId, pin: myPin, draftId: g("data-share"), current: (dr && dr.shared_with) || [], onSaved: () => load()}); return; }
+  if(g("data-leave")){ await supabaseClient.rpc("leave_draft", {p_person_id: myId, p_pin: myPin, p_draft_id: g("data-leave")}); load(); return; }
+  const id = g("data-del"); if(!id) return;
+  const sh = ((window._drafts||[]).find(x=>x.id===id)||{}).shared_with || [];
+  if(!confirm(sh.length ? `Delete this draft? It is shared with ${sh.map(p=>p.name).join(", ")}, so they lose it too.` : "Delete this draft? This can't be undone.")) return;
+  const {data, error} = await supabaseClient.rpc("finish_draft", {p_person_id: myId, p_pin: myPin, p_draft_id: id});
   if(error || !data || !data.success){ document.getElementById("msg").textContent = (data&&data.error)||(error&&error.message)||"Could not delete the draft."; return; }
   document.getElementById("msg").textContent = "";
   load();
