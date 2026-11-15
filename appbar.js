@@ -221,9 +221,12 @@
     }
   }
   /* ---- one-time "What's new" notice (remembered per browser; bump the id to show a new one) ---- */
-  const VERSION = "2026.10.17";
-  const NOTICE_ID = "upgrade-2026-10i";
+  const VERSION = "2026.11.15";
+  const NOTICE_ID = "upgrade-2026-11a";
   const NOTICE = [
+    ["Security update", "Sign-up codes, emails and submitting are now better protected. After 5 wrong PINs, sign-in pauses for longer each time and you are emailed. Your PIN and the way you sign in are unchanged."],
+    ["New: Settings → Security", "See your recent sign-in activity and turn on sign-in alerts, so you hear when your account is used on a new device. Optional — nothing changes if you skip it."],
+    ["Share a draft", "Press Share on a draft to let colleagues edit it with you."],
     ["Phone app", "Install MR Tracker on your phone — open your name menu → Get the phone app and scan the code. The phone view keeps the everyday features and has a Full version switch. There is also a light / dark setting in Settings."],
     ["Just one signature", "Only the manager’s verification is signed. Procurement and the person who receives the items now just press a button — “Mark as ordered” and “Mark as received” — on the dashboard or the signing page. No drawing, no PIN to type."],
     ["Who has to sign, by amount", "The form shows who must verify your total and lets you pick them; the Approval rules button shows the full table. Orders of $50,000+ ask for the vendor quotation and PO number (LOA from $150,000), and you are warned if the supply date is under 3 working days away."],
@@ -285,6 +288,28 @@
       }
     }catch(_){}
     showNotice();
+    setTimeout(securityPrompt, 1500);
+  }
+  /* once per account, on the dashboard: offer sign-in alerts (skipping it changes nothing) */
+  async function securityPrompt(){
+    try{
+      const c = state.opts.client, pid = sessionStorage.getItem("sl_person_id"), pin = sessionStorage.getItem("sl_pin");
+      if(!c || !pid || !pin || state.opts.active !== "dashboard") return;
+      if(sessionStorage.getItem("sl_sec_asked") || document.getElementById("wnBack") || document.getElementById("abSec")) return;   // not on top of another pop-up; ask next visit
+      const {data} = await c.rpc("get_my_security", {p_person_id: pid, p_pin: pin});
+      sessionStorage.setItem("sl_sec_asked", "1");
+      if(!data || !data.success || data.prompted || data.login_alerts) return;
+      const back = document.createElement("div"); back.id = "abSec"; back.className = "wn-back";
+      back.setAttribute("role","dialog"); back.setAttribute("aria-modal","true"); back.setAttribute("aria-label","Sign-in alerts");
+      back.innerHTML = `<div class="wn-box" style="max-width:440px">
+        <div class="wn-head"><h2>🔒 Protect your account</h2><div class="wn-sub">A quick, optional extra. Your PIN stays the same.</div></div>
+        <div class="wn-body" style="padding-top:14px;padding-bottom:12px;font-size:13.5px;line-height:1.55"><b>Turn on sign-in alerts?</b><br>We will email you when your account signs in from a device or browser we have not seen before, so you know straight away if someone else uses it.</div>
+        <div class="wn-foot" style="justify-content:flex-end;gap:8px"><button type="button" id="abSecNo" style="background:none;color:inherit;border-color:var(--line,#d7dbe0)">Not now</button><button type="button" id="abSecYes">Turn on alerts</button></div></div>`;
+      const done = async (on) => { back.remove(); try{ await c.rpc(on ? "set_login_alerts" : "mark_security_prompted", on ? {p_person_id: pid, p_pin: pin, p_on: true} : {p_person_id: pid, p_pin: pin}); }catch(_){} };
+      back.querySelector("#abSecYes").addEventListener("click", () => done(true));
+      back.querySelector("#abSecNo").addEventListener("click", () => done(false));
+      document.body.appendChild(back);
+    }catch(_){}
   }
 
   function setAdmin(v){

@@ -138,3 +138,11 @@ Staff imported from the company directory (name, email, job title) live in `prea
 
 ## Shared drafts
 `draft_shares` (RLS on; only functions touch it) lets a draft's owner give colleagues edit access (`share_draft`, the owner's list replaces the previous one; sharees are notified). `save_draft_shared(..., p_base_rev)` is optimistic locking on `drafts.rev` — a stale save returns `conflict` with the latest content. `list_my_drafts` / `load_draft` include drafts shared with you; `finish_draft` (used on submit and for Delete) marks a draft `done` for everyone; `leave_draft` removes yourself; `draft_rev` is polled by an open shared draft. UI: `draftshare.js` (picker), `drafts.html`, `index.html`.
+
+
+## Security hardening (Nov 2026)
+- Sign-up: `start_registration_v2` emails the code server-side (`send_app_email`, which carries the vault `notify_secret`) and never returns it; codes use `gen_random_bytes`; resend is limited to 1/min and 6/hour.
+- `create_requisition_v2` requires the submitter's PIN. `email_sign_link` sends the signing link from the server to company addresses only. Browsers no longer call the `send-email` edge function.
+- `verify_pin`: lockouts escalate (15 min → 1 h → 6 h within 24 h), are logged in `login_events`, and email the owner (`security_alert`). `login_by_email` logs each sign-in (IP, user agent) and, when `people.login_alerts` is on, alerts on an unseen browser.
+- Settings → Security (`get_my_security`, `set_login_alerts`); one-time prompt in `appbar.js`.
+- Unused legacy functions (`register_person`, `login_person`, `send_verification_email`, `hash_person_pin`) are no longer callable by anon/authenticated; stale permissive policies removed.

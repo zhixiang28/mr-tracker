@@ -105,19 +105,6 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
-
-async function sendEmail(to, subject, html, fromName){
-  try{
-    const resp = await fetch(SEND_EMAIL_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({to, subject, html, from_name: fromName})
-    });
-    const result = await resp.json();
-    return result.success === true;
-  }catch(e){ return false; }
-}
 
 const params = new URLSearchParams(window.location.search);
 const redirectTo = params.get("redirect") || "dashboard.html";
@@ -172,11 +159,9 @@ async function handleSignup(){
   if(!/^\d{4}$/.test(pin1)){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PIN must be exactly 4 digits."; return; }
   if(pin1 !== pin2){ msg.className="msg error"; msg.style.display="block"; msg.textContent="PINs don't match — try again."; return; }
 
-  const {data, error} = await supabaseClient.rpc("start_registration", {p_name: name, p_email: email, p_pin: pin1});
+  // the server emails the code itself; it is never sent to this page
+  const {data, error} = await supabaseClient.rpc("start_registration_v2", {p_name: name, p_email: email, p_pin: pin1});
   if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not start registration."; return; }
-
-  const sent = await sendEmail(data.email, data.subject, data.html, data.from_name);
-  if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the verification email — check your connection and try again."; return; }
 
   pendingSignup = {name, email, pin: pin1};
   document.getElementById("signupPanel").style.display="none";
@@ -220,10 +205,8 @@ async function handleManualVerify(){
 async function handleResendCode(){
   const msg = document.getElementById("verifyMsg");
   if(!pendingSignup){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Session expired — please start over."; return; }
-  const {data, error} = await supabaseClient.rpc("start_registration", {p_name: pendingSignup.name, p_email: pendingSignup.email, p_pin: pendingSignup.pin});
+  const {data, error} = await supabaseClient.rpc("resend_registration_code", {p_email: pendingSignup.email});
   if(error || !data.success){ msg.className="msg error"; msg.style.display="block"; msg.textContent=(data&&data.error)||"Could not resend."; return; }
-  const sent = await sendEmail(data.email, data.subject, data.html, data.from_name);
-  if(!sent){ msg.className="msg error"; msg.style.display="block"; msg.textContent="Could not send the email — try again."; return; }
   msg.className="msg success"; msg.style.display="block"; msg.textContent="New code sent — check your email.";
 }
 

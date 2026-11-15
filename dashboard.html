@@ -338,19 +338,6 @@
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9neHV3Y2hvamV4em5zeHZ2ZGhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0MTMyNTIsImV4cCI6MjEwMzk4OTI1Mn0.fbYPBohH22SXebXBQNoy0EoFDQeLwgKPyR3_v3r4R3U";
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
-
-async function sendEmail(to, subject, html){
-  try{
-    const resp = await fetch(SEND_EMAIL_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({to, subject, html})
-    });
-    const result = await resp.json();
-    return result.success === true;
-  }catch(e){ return false; }
-}
 
 const ALL_STAGES = ["Submitted","Manager Approved","Procurement Approved","Purchased","Received","Declined","Withdrawn"];
 let STAGES = ALL_STAGES.slice();      // "Procurement Approved" only exists for requisitions made before the 3-step flow; hidden when there are none
