@@ -520,16 +520,8 @@ function croppedSignature(){
   return c.toDataURL("image/png");
 }
 
-const SEND_EMAIL_URL = SUPABASE_URL + "/functions/v1/send-email";
-// tell the requester (or purchaser) by email when something important happened on this link
-async function notify(event){
-  try{
-    const {data} = await supabaseClient.rpc("get_esign_notification", {p_token: token, p_event: event});
-    if(!data || !data.success) return;
-    await fetch(SEND_EMAIL_URL, {method:"POST", headers:{"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({to:data.to, subject:data.subject, html:data.html})});
-  }catch(e){ console.error("Notification email failed:", e); }
-}
+// notifications are sent by the server (Settings → Notifications); nothing is emailed from the browser
+async function notify(event){}
 
 async function submitSignature(){
   const err = document.getElementById("mErr");

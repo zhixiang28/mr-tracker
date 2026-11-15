@@ -64,13 +64,14 @@
   <div class="pagehead">
     <div>
       <h1>Settings</h1>
-      <div class="sub">Your profile, notifications and reminders, all in one place</div>
+      <div class="sub">Your profile, notifications, security and reminders, all in one place</div>
     </div>
   </div>
 
   <div class="tabs" role="tablist">
     <button type="button" role="tab" id="tabAccount" aria-selected="true" onclick="showTab('account')">👤 Account</button>
     <button type="button" role="tab" id="tabNotifications" aria-selected="false" onclick="showTab('notifications')">🔔 Notifications</button>
+    <button type="button" role="tab" id="tabSecurity" aria-selected="false" onclick="showTab('security')">🔒 Security</button>
     <button type="button" role="tab" data-full id="tabReminders" aria-selected="false" onclick="showTab('reminders')">⏰ Reminders</button>
   </div>
 
@@ -121,6 +122,24 @@
       <div class="note" style="padding-top:8px">Pick how long each stage may take. Past that, it shows as <b>overdue</b> on your dashboard and in the assistant, and you get a notification if <i>Overdue reminders</i> is on. Switch a stage off to stop checking it.</div>
       <div id="remRows"></div>
       <div class="foot"><span class="note" style="padding:0;margin-right:auto" id="remMsg"></span><button type="button" class="primary" id="remSave" onclick="saveReminders()">Save reminders</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Security ===== -->
+  <section id="paneSecurity" hidden>
+    <div class="card">
+      <h2>Sign-in alerts</h2>
+      <div class="row"><div class="ico">🔔</div><div class="txt"><b>Tell me about new sign-ins</b><span>Get an email (and a notification, if you turned them on) when your account signs in from a device or browser we have not seen before.</span></div><label class="sw"><input type="checkbox" id="secAlerts" onchange="saveAlerts(this.checked)"><i></i></label></div>
+      <div class="row"><div class="ico">⛔</div><div class="txt"><b>Wrong-PIN protection</b><span>Always on: after 5 wrong PINs sign-in pauses for 15 minutes, then 1 hour, then 6 hours if it keeps happening — and you are emailed.</span></div></div>
+    </div>
+    <div class="card">
+      <h2>Recent sign-in activity</h2>
+      <div id="secEvents" class="note" style="padding:10px 0 14px">Loading…</div>
+      <div class="note" style="padding:0 0 14px">See something that was not you? <a href="#" onclick="showTab('account');return false" style="color:var(--accent);font-weight:700">Change your PIN</a> and tell an admin.</div>
+    </div>
+    <div class="card">
+      <h2>Keeping your account safe</h2>
+      <div class="note" style="padding:8px 0 14px;line-height:1.7">• Do not use an obvious PIN (1234, 0000, your birthday) and do not share it.<br>• On a shared computer, do not tick “Keep me signed in”, and use <b>Log out</b> when you finish.<br>• We never ask for your PIN by email or chat.</div>
     </div>
   </section>
 
@@ -186,8 +205,32 @@ function paintTheme(){
   $("thNote").textContent = m === "auto" ? "Auto follows your phone or computer (now " + (Theme.isDark() ? "dark" : "light") + ")." : m === "dark" ? "Dark on this device." : "Light on this device.";
 }
 document.querySelectorAll(".seg [data-th]").forEach(b => b.addEventListener("click", () => { Theme.set(b.dataset.th); paintTheme(); }));
+/* ---------------- security ---------------- */
+function deviceOf(ua){
+  ua = String(ua||"");
+  const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS X|Macintosh/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
+  const br = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "";
+  return [os, br].filter(Boolean).join(" · ") || "Unknown device";
+}
+async function loadSecurity(){
+  const {data, error} = await supabaseClient.rpc("get_my_security", auth());
+  const box = $("secEvents");
+  if(error || !data || !data.success){ box.textContent = (data && data.error) || "Could not load your sign-in activity."; return; }
+  $("secAlerts").checked = !!data.login_alerts;
+  const ev = data.events || [];
+  box.innerHTML = ev.length ? ev.map(e => {
+    const what = e.kind === "lockout" ? ["⛔","Sign-in paused after 5 wrong PINs","#b91c1c"] : e.ok ? ["✓","Signed in","#15803d"] : ["✕","Wrong PIN","#b45309"];
+    return `<div style="display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid #eef0f4"><span style="color:${what[2]};font-weight:800;width:16px;text-align:center">${what[0]}</span><span style="flex:1;color:var(--ink)"><b style="color:${what[2]}">${what[1]}</b> · ${esc(deviceOf(e.ua))}${e.ip ? ` · <span style="color:var(--muted)">${esc(e.ip)}</span>` : ""}</span><span style="white-space:nowrap">${esc(new Date(e.at).toLocaleString("en-SG",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}))}</span></div>`;
+  }).join("") : "No sign-ins recorded yet. Activity is kept from now on.";
+}
+async function saveAlerts(on){
+  const {data, error} = await supabaseClient.rpc("set_login_alerts", Object.assign(auth(), {p_on: on}));
+  if(error || !data || !data.success){ toast((data && data.error) || "Could not save.", true); $("secAlerts").checked = !on; return; }
+  toast(on ? "Sign-in alerts are on" : "Sign-in alerts are off");
+}
 function showTab(n){
-  ["notifications","reminders","account"].forEach(k=>{ $("pane"+k[0].toUpperCase()+k.slice(1)).hidden = k !== n; $("tab"+k[0].toUpperCase()+k.slice(1)).setAttribute("aria-selected", k === n); });
+  if(n === "security") loadSecurity();
+  ["notifications","reminders","security","account"].forEach(k=>{ $("pane"+k[0].toUpperCase()+k.slice(1)).hidden = k !== n; $("tab"+k[0].toUpperCase()+k.slice(1)).setAttribute("aria-selected", k === n); });
   history.replaceState(null, "", "settings.html?tab=" + n);
 }
 
@@ -380,7 +423,7 @@ async function changeMyPin(){
 (function init(){
   if(!myId || !myPin) return;
   const q = new URLSearchParams(location.search), tab = q.get("tab");
-  paintTheme(); showTab(["notifications","reminders"].includes(tab) ? tab : "account");
+  paintTheme(); showTab(["notifications","reminders","security"].includes(tab) ? tab : "account");
   loadPrefs(); loadReminders(); loadProfile();
   if(q.get("from") === "prompt") supabaseClient.rpc("mark_notify_prompted", auth()).then(()=>{});   // they came from the post-submit offer: don't ask again
 })();

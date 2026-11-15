@@ -1656,8 +1656,8 @@ async function submitToDashboard(){
     }
 
     _noAutosave = true; clearTimeout(_asTimer); if(_asBusy) await _asBusy;   // no autosave may re-create the draft we are about to remove
-    const {data, error} = await supabaseClient.rpc("create_requisition", {
-      p_header: header, p_items: items, p_requester_person_id: requesterId
+    const {data, error} = await supabaseClient.rpc("create_requisition_v2", {
+      p_header: header, p_items: items, p_person_id: requesterId, p_pin: requesterPin
     });
     if(error) throw error;
     if(!data.success) throw new Error(data.error || "Unknown error");
@@ -1722,7 +1722,7 @@ function showLinkResult(o){
     tone:"success", title:o.title, sub:o.sub, track:{done:0, labels:["Manager","Procurement","Received"]},
     html:`<p>${o.intro}</p>
       <div class="link-copy-box"><input type="text" readonly value="${o.link}" id="firstSignLinkInput"><button type="button" onclick="copySignLink()">Copy</button></div>
-      <div style="display:flex;gap:6px"><input type="email" id="emailLinkInput" placeholder="Or type an email to send it instead" style="flex:1">
+      <div style="display:flex;gap:6px"><input type="email" id="emailLinkInput" placeholder="Or type a company email to send it instead" style="flex:1">
         <button type="button" onclick="emailTheLink('${o.link.replace(/'/g,"\\'")}', '${o.role}', 'emailLinkInput', 'emailLinkStatus')">Send</button></div>
       <div id="emailLinkStatus" style="font-size:11.5px;margin-top:4px;color:#6b7280"></div>`,
     primary:{label:o.copied?"Link copied ✓ — copy again":"Copy link", onClick:(el)=>{ copySignLink().then(()=>{ el.textContent="Copied ✓"; }); return false; }},
@@ -1737,17 +1737,9 @@ async function emailTheLink(link, roleName, inputId, statusId){
   if(!email){ statusEl.textContent="Enter an email address."; return; }
   statusEl.textContent="Sending...";
   try{
-    const resp = await fetch(SUPABASE_URL + "/functions/v1/send-email", {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"apikey":SUPABASE_ANON_KEY},
-      body: JSON.stringify({
-        to: email,
-        subject: `Action needed: please sign as ${roleName}`,
-        html: `<p>You've been asked to review a purchase requisition as <b>${roleName}</b>.</p><p>Open this link to sign or decline: <a href="${link}">${link}</a></p>`
-      })
-    });
-    const result = await resp.json();
-    statusEl.textContent = result.success ? "Sent!" : (result.error || "Could not send.");
+    const token = new URL(link).searchParams.get("token");
+    const {data: result, error} = await supabaseClient.rpc("email_sign_link", {p_person_id: requesterId, p_pin: requesterPin, p_to: email, p_token: token});
+    statusEl.textContent = (!error && result && result.success) ? "Sent!" : ((result && result.error) || "Could not send.");
   }catch(e){ statusEl.textContent = "Could not send — check the address and try again."; }
 }
 async function copySignLink(){
