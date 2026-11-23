@@ -146,3 +146,7 @@ Staff imported from the company directory (name, email, job title) live in `prea
 - `verify_pin`: lockouts escalate (15 min → 1 h → 6 h within 24 h), are logged in `login_events`, and email the owner (`security_alert`). `login_by_email` logs each sign-in (IP, user agent) and, when `people.login_alerts` is on, alerts on an unseen browser.
 - Settings → Security (`get_my_security`, `set_login_alerts`); one-time prompt in `appbar.js`.
 - Unused legacy functions (`register_person`, `login_person`, `send_verification_email`, `hash_person_pin`) are no longer callable by anon/authenticated; stale permissive policies removed.
+
+
+## AI agents
+`people.is_agent` accounts (Admin Settings → AI agents; `admin_create_agent`, `admin_list_agents`, `admin_agent_key`) sign in like people but with a long random key (`mra_…`, stored hashed in `pin_hash`) passed as `p_pin`. Same lockout rules; roles never include Admin; `verifier_problem` refuses all signing/approving/Ordered/Received for agents; they are not offered in the draft-share picker and receive no security emails. A hand-made agent account (e.g. Muse) can also exist with a normal PIN — set `is_agent = true` on it.
