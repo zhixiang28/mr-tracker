@@ -125,6 +125,18 @@
     <div class="msg" id="rolesMsg"></div>
   </div>
 
+  <div class="card" id="agentCard" style="display:none">
+    <h2>AI agents — accounts for software that signs in</h2>
+    <div class="desc">An AI agent (for example Muse) signs in like a person, with a long random <b>key</b> instead of a 4-digit PIN. It gets only the role you pick (never Admin), and it can <b>never sign, approve or press Ordered / Received</b>. The key is shown once; make a new one or switch the agent off at any time.</div>
+    <div id="agentList"></div>
+    <div class="addrole" style="margin-top:10px">
+      <input id="agentName" placeholder="Agent name, e.g. Muse" maxlength="60">
+      <select id="agentRole"><option value="">Member only (own requisitions)</option></select>
+      <button class="primary" type="button" onclick="createAgent()">＋ Add AI agent</button>
+    </div>
+    <div class="msg" id="agentMsg"></div>
+  </div>
+
   <div class="card" id="notifCard" style="display:none">
     <h2>Notifications — who gets what</h2>
     <div class="desc">Choose who is told about each step. People still need to switch on Telegram, email or device alerts for themselves in Settings → Notifications, and they can mute types there too. <b>Procurement</b> means everyone given the Procurement role in the list above (button <i>Roles</i> → Procurement) — untick it here to pause, and give the role to someone else when you are ready.</div>
@@ -197,10 +209,56 @@ async function doLogin(){
   await loadFullPeopleList();
   document.getElementById("notifCard").style.display = "block";
   document.getElementById("rolesCard").style.display = "block";
+  document.getElementById("agentCard").style.display = "block";
+  loadAgents();
   loadNotifRules();
 }
 
 let fullPeopleList = [];
+
+/* ---------------- AI agents ---------------- */
+const agentArgs = () => ({p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin});
+async function loadAgents(){
+  const {data} = await supabaseClient.rpc("admin_list_agents", agentArgs());
+  const box = document.getElementById("agentList"), sel = document.getElementById("agentRole");
+  if(!data || !data.success){ box.textContent = (data&&data.error) || "Could not load agents."; return; }
+  if(sel.options.length <= 1) (ROLES||[]).filter(x=>x.active && x.name!=="Admin" && x.name!=="Member").forEach(x=>{ const o = document.createElement("option"); o.value = x.id; o.textContent = x.name + " role"; sel.appendChild(o); });
+  const fmt = d => d ? new Date(d).toLocaleString("en-SG",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "never";
+  box.innerHTML = (data.agents||[]).length ? (data.agents||[]).map(a=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 0;border-top:1px solid var(--line)">
+      <div style="flex:1;min-width:180px"><b>${escHtml(a.name)}</b>${a.revoked?' <span class="badge" style="background:#9ca3af">switched off</span>':' <span class="badge" style="background:#16a34a">active</span>'}
+        <div style="font-size:12px;color:var(--muted)">${(a.roles||[]).length?escHtml(a.roles.join(", "))+" · ":""}last used ${fmt(a.last_used)}</div></div>
+      <button class="secondary" type="button" onclick="agentKey('${a.id}','new')">New key</button>
+      ${a.revoked?"":`<button class="secondary" type="button" onclick="agentKey('${a.id}','revoke')">Switch off</button>`}</div>`).join("") : `<div style="font-size:12.5px;color:var(--muted);padding:6px 0">No AI agents yet.</div>`;
+}
+function showKey(name, id, key){
+  const back = document.createElement("div"); back.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:14px;z-index:1500";
+  back.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;padding:20px 22px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+    <h3 style="margin:0 0 6px">Key for ${escHtml(name)}</h3>
+    <p style="font-size:13px;color:#b91c1c;margin:0 0 10px"><b>Copy it now — it is shown only once.</b> Keep it in the agent's secret settings, never in a chat or a file in the code.</p>
+    <label style="font-size:11px;font-weight:700;color:#6b7280">AGENT ID</label><input readonly id="kId" value="${escHtml(id)}" style="width:100%;font:12.5px monospace;margin:3px 0 8px">
+    <label style="font-size:11px;font-weight:700;color:#6b7280">KEY</label><input readonly id="kKey" value="${escHtml(key)}" style="width:100%;font:12.5px monospace;margin:3px 0 10px">
+    <p style="font-size:12px;color:#6b7280;margin:0 0 12px">The agent calls the same database functions as the website, passing the agent id as <code>p_person_id</code> and the key as <code>p_pin</code> (for example <code>get_my_access</code> to test it).</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="secondary" type="button" id="kCopy">Copy key</button><button class="primary" type="button" id="kDone">I have saved it</button></div></div>`;
+  document.body.appendChild(back);
+  back.querySelector("#kCopy").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(key); back.querySelector("#kCopy").textContent = "Copied"; };
+  back.querySelector("#kDone").onclick = () => back.remove();
+}
+async function createAgent(){
+  const m = document.getElementById("agentMsg"), name = document.getElementById("agentName").value.trim(), role = document.getElementById("agentRole").value || null;
+  const {data, error} = await supabaseClient.rpc("admin_create_agent", Object.assign(agentArgs(), {p_name: name, p_role_id: role}));
+  if(error || !data || !data.success){ m.className = "msg error"; m.textContent = (data&&data.error) || (error&&error.message) || "Could not add the agent."; return; }
+  m.className = "msg ok"; m.textContent = "Added ✓"; document.getElementById("agentName").value = "";
+  showKey(data.name, data.id, data.key); await loadFullPeopleList(); loadAgents();
+}
+async function agentKey(id, action){
+  if(action === "revoke" && !confirm("Switch this agent off? It can no longer sign in until you make a new key.")) return;
+  if(action === "new" && !confirm("Make a new key? The old key stops working immediately.")) return;
+  const {data, error} = await supabaseClient.rpc("admin_agent_key", Object.assign(agentArgs(), {p_agent_id: id, p_action: action}));
+  if(error || !data || !data.success){ alert((data&&data.error) || (error&&error.message) || "Could not do that."); return; }
+  const a = (fullPeopleList||[]).find(x=>x.id===id);
+  if(data.key) showKey((a&&a.name) || "agent", id, data.key);
+  loadAgents();
+}
 
 async function loadFullPeopleList(){
   const {data, error} = await supabaseClient.rpc("admin_list_people", {p_admin_id: loggedInAdminId, p_admin_pin: loggedInAdminPin});
